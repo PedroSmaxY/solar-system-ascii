@@ -34,7 +34,7 @@ pub struct Camera {
     pub elevation: f64, // Radians (-PI/2 .. PI/2)
     pub distance_km: f64,
     pub fov_y_rad: f64,
-    pub saved_views: [BodyViewState; 3], // [Sun, Earth, Moon]
+    pub saved_views: [BodyViewState; 4], // [Sun, Mercury, Earth, Moon]
     pub transition: Option<CameraTransition>,
 
     // Free flight mode
@@ -46,9 +46,10 @@ pub struct Camera {
 
 impl Camera {
     pub fn new() -> Self {
+        let sun_view = Self::default_view(BodyId::Sun);
+        let mercury_view = Self::default_view(BodyId::Mercury);
         let earth_view = Self::default_view(BodyId::Earth);
         let moon_view = Self::default_view(BodyId::Moon);
-        let sun_view = Self::default_view(BodyId::Sun);
 
         Self {
             target_body: BodyId::Earth,
@@ -57,7 +58,7 @@ impl Camera {
             elevation: earth_view.elevation,
             distance_km: earth_view.distance_km,
             fov_y_rad: 45.0 * PI / 180.0,
-            saved_views: [sun_view, earth_view, moon_view],
+            saved_views: [sun_view, mercury_view, earth_view, moon_view],
             transition: None,
             free_flight: false,
             free_pos: Vec3::ZERO,
@@ -73,6 +74,11 @@ impl Camera {
                 azimuth: 0.0,
                 elevation: 0.0,
                 distance_km: 3_500_000.0,
+            },
+            BodyId::Mercury => BodyViewState {
+                azimuth: 3.90,        // Framing sunlit Caloris Basin, cratered terrain, and dramatic terminator
+                elevation: 0.18,
+                distance_km: 7_500.0,  // Dedicated perspective framing Mercury's 2,440 km disk
             },
             BodyId::Earth => BodyViewState {
                 azimuth: 2.30,        // Framing both daylit Americas/Atlantic and night city lights
@@ -190,6 +196,7 @@ impl Camera {
         self.cancel_transition();
         let min_dist = match self.target_body {
             BodyId::Earth => 6_800.0, // ~430 km above surface (ISS orbit)
+            BodyId::Mercury => 2_600.0, // ~160 km above surface (MESSENGER orbit)
             BodyId::Moon => 1_900.0,
             BodyId::Sun => 750_000.0,
         };

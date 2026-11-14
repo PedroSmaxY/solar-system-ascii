@@ -875,3 +875,222 @@ fn test_interplanetary_glare_continuity_no_void() {
         }
     }
 }
+
+#[test]
+fn test_mercury_keplerian_orbit_and_eccentricity() {
+    let orbit = KeplerOrbit::mercury_around_sun();
+    let pos_t0 = orbit.calculate_position(0.0);
+    let pos_period = orbit.calculate_position(orbit.period);
+
+    let diff = (pos_t0 - pos_period).length();
+    assert!(
+        diff < 1e-4,
+        "Mercury orbit must close after 1 orbital period: diff = {} km",
+        diff
+    );
+
+    // Sample distance across orbit to find perihelion and aphelion
+    let mut min_r = f64::MAX;
+    let mut max_r = 0.0f64;
+    for step in 0..360 {
+        let t = (step as f64 / 360.0) * orbit.period;
+        let r = orbit.calculate_position(t).length();
+        if r < min_r { min_r = r; }
+        if r > max_r { max_r = r; }
+    }
+
+    // Theoretical perihelion: a * (1 - e) = 57,909,050 * (1 - 0.20563) ≈ 46,001,200 km
+    // Theoretical aphelion: a * (1 + e) = 57,909,050 * (1 + 0.20563) ≈ 69,816,900 km
+    assert!((min_r - 46_001_200.0).abs() < 50_000.0, "Mercury perihelion mismatch: {}", min_r);
+    assert!((max_r - 69_816_900.0).abs() < 50_000.0, "Mercury aphelion mismatch: {}", max_r);
+}
+
+#[test]
+fn test_mercury_spin_orbit_resonance_3_to_2() {
+    let physics = SolarSystemPhysics::new();
+    let mercury = &physics.mercury;
+    let p_orbit = mercury.orbit.as_ref().unwrap().period;
+    let p_spin = mercury.rotation_period_secs;
+
+    // 2 orbits = 3 rotations
+    let ratio = (2.0 * p_orbit) / (3.0 * p_spin);
+    assert!(
+        (ratio - 1.0).abs() < 1e-3,
+        "Mercury must obey 3:2 spin-orbit resonance: ratio = {}",
+        ratio
+    );
+}
+
+#[test]
+fn test_mercury_shader_albedo_and_lommel_seeliger() {
+    use solar_system_ascii::render::mercury_shader::MercuryShader;
+
+    let shader = MercuryShader::new();
+    let alb = shader.sample_albedo(0.0, 0.0);
+    assert!(alb > 20.0 && alb < 250.0, "Valid photographic albedo expected");
+
+    // Caloris Basin is located around Lat 30.5° N, Lon 189.8° W
+    let caloris_elev = shader.sample_elevation(30.5, -189.8);
+    assert!(caloris_elev > 0.0, "Caloris basin elevation data present");
+
+    // Sunlit side vs Night side
+    let local_hit = Vec3::new(1.0, 0.0, 0.0);
+    let sun_day = Vec3::new(1.0, 0.0, 0.0);
+    let sun_night = Vec3::new(-1.0, 0.0, 0.0);
+    let view = Vec3::new(1.0, 0.0, 0.0);
+
+    let day_color = shader.shade(local_hit, sun_day, view);
+    let night_color = shader.shade(local_hit, sun_night, view);
+
+    assert_eq!(night_color, [0, 0, 0], "Mercury night side must be pitch black with zero atmospheric scattering");
+    assert!(day_color[0] > 100 && day_color[1] > 90, "Mercury sunlit side must be brightly illuminated by 6.7x solar flux, got {:?}", day_color);
+}
+
+#[test]
+fn test_hud_label_proximity_and_range_culling() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+
+    let cols = 120;
+    let rows = 60;
+    let mut buffer = FrameBuffer::new(cols, rows, RenderMode::HalfBlock);
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+
+    // 1. In close orbit of Earth (21,000 km, < 10 * R_earth = 63,710 km):
+    // [Terra] must be culled (hidden) to avoid polluting the planet surface
+    cam.set_target(BodyId::Earth, physics.earth.position);
+    cam.distance_km = 21_000.0;
+    buffer.pixels.fill(Pixel::BLACK);
+    Hud::render(&mut buffer, &cam, &physics, 60.0, 600.0, false);
+
+    // Search buffer for string "[Terra]"
+    let mut found_terra = false;
+    for y in 0..rows {
+        let mut line = String::new();
+        for x in 0..cols {
+            let p = &buffer.pixels[(y * 2) * cols + x];
+            if p.is_text {
+                line.push(p.ch);
+            } else {
+                line.push(' ');
+            }
+        }
+        if line.contains("[Terra]") {
+            found_terra = true;
+            break;
+        }
+    }
+    assert!(!found_terra, "[Terra] label must be hidden when closely inspecting Earth");
+
+    // 2. Zoomed out from Earth (100,000 km, > 10 * R_earth):
+    // [Terra] label must reappear!
+    cam.distance_km = 100_000.0;
+    buffer.pixels.fill(Pixel::BLACK);
+    Hud::render(&mut buffer, &cam, &physics, 60.0, 600.0, false);
+
+    let mut found_terra_zoomed = false;
+    for y in 0..rows {
+        let mut line = String::new();
+        for x in 0..cols {
+            let p = &buffer.pixels[(y * 2) * cols + x];
+            if p.is_text {
+                line.push(p.ch);
+            } else {
+                line.push(' ');
+            }
+        }
+        if line.contains("[Terra]") {
+            found_terra_zoomed = true;
+            break;
+        }
+    }
+    assert!(found_terra_zoomed, "[Terra] label must reappear when zooming out to system scale (> 10 * radius)");
+}
+
+#[test]
+fn test_camera_flyto_mercury_transition() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+
+    cam.set_target(BodyId::Earth, physics.earth.position);
+    let from_pos = physics.earth.position;
+    let to_pos = physics.mercury.position;
+
+    cam.start_transition(BodyId::Mercury, from_pos, to_pos, 1.0);
+    assert!(cam.transition.is_some());
+
+    // Step transition to completion
+    cam.update(1.0, &physics);
+    assert!(cam.transition.is_none(), "Transition must finish at 1.0s");
+    assert_eq!(cam.target_body, BodyId::Mercury);
+    assert!((cam.distance_km - 7_500.0).abs() < 1.0, "Camera must arrive at Mercury's default distance");
+}
+
+#[test]
+fn test_render_mercury_demo() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 160;
+    let rows = 80;
+    let mut buffer = FrameBuffer::new(cols, rows, RenderMode::HalfBlock);
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+    let raycaster = Raycaster::new();
+
+    let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
+        buf.pixels.fill(Pixel::BLACK);
+        raycaster.render_frame(buf, camera, &physics, 1, 0.0);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+
+        let v_h = buf.virtual_height();
+        let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
+        for p in &buf.pixels {
+            ppm.push(p.r);
+            ppm.push(p.g);
+            ppm.push(p.b);
+        }
+        std::fs::write(path, ppm).unwrap();
+    };
+
+    // 1. Mercury Close-up Disk (Caloris Basin, Cratered Terrains)
+    cam.set_target(BodyId::Mercury, physics.mercury.position);
+    render_ppm(
+        &mut buffer,
+        &cam,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/mercury_close_up.ppm",
+    );
+
+    // 2. Mercury Terminator Relief (Discovery Rupes, Razor-sharp Airless Shadows)
+    let mut cam_term = Camera::new();
+    cam_term.set_target(BodyId::Mercury, physics.mercury.position);
+    cam_term.distance_km = 4_500.0;
+    cam_term.azimuth = 3.30;
+    cam_term.elevation = 0.10;
+    render_ppm(
+        &mut buffer,
+        &cam_term,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/mercury_terminator.ppm",
+    );
+
+    // 3. Earth Orbit Clean View (Proximity Culling Active: [Terra] hidden, [Lua] visible if in FOV)
+    let mut cam_earth = Camera::new();
+    cam_earth.set_target(BodyId::Earth, physics.earth.position);
+    render_ppm(
+        &mut buffer,
+        &cam_earth,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/earth_orbit_clean_hud.ppm",
+    );
+}

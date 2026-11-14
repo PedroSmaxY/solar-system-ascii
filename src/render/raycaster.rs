@@ -6,6 +6,7 @@ use crate::physics::SolarSystemPhysics;
 use crate::render::buffer::{FrameBuffer, Pixel};
 use crate::render::camera::Camera;
 use crate::render::earth_shader::EarthShader;
+use crate::render::mercury_shader::MercuryShader;
 use crate::render::moon_shader::MoonShader;
 use crate::render::stars::Starfield;
 use crate::render::sun_shader::SunShader;
@@ -15,6 +16,7 @@ const ASCII_RAMP: &[u8] = b" .:-=+*x%#@";
 
 pub struct Raycaster {
     earth_shader: EarthShader,
+    mercury_shader: MercuryShader,
     moon_shader: MoonShader,
     sun_shader: SunShader,
 }
@@ -30,6 +32,7 @@ impl Raycaster {
     pub fn new() -> Self {
         Self {
             earth_shader: EarthShader::new(),
+            mercury_shader: MercuryShader::new(),
             moon_shader: MoonShader::new(),
             sun_shader: SunShader::new(),
         }
@@ -75,6 +78,10 @@ impl Raycaster {
         let earth_rad = physics.earth.radius_km;
         let earth_mat_inv = physics.earth.orientation_matrix().transpose();
 
+        let mercury_pos = physics.mercury.position;
+        let mercury_rad = physics.mercury.radius_km;
+        let mercury_mat_inv = physics.mercury.orientation_matrix().transpose();
+
         let moon_pos = physics.moon.position;
         let moon_rad = physics.moon.radius_km;
         let moon_mat_inv = physics.moon.orientation_matrix().transpose();
@@ -105,6 +112,24 @@ impl Raycaster {
                             world_pos: hit_pos,
                             world_norm: norm,
                         });
+                    }
+
+                    // Mercury hit
+                    if let Some(t_merc) = Self::intersect_sphere(&ray, mercury_pos, mercury_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_merc < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_merc);
+                            let norm = (hit_pos - mercury_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_merc,
+                                body_id: BodyId::Mercury,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
                     }
 
                     // Moon hit
@@ -162,6 +187,12 @@ impl Raycaster {
                                     tick,
                                     elapsed,
                                 )
+                            }
+                            BodyId::Mercury => {
+                                let local_norm = mercury_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = mercury_mat_inv.mul_vec(sun_dir);
+                                let local_view = mercury_mat_inv.mul_vec(view_dir);
+                                self.mercury_shader.shade(local_norm, local_sun, local_view)
                             }
                             BodyId::Moon => {
                                 let local_norm = moon_mat_inv.mul_vec(hit.world_norm);

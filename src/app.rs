@@ -46,6 +46,7 @@ impl App {
     pub fn set_target(&mut self, body: BodyId) {
         let pos = match body {
             BodyId::Earth => self.physics.earth.position,
+            BodyId::Mercury => self.physics.mercury.position,
             BodyId::Moon => self.physics.moon.position,
             BodyId::Sun => self.physics.sun.position,
         };
@@ -109,6 +110,11 @@ impl App {
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.sun.position;
                         self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.4);
+                    }
+                    KeyCode::Char('4') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.mercury.position;
+                        self.camera.start_transition(BodyId::Mercury, from_pos, to_pos, 1.3);
                     }
                     KeyCode::Char('f') | KeyCode::Char('F') => {
                         self.camera.align_to_sun(self.physics.sun.position);

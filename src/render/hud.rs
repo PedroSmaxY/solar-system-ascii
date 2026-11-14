@@ -26,11 +26,13 @@ impl Hud {
         let target_name = if let Some(ref trans) = camera.transition {
             let from = match trans.from_body {
                 BodyId::Earth => "Earth",
+                BodyId::Mercury => "Mercury",
                 BodyId::Moon => "Moon",
                 BodyId::Sun => "Sun",
             };
             let to = match trans.to_body {
                 BodyId::Earth => "Earth",
+                BodyId::Mercury => "Mercury",
                 BodyId::Moon => "Moon",
                 BodyId::Sun => "Sun",
             };
@@ -38,6 +40,7 @@ impl Hud {
         } else {
             match camera.target_body {
                 BodyId::Earth => "Earth (Terra)".to_string(),
+                BodyId::Mercury => "Mercury (Mercúrio)".to_string(),
                 BodyId::Moon => "Moon (Luna)".to_string(),
                 BodyId::Sun => "Sun (Sol)".to_string(),
             }
@@ -95,9 +98,10 @@ impl Hud {
         let tan_half_fov_x = tan_half_fov_y * screen_aspect;
 
         let bodies = [
-            (BodyId::Sun, physics.sun.position, "[Sol]", [255, 220, 90]),
-            (BodyId::Earth, physics.earth.position, "[Terra]", [120, 205, 255]),
-            (BodyId::Moon, physics.moon.position, "[Lua]", [210, 215, 225]),
+            (BodyId::Sun, physics.sun.position, physics.sun.radius_km, "[Sol]", [255, 220, 90]),
+            (BodyId::Mercury, physics.mercury.position, physics.mercury.radius_km, "[Mercúrio]", [225, 185, 140]),
+            (BodyId::Earth, physics.earth.position, physics.earth.radius_km, "[Terra]", [120, 205, 255]),
+            (BodyId::Moon, physics.moon.position, physics.moon.radius_km, "[Lua]", [210, 215, 225]),
         ];
 
         let mut sun_in_fov = false;
@@ -105,12 +109,21 @@ impl Hud {
         let mut sun_u_dot = 0.0;
         let mut sun_dist_au = 1.0;
 
-        for &(id, pos, label, color) in &bodies {
+        for &(id, pos, rad, label, color) in &bodies {
             let to_pos = pos - cam_pos;
             let dist_km = to_pos.length();
             if dist_km < 1.0 {
                 continue;
             }
+
+            // Target Proximity Culling: when closely orbiting and observing the target body,
+            // hide its own label so it does not obstruct the surface features.
+            // When zoomed out (dist >= 10.0 * radius), the label reappears as an orbital tag.
+            // Other bodies (e.g. Moon viewed from Earth) remain visible to help locate them in the sky.
+            if id == camera.target_body && dist_km < rad * 10.0 {
+                continue;
+            }
+
             let dir = to_pos / dist_km;
             let f_dot = dir.dot(f);
             let r_dot = dir.dot(r);
@@ -172,7 +185,7 @@ impl Hud {
         }
 
         // Bottom Controls Guide (Bottom Line)
-        let controls = "[+/-] Zoom  [WASD] Orbit  [R] Reset  [1] Earth  [2] Moon  [3] Sun  [F] Find Sun  [H] Labels  [B] Mode  [Space] Pause  [Q] Quit";
+        let controls = "[+/-] Zoom  [WASD] Orbit  [R] Reset  [1] Earth  [2] Moon  [3] Sun  [4] Mercury  [F] Find Sun  [H] Labels  [B] Mode  [Space] Pause  [Q] Quit";
         if lines > 1 && cols >= controls.len() + 2 {
             Self::draw_text(buffer, 1, lines - 1, controls, [150, 165, 185]);
         }

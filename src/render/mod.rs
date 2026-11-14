@@ -3,6 +3,7 @@ pub mod camera;
 pub mod earth_shader;
 pub mod fluid;
 pub mod hud;
+pub mod mercury_shader;
 pub mod moon_shader;
 pub mod raycaster;
 pub mod stars;

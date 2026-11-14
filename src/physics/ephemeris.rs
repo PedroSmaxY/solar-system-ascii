@@ -7,9 +7,12 @@ pub const TWO_PI: f64 = 2.0 * PI;
 pub const AU_KM: f64 = 149_597_870.7; // 1 Astronomical Unit in km
 pub const EARTH_RADIUS_KM: f64 = 6_371.0;
 pub const MOON_RADIUS_KM: f64 = 1_737.4;
+pub const MERCURY_RADIUS_KM: f64 = 2_439.7;
 pub const SUN_RADIUS_KM: f64 = 696_340.0;
 pub const EARTH_AXIAL_TILT_RAD: f64 = 23.439281 * PI / 180.0;
+pub const MERCURY_AXIAL_TILT_RAD: f64 = 0.034 * PI / 180.0;
 pub const SIDEREAL_DAY_SECS: f64 = 86_164.0905;
+pub const MERCURY_SIDEREAL_DAY_SECS: f64 = 58.6462 * 86_400.0;
 
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]
@@ -31,6 +34,19 @@ pub struct KeplerOrbit {
 }
 
 impl KeplerOrbit {
+    /// Mercury's orbit around the Sun (J2000 Keplerian elements)
+    pub fn mercury_around_sun() -> Self {
+        Self {
+            a: 57_909_050.0, // 0.387098 AU in km
+            e: 0.205630,     // High eccentricity!
+            i: 7.005 * PI / 180.0,
+            node: 48.331 * PI / 180.0,
+            peri: 29.124 * PI / 180.0,
+            m0: 174.796 * PI / 180.0,
+            period: 87.9691 * 86_400.0,
+        }
+    }
+
     /// Earth's orbit around the Sun (J2000 approximate)
     pub fn earth_around_sun() -> Self {
         Self {

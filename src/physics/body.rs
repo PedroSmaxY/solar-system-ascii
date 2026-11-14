@@ -2,14 +2,15 @@
 
 use crate::math::{Mat3, Vec3};
 use crate::physics::ephemeris::{
-    KeplerOrbit, EARTH_AXIAL_TILT_RAD, EARTH_RADIUS_KM, MOON_RADIUS_KM, SIDEREAL_DAY_SECS,
-    SUN_RADIUS_KM,
+    KeplerOrbit, EARTH_AXIAL_TILT_RAD, EARTH_RADIUS_KM, MERCURY_AXIAL_TILT_RAD, MERCURY_RADIUS_KM,
+    MERCURY_SIDEREAL_DAY_SECS, MOON_RADIUS_KM, SIDEREAL_DAY_SECS, SUN_RADIUS_KM,
 };
 use std::f64::consts::PI;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BodyId {
     Sun,
+    Mercury,
     Earth,
     Moon,
 }
@@ -18,8 +19,9 @@ impl BodyId {
     pub fn index(self) -> usize {
         match self {
             BodyId::Sun => 0,
-            BodyId::Earth => 1,
-            BodyId::Moon => 2,
+            BodyId::Mercury => 1,
+            BodyId::Earth => 2,
+            BodyId::Moon => 3,
         }
     }
 }
@@ -52,6 +54,21 @@ impl CelestialBody {
             orbit: None,
             parent: None,
             position: Vec3::ZERO,
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_mercury() -> Self {
+        Self {
+            id: BodyId::Mercury,
+            name: "Mercury",
+            radius_km: MERCURY_RADIUS_KM,
+            mass_kg: 3.3011e23,
+            axial_tilt: MERCURY_AXIAL_TILT_RAD,
+            rotation_period_secs: MERCURY_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::mercury_around_sun()),
+            parent: Some(BodyId::Sun),
+            position: Vec3::new(57_909_050.0, 0.0, 0.0),
             rotation_angle: 0.0,
         }
     }

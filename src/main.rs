@@ -29,6 +29,7 @@ fn main() {
                         "moon" | "luna" | "lua" => target_body = Some(solar_system_ascii::physics::body::BodyId::Moon),
                         "earth" | "terra" => target_body = Some(solar_system_ascii::physics::body::BodyId::Earth),
                         "sun" | "sol" => target_body = Some(solar_system_ascii::physics::body::BodyId::Sun),
+                        "mercury" | "mercurio" => target_body = Some(solar_system_ascii::physics::body::BodyId::Mercury),
                         _ => {}
                     }
                     i += 1;
