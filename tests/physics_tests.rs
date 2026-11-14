@@ -1094,3 +1094,106 @@ fn test_render_mercury_demo() {
         "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/earth_orbit_clean_hud.ppm",
     );
 }
+
+#[test]
+fn test_all_celestial_orbits_100_percent_precision() {
+    let mut physics = SolarSystemPhysics::new();
+
+    // 1. Sun heliocentric stillness
+    for t in [0.0, 1000.0, 86400.0, 1e7] {
+        physics.update(t);
+        assert_eq!(physics.sun.position, Vec3::ZERO, "Sun must remain at origin (0, 0, 0)");
+    }
+
+    // 2. Mercury Orbit Audit
+    let orb_merc = physics.mercury.orbit.unwrap();
+    let pos_merc_0 = orb_merc.calculate_position(0.0);
+    let pos_merc_p = orb_merc.calculate_position(orb_merc.period);
+    assert!((pos_merc_0 - pos_merc_p).length() < 1e-4, "Mercury orbit must close precisely after 1 period");
+
+    let mut min_r_merc = f64::MAX;
+    let mut max_r_merc = 0.0f64;
+    let mut max_z_merc = 0.0f64;
+    for step in 0..1000 {
+        let t = (step as f64 / 1000.0) * orb_merc.period;
+        let pos = orb_merc.calculate_position(t);
+        let r = pos.length();
+        if r < min_r_merc { min_r_merc = r; }
+        if r > max_r_merc { max_r_merc = r; }
+        let z_ratio = pos.z.abs() / r;
+        if z_ratio > max_z_merc { max_z_merc = z_ratio; }
+    }
+    // Theoretical: a*(1-e) = 46,001,202.9 km, a*(1+e) = 69,816,897.1 km
+    assert!((min_r_merc - 46_001_203.0).abs() < 500.0, "Mercury perihelion: got {}", min_r_merc);
+    assert!((max_r_merc - 69_816_897.0).abs() < 500.0, "Mercury aphelion: got {}", max_r_merc);
+    // Inclination: sin(7.005°) ≈ 0.12198
+    assert!((max_z_merc - (7.005f64.to_radians().sin())).abs() < 0.005, "Mercury orbital inclination");
+
+    // Speed check (GM_sun = 1.3271244e11 km^3/s^2)
+    let gm_sun = 1.32712440018e11;
+    let v_merc_peri = orb_merc.orbital_speed(min_r_merc, gm_sun);
+    let v_merc_apo = orb_merc.orbital_speed(max_r_merc, gm_sun);
+    assert!((v_merc_peri - 58.98).abs() < 0.1, "Mercury perihelion speed: got {}", v_merc_peri);
+    assert!((v_merc_apo - 38.86).abs() < 0.1, "Mercury aphelion speed: got {}", v_merc_apo);
+
+    // 3. Earth Orbit Audit
+    let orb_earth = physics.earth.orbit.unwrap();
+    let pos_earth_0 = orb_earth.calculate_position(0.0);
+    let pos_earth_p = orb_earth.calculate_position(orb_earth.period);
+    assert!((pos_earth_0 - pos_earth_p).length() < 1e-4, "Earth orbit must close precisely after 1 period");
+
+    let mut min_r_earth = f64::MAX;
+    let mut max_r_earth = 0.0f64;
+    for step in 0..1000 {
+        let t = (step as f64 / 1000.0) * orb_earth.period;
+        let pos = orb_earth.calculate_position(t);
+        let r = pos.length();
+        if r < min_r_earth { min_r_earth = r; }
+        if r > max_r_earth { max_r_earth = r; }
+        assert!(pos.z.abs() < 1e-10, "Earth must remain in ecliptic plane (Z = 0)");
+    }
+    // Theoretical: a*(1-e) = 147,098,450.4 km, a*(1+e) = 152,097,291.0 km
+    assert!((min_r_earth - 147_098_450.0).abs() < 500.0, "Earth perihelion: got {}", min_r_earth);
+    assert!((max_r_earth - 152_097_291.0).abs() < 500.0, "Earth aphelion: got {}", max_r_earth);
+
+    let v_earth_peri = orb_earth.orbital_speed(min_r_earth, gm_sun);
+    let v_earth_apo = orb_earth.orbital_speed(max_r_earth, gm_sun);
+    assert!((v_earth_peri - 30.29).abs() < 0.1, "Earth perihelion speed: got {}", v_earth_peri);
+    assert!((v_earth_apo - 29.29).abs() < 0.1, "Earth aphelion speed: got {}", v_earth_apo);
+
+    // 4. Moon Orbit Audit
+    let orb_moon = physics.moon.orbit.unwrap();
+    let pos_moon_0 = orb_moon.calculate_position(0.0);
+    let pos_moon_p = orb_moon.calculate_position(orb_moon.period);
+    assert!((pos_moon_0 - pos_moon_p).length() < 1e-4, "Moon orbit must close precisely after 1 period");
+
+    let mut min_r_moon = f64::MAX;
+    let mut max_r_moon = 0.0f64;
+    let mut max_z_moon = 0.0f64;
+    for step in 0..1000 {
+        let t = (step as f64 / 1000.0) * orb_moon.period;
+        let pos = orb_moon.calculate_position(t);
+        let r = pos.length();
+        if r < min_r_moon { min_r_moon = r; }
+        if r > max_r_moon { max_r_moon = r; }
+        let z_ratio = pos.z.abs() / r;
+        if z_ratio > max_z_moon { max_z_moon = z_ratio; }
+    }
+    // Theoretical: a*(1-e) = 363,296.4 km, a*(1+e) = 405,503.6 km
+    assert!((min_r_moon - 363_296.0).abs() < 20.0, "Moon perigee: got {}", min_r_moon);
+    assert!((max_r_moon - 405_504.0).abs() < 20.0, "Moon apogee: got {}", max_r_moon);
+    assert!((max_z_moon - (5.145f64.to_radians().sin())).abs() < 0.005, "Moon orbital inclination");
+
+    // 5. Hierarchy and Relative Distances over Time
+    for day in 0..365 {
+        let t = day as f64 * 86_400.0;
+        physics.update(t);
+
+        let r_merc = physics.mercury.position.length();
+        let r_earth = physics.earth.position.length();
+        let d_moon_earth = (physics.moon.position - physics.earth.position).length();
+
+        assert!(r_merc < r_earth, "Mercury must strictly orbit inside Earth orbit at day {}", day);
+        assert!(d_moon_earth >= 363_200.0 && d_moon_earth <= 405_600.0, "Moon must remain in valid geocentric range");
+    }
+}
