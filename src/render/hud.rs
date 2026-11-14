@@ -25,24 +25,27 @@ impl Hud {
 
         let target_name = if let Some(ref trans) = camera.transition {
             let from = match trans.from_body {
-                BodyId::Earth => "Earth",
-                BodyId::Mercury => "Mercury",
-                BodyId::Moon => "Moon",
                 BodyId::Sun => "Sun",
+                BodyId::Mercury => "Mercury",
+                BodyId::Venus => "Venus",
+                BodyId::Earth => "Earth",
+                BodyId::Moon => "Moon",
             };
             let to = match trans.to_body {
-                BodyId::Earth => "Earth",
-                BodyId::Mercury => "Mercury",
-                BodyId::Moon => "Moon",
                 BodyId::Sun => "Sun",
+                BodyId::Mercury => "Mercury",
+                BodyId::Venus => "Venus",
+                BodyId::Earth => "Earth",
+                BodyId::Moon => "Moon",
             };
             format!("Transit: {} -> {}", from, to)
         } else {
             match camera.target_body {
-                BodyId::Earth => "Earth (Terra)".to_string(),
-                BodyId::Mercury => "Mercury (Mercúrio)".to_string(),
-                BodyId::Moon => "Moon (Luna)".to_string(),
                 BodyId::Sun => "Sun (Sol)".to_string(),
+                BodyId::Mercury => "Mercury (Mercúrio)".to_string(),
+                BodyId::Venus => "Venus (Vênus)".to_string(),
+                BodyId::Earth => "Earth (Terra)".to_string(),
+                BodyId::Moon => "Moon (Luna)".to_string(),
             }
         };
 
@@ -100,6 +103,7 @@ impl Hud {
         let bodies = [
             (BodyId::Sun, physics.sun.position, physics.sun.radius_km, "[Sol]", [255, 220, 90]),
             (BodyId::Mercury, physics.mercury.position, physics.mercury.radius_km, "[Mercúrio]", [225, 185, 140]),
+            (BodyId::Venus, physics.venus.position, physics.venus.radius_km, "[Vênus]", [240, 225, 175]),
             (BodyId::Earth, physics.earth.position, physics.earth.radius_km, "[Terra]", [120, 205, 255]),
             (BodyId::Moon, physics.moon.position, physics.moon.radius_km, "[Lua]", [210, 215, 225]),
         ];
@@ -185,9 +189,17 @@ impl Hud {
         }
 
         // Bottom Controls Guide (Bottom Line)
-        let controls = "[+/-] Zoom  [WASD] Orbit  [R] Reset  [1] Earth  [2] Moon  [3] Sun  [4] Mercury  [F] Find Sun  [H] Labels  [B] Mode  [Space] Pause  [Q] Quit";
+        let mut controls = String::from("[1] Sun  [2] Mercury  [3] Venus  [4] Earth");
+        if camera.target_body == BodyId::Earth {
+            controls.push_str("  [M] Moon");
+        } else if camera.target_body == BodyId::Moon {
+            controls.push_str("  [M] Earth");
+        } else if camera.target_body == BodyId::Venus {
+            controls.push_str("  [V] Radar");
+        }
+        controls.push_str("  [+/-] Zoom  [WASD] Orbit  [R] Reset  [F] Find Sun  [H] Labels  [B] Mode  [Space] Pause  [Q] Quit");
         if lines > 1 && cols >= controls.len() + 2 {
-            Self::draw_text(buffer, 1, lines - 1, controls, [150, 165, 185]);
+            Self::draw_text(buffer, 1, lines - 1, &controls, [150, 165, 185]);
         }
     }
 

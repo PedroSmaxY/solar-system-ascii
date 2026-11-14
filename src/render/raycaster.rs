@@ -10,15 +10,17 @@ use crate::render::mercury_shader::MercuryShader;
 use crate::render::moon_shader::MoonShader;
 use crate::render::stars::Starfield;
 use crate::render::sun_shader::SunShader;
+use crate::render::venus_shader::VenusShader;
 use rayon::prelude::*;
 
 const ASCII_RAMP: &[u8] = b" .:-=+*x%#@";
 
 pub struct Raycaster {
-    earth_shader: EarthShader,
-    mercury_shader: MercuryShader,
-    moon_shader: MoonShader,
-    sun_shader: SunShader,
+    pub earth_shader: EarthShader,
+    pub mercury_shader: MercuryShader,
+    pub moon_shader: MoonShader,
+    pub sun_shader: SunShader,
+    pub venus_shader: VenusShader,
 }
 
 struct SphereHit {
@@ -35,6 +37,7 @@ impl Raycaster {
             mercury_shader: MercuryShader::new(),
             moon_shader: MoonShader::new(),
             sun_shader: SunShader::new(),
+            venus_shader: VenusShader::new(),
         }
     }
 
@@ -82,6 +85,10 @@ impl Raycaster {
         let mercury_rad = physics.mercury.radius_km;
         let mercury_mat_inv = physics.mercury.orientation_matrix().transpose();
 
+        let venus_pos = physics.venus.position;
+        let venus_rad = physics.venus.radius_km;
+        let venus_mat_inv = physics.venus.orientation_matrix().transpose();
+
         let moon_pos = physics.moon.position;
         let moon_rad = physics.moon.radius_km;
         let moon_mat_inv = physics.moon.orientation_matrix().transpose();
@@ -126,6 +133,24 @@ impl Raycaster {
                             closest_hit = Some(SphereHit {
                                 t: t_merc,
                                 body_id: BodyId::Mercury,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Venus hit
+                    if let Some(t_venus) = Self::intersect_sphere(&ray, venus_pos, venus_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_venus < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_venus);
+                            let norm = (hit_pos - venus_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_venus,
+                                body_id: BodyId::Venus,
                                 world_pos: hit_pos,
                                 world_norm: norm,
                             });
@@ -194,6 +219,12 @@ impl Raycaster {
                                 let local_view = mercury_mat_inv.mul_vec(view_dir);
                                 self.mercury_shader.shade(local_norm, local_sun, local_view)
                             }
+                            BodyId::Venus => {
+                                let local_norm = venus_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = venus_mat_inv.mul_vec(sun_dir);
+                                let local_view = venus_mat_inv.mul_vec(view_dir);
+                                self.venus_shader.shade(local_norm, local_sun, local_view, elapsed)
+                            }
                             BodyId::Moon => {
                                 let local_norm = moon_mat_inv.mul_vec(hit.world_norm);
                                 let local_sun = moon_mat_inv.mul_vec(sun_dir);
@@ -256,6 +287,30 @@ impl Raycaster {
                                     (165.0 * glow) as u8,
                                     (255.0 * glow) as u8,
                                 ]);
+                            }
+                        }
+
+                        // Atmospheric limb scattering for Venus (350 km dense haze & extended twilight arc)
+                        let oc_v = ray.origin - venus_pos;
+                        let proj_v = -oc_v.dot(ray.dir);
+                        if proj_v > 0.0 {
+                            let closest_p = ray.at(proj_v);
+                            let d_center = (closest_p - venus_pos).length();
+                            let atm_top = venus_rad + 350.0;
+                            if d_center > venus_rad && d_center < atm_top {
+                                let factor = (1.0 - (d_center - venus_rad) / 350.0).powf(1.5);
+                                let sun_dir = (sun_pos - closest_p).normalize();
+                                let limb_norm = (closest_p - venus_pos).normalize();
+                                let sun_facing = limb_norm.dot(sun_dir);
+                                if sun_facing > -0.25 {
+                                    let twilight = ((sun_facing + 0.25) / 1.25).clamp(0.0, 1.0);
+                                    let glow = factor * twilight;
+                                    atm_color = Some([
+                                        (245.0 * glow) as u8,
+                                        (228.0 * glow) as u8,
+                                        (170.0 * glow) as u8,
+                                    ]);
+                                }
                             }
                         }
 

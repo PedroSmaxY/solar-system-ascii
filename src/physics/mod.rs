@@ -8,6 +8,7 @@ use ephemeris::TWO_PI;
 pub struct SolarSystemPhysics {
     pub sun: CelestialBody,
     pub mercury: CelestialBody,
+    pub venus: CelestialBody,
     pub earth: CelestialBody,
     pub moon: CelestialBody,
 }
@@ -17,6 +18,7 @@ impl SolarSystemPhysics {
         Self {
             sun: CelestialBody::new_sun(),
             mercury: CelestialBody::new_mercury(),
+            venus: CelestialBody::new_venus(),
             earth: CelestialBody::new_earth(),
             moon: CelestialBody::new_moon(),
         }
@@ -34,13 +36,19 @@ impl SolarSystemPhysics {
         }
         self.mercury.rotation_angle = (t * (TWO_PI / self.mercury.rotation_period_secs)).rem_euclid(TWO_PI);
 
-        // 3. Earth orbits Sun
+        // 3. Venus orbits Sun (circular orbit e=0.00677, retrograde rotation 243d)
+        if let Some(ref orb) = self.venus.orbit {
+            self.venus.position = orb.calculate_position(t);
+        }
+        self.venus.rotation_angle = (t * (TWO_PI / self.venus.rotation_period_secs)).rem_euclid(TWO_PI);
+
+        // 4. Earth orbits Sun
         if let Some(ref orb) = self.earth.orbit {
             self.earth.position = orb.calculate_position(t);
         }
         self.earth.rotation_angle = (t * (TWO_PI / self.earth.rotation_period_secs)).rem_euclid(TWO_PI);
 
-        // 4. Moon orbits Earth (hierarchical relative offset)
+        // 5. Moon orbits Earth (hierarchical relative offset)
         if let Some(ref orb) = self.moon.orbit {
             let rel_pos = orb.calculate_position(t);
             self.moon.position = self.earth.position + rel_pos;
@@ -53,6 +61,7 @@ impl SolarSystemPhysics {
         match id {
             BodyId::Sun => &self.sun,
             BodyId::Mercury => &self.mercury,
+            BodyId::Venus => &self.venus,
             BodyId::Earth => &self.earth,
             BodyId::Moon => &self.moon,
         }
@@ -62,6 +71,7 @@ impl SolarSystemPhysics {
         match id {
             BodyId::Sun => &mut self.sun,
             BodyId::Mercury => &mut self.mercury,
+            BodyId::Venus => &mut self.venus,
             BodyId::Earth => &mut self.earth,
             BodyId::Moon => &mut self.moon,
         }

@@ -45,10 +45,11 @@ impl App {
 
     pub fn set_target(&mut self, body: BodyId) {
         let pos = match body {
-            BodyId::Earth => self.physics.earth.position,
-            BodyId::Mercury => self.physics.mercury.position,
-            BodyId::Moon => self.physics.moon.position,
             BodyId::Sun => self.physics.sun.position,
+            BodyId::Mercury => self.physics.mercury.position,
+            BodyId::Venus => self.physics.venus.position,
+            BodyId::Earth => self.physics.earth.position,
+            BodyId::Moon => self.physics.moon.position,
         };
         self.camera.set_target(body, pos);
     }
@@ -98,23 +99,39 @@ impl App {
                     }
                     KeyCode::Char('1') => {
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.earth.position;
-                        self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.2);
-                    }
-                    KeyCode::Char('2') => {
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.moon.position;
-                        self.camera.start_transition(BodyId::Moon, from_pos, to_pos, 1.2);
-                    }
-                    KeyCode::Char('3') => {
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.sun.position;
                         self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.4);
                     }
-                    KeyCode::Char('4') => {
+                    KeyCode::Char('2') => {
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.mercury.position;
                         self.camera.start_transition(BodyId::Mercury, from_pos, to_pos, 1.3);
+                    }
+                    KeyCode::Char('3') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.venus.position;
+                        self.camera.start_transition(BodyId::Venus, from_pos, to_pos, 1.2);
+                    }
+                    KeyCode::Char('4') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.earth.position;
+                        self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.2);
+                    }
+                    KeyCode::Char('m') | KeyCode::Char('M') => {
+                        if self.camera.target_body == BodyId::Earth {
+                            let from_pos = self.physics.earth.position;
+                            let to_pos = self.physics.moon.position;
+                            self.camera.start_transition(BodyId::Moon, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Moon {
+                            let from_pos = self.physics.moon.position;
+                            let to_pos = self.physics.earth.position;
+                            self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.0);
+                        }
+                    }
+                    KeyCode::Char('v') | KeyCode::Char('V') => {
+                        if self.camera.target_body == BodyId::Venus {
+                            self.raycaster.venus_shader.radar_mode = !self.raycaster.venus_shader.radar_mode;
+                        }
                     }
                     KeyCode::Char('f') | KeyCode::Char('F') => {
                         self.camera.align_to_sun(self.physics.sun.position);

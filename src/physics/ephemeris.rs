@@ -8,11 +8,14 @@ pub const AU_KM: f64 = 149_597_870.7; // 1 Astronomical Unit in km
 pub const EARTH_RADIUS_KM: f64 = 6_371.0;
 pub const MOON_RADIUS_KM: f64 = 1_737.4;
 pub const MERCURY_RADIUS_KM: f64 = 2_439.7;
+pub const VENUS_RADIUS_KM: f64 = 6_051.8;
 pub const SUN_RADIUS_KM: f64 = 696_340.0;
 pub const EARTH_AXIAL_TILT_RAD: f64 = 23.439281 * PI / 180.0;
 pub const MERCURY_AXIAL_TILT_RAD: f64 = 0.034 * PI / 180.0;
+pub const VENUS_AXIAL_TILT_RAD: f64 = 177.36 * PI / 180.0;
 pub const SIDEREAL_DAY_SECS: f64 = 86_164.0905;
 pub const MERCURY_SIDEREAL_DAY_SECS: f64 = 58.6462 * 86_400.0;
+pub const VENUS_SIDEREAL_DAY_SECS: f64 = 243.025 * 86_400.0;
 
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]
@@ -44,6 +47,19 @@ impl KeplerOrbit {
             peri: 29.124 * PI / 180.0,
             m0: 174.796 * PI / 180.0,
             period: 87.9691 * 86_400.0,
+        }
+    }
+
+    /// Venus's orbit around the Sun (J2000 Keplerian elements)
+    pub fn venus_around_sun() -> Self {
+        Self {
+            a: 108_208_000.0, // 0.723332 AU in km
+            e: 0.006772,      // Nearly circular orbit
+            i: 3.39458 * PI / 180.0,
+            node: 76.680 * PI / 180.0,
+            peri: 131.532 * PI / 180.0,
+            m0: 50.115 * PI / 180.0,
+            period: 224.701 * 86_400.0,
         }
     }
 

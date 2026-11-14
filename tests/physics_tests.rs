@@ -1197,3 +1197,211 @@ fn test_all_celestial_orbits_100_percent_precision() {
         assert!(d_moon_earth >= 363_200.0 && d_moon_earth <= 405_600.0, "Moon must remain in valid geocentric range");
     }
 }
+
+#[test]
+fn test_venus_keplerian_orbit_and_circularity() {
+    let mut physics = SolarSystemPhysics::new();
+    let orb_venus = physics.venus.orbit.unwrap();
+
+    // 1. Orbit Closure after exact period (224.701 days)
+    let pos_0 = orb_venus.calculate_position(0.0);
+    let pos_period = orb_venus.calculate_position(orb_venus.period);
+    assert!(
+        (pos_0 - pos_period).length() < 1e-4,
+        "Venus orbit must close precisely after 1 orbital period"
+    );
+
+    // 2. Sample orbit across 1000 points to measure perihelion, aphelion, circularity and inclination
+    let mut min_r = f64::MAX;
+    let mut max_r = 0.0f64;
+    let mut max_z_ratio = 0.0f64;
+    for step in 0..1000 {
+        let t = (step as f64 / 1000.0) * orb_venus.period;
+        let pos = orb_venus.calculate_position(t);
+        let r = pos.length();
+        if r < min_r { min_r = r; }
+        if r > max_r { max_r = r; }
+        let z_ratio = pos.z.abs() / r;
+        if z_ratio > max_z_ratio { max_z_ratio = z_ratio; }
+    }
+
+    // Theoretical: a = 108,208,000 km, e = 0.006772
+    // Perihelion = a*(1-e) = 107,475,214 km
+    // Aphelion   = a*(1+e) = 108,940,786 km
+    assert!((min_r - 107_475_214.0).abs() < 500.0, "Venus perihelion: got {}", min_r);
+    assert!((max_r - 108_940_786.0).abs() < 500.0, "Venus aphelion: got {}", max_r);
+    // Inclination: sin(3.39458°) ≈ 0.05920
+    assert!((max_z_ratio - (3.39458f64.to_radians().sin())).abs() < 0.005, "Venus inclination");
+
+    // Circularity check: (r_max - r_min) / a ≈ 2*e ≈ 0.0135 (very circular compared to Mercury's 0.41)
+    let circularity_diff = (max_r - min_r) / orb_venus.a;
+    assert!(circularity_diff < 0.015, "Venus must have extremely circular orbit");
+
+    // Speed check (GM_sun = 1.3271244e11 km^3/s^2)
+    let gm_sun = 1.32712440018e11;
+    let v_peri = orb_venus.orbital_speed(min_r, gm_sun);
+    let v_apo = orb_venus.orbital_speed(max_r, gm_sun);
+    assert!((v_peri - 35.26).abs() < 0.2, "Venus perihelion speed: got {}", v_peri);
+    assert!((v_apo - 34.78).abs() < 0.2, "Venus aphelion speed: got {}", v_apo);
+
+    // Orbital hierarchy: Mercury < Venus < Earth
+    for day in 0..365 {
+        let t = day as f64 * 86_400.0;
+        physics.update(t);
+        let r_merc = physics.mercury.position.length();
+        let r_venus = physics.venus.position.length();
+        let r_earth = physics.earth.position.length();
+
+        assert!(r_merc < r_venus, "Mercury must orbit inside Venus at day {}", day);
+        assert!(r_venus < r_earth, "Venus must orbit inside Earth at day {}", day);
+    }
+}
+
+#[test]
+fn test_venus_retrograde_rotation() {
+    use solar_system_ascii::physics::ephemeris::{VENUS_AXIAL_TILT_RAD, VENUS_SIDEREAL_DAY_SECS};
+
+    let tilt_deg = VENUS_AXIAL_TILT_RAD.to_degrees();
+    assert!((tilt_deg - 177.36).abs() < 1e-2, "Venus axial tilt must be 177.36 deg (retrograde)");
+    assert!(tilt_deg > 90.0, "Axial tilt > 90 degrees defines retrograde axial spin");
+
+    let day_earth_days = VENUS_SIDEREAL_DAY_SECS / 86_400.0;
+    assert!((day_earth_days - 243.025).abs() < 1e-3, "Venus sidereal day must be 243.025 days");
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+    assert!((physics.venus.rotation_angle - 0.0).abs() < 1e-4);
+
+    physics.update(VENUS_SIDEREAL_DAY_SECS * 0.5);
+    assert!((physics.venus.rotation_angle - PI).abs() < 1e-4, "Venus should reach pi rotation at half sidereal day");
+
+    physics.update(VENUS_SIDEREAL_DAY_SECS);
+    assert!(physics.venus.rotation_angle.abs() < 1e-4, "Venus should complete full 2pi cycle back to 0 at one sidereal day");
+}
+
+#[test]
+fn test_venus_dual_layer_shader() {
+    use solar_system_ascii::render::venus_shader::VenusShader;
+
+    let mut shader = VenusShader::new();
+    assert!(!shader.radar_mode, "Default mode must be optical atmospheric clouds");
+
+    // 1. Optical mode test: sample subsolar point (local_sun = [0, 0, 1], local_norm = [0, 0, 1])
+    let optical_pixel = shader.shade(Vec3::Z, Vec3::Z, Vec3::Z, 0.0);
+    // Optical mode should be yellowish-cream sulfuric acid cloud tops
+    assert!(optical_pixel[0] > 180, "Optical Venus red component: got {}", optical_pixel[0]);
+    assert!(optical_pixel[1] > 170, "Optical Venus green component: got {}", optical_pixel[1]);
+    assert!(optical_pixel[2] > 120, "Optical Venus blue component: got {}", optical_pixel[2]);
+
+    // 2. Radar SAR mode test
+    shader.radar_mode = true;
+    let radar_pixel = shader.shade(Vec3::Z, Vec3::Z, Vec3::Z, 0.0);
+    // Radar mode uses Magellan false-color orange/amber SAR palette
+    assert!(radar_pixel[0] > radar_pixel[2], "Radar mode has warm amber/orange SAR tint");
+    assert!(radar_pixel[0] > 50, "Radar SAR response at subsolar point");
+}
+
+#[test]
+fn test_standardized_astronomical_keys_and_contextual_moon() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::camera::Camera;
+
+    // Body IDs ordering
+    assert_eq!(BodyId::Sun as usize, 0);
+    assert_eq!(BodyId::Mercury as usize, 1);
+    assert_eq!(BodyId::Venus as usize, 2);
+    assert_eq!(BodyId::Earth as usize, 3);
+    assert_eq!(BodyId::Moon as usize, 4);
+
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+
+    // Default target is Earth
+    assert_eq!(cam.target_body, BodyId::Earth);
+
+    // Contextual Moon: from Earth -> Moon
+    cam.set_target(BodyId::Moon, physics.moon.position);
+    assert_eq!(cam.target_body, BodyId::Moon);
+
+    // From Moon -> back to Earth
+    cam.set_target(BodyId::Earth, physics.earth.position);
+    assert_eq!(cam.target_body, BodyId::Earth);
+
+    // Direct key navigation [1..4]
+    cam.set_target(BodyId::Sun, physics.sun.position);
+    assert_eq!(cam.target_body, BodyId::Sun);
+
+    cam.set_target(BodyId::Mercury, physics.mercury.position);
+    assert_eq!(cam.target_body, BodyId::Mercury);
+
+    cam.set_target(BodyId::Venus, physics.venus.position);
+    assert_eq!(cam.target_body, BodyId::Venus);
+    assert!((cam.distance_km - 18_500.0).abs() < 1e-4);
+
+    cam.set_target(BodyId::Earth, physics.earth.position);
+    assert_eq!(cam.target_body, BodyId::Earth);
+}
+
+#[test]
+fn test_render_venus_demo() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 160;
+    let rows = 80;
+    let mut buffer = FrameBuffer::new(cols, rows, RenderMode::HalfBlock);
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+    let mut raycaster = Raycaster::new();
+
+    let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, rc: &Raycaster, path: &str| {
+        buf.pixels.fill(Pixel::BLACK);
+        rc.render_frame(buf, camera, &physics, 1, 0.0);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+
+        let v_h = buf.virtual_height();
+        let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
+        for p in &buf.pixels {
+            ppm.push(p.r);
+            ppm.push(p.g);
+            ppm.push(p.b);
+        }
+        std::fs::write(path, ppm).unwrap();
+    };
+
+    // 1. Venus Optical Atmosphere Demo (Super-rotation cloud deck, UV chevron, illuminated disk)
+    cam.set_target(BodyId::Venus, physics.venus.position);
+    cam.azimuth = -0.80;
+    cam.elevation = 0.15;
+    raycaster.venus_shader.radar_mode = false;
+    render_ppm(
+        &mut buffer,
+        &cam,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/venus_atmosphere_optical.ppm",
+    );
+
+    // 2. Venus Magellan Radar SAR Mode Demo (Volcanic crust, Maxwell Montes, Aphrodite Terra)
+    raycaster.venus_shader.radar_mode = true;
+    render_ppm(
+        &mut buffer,
+        &cam,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/venus_magellan_radar.ppm",
+    );
+
+    // 3. Venus Twilight Limb Arc (Extended horns from 350 km deep atmosphere scattering)
+    cam.azimuth = 2.40;
+    cam.elevation = 0.20;
+    raycaster.venus_shader.radar_mode = false;
+    render_ppm(
+        &mut buffer,
+        &cam,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/venus_twilight_arc.ppm",
+    );
+}

@@ -26,10 +26,11 @@ fn main() {
             "--target" => {
                 if i + 1 < args.len() {
                     match args[i + 1].to_lowercase().as_str() {
-                        "moon" | "luna" | "lua" => target_body = Some(solar_system_ascii::physics::body::BodyId::Moon),
-                        "earth" | "terra" => target_body = Some(solar_system_ascii::physics::body::BodyId::Earth),
                         "sun" | "sol" => target_body = Some(solar_system_ascii::physics::body::BodyId::Sun),
                         "mercury" | "mercurio" => target_body = Some(solar_system_ascii::physics::body::BodyId::Mercury),
+                        "venus" => target_body = Some(solar_system_ascii::physics::body::BodyId::Venus),
+                        "earth" | "terra" => target_body = Some(solar_system_ascii::physics::body::BodyId::Earth),
+                        "moon" | "luna" | "lua" => target_body = Some(solar_system_ascii::physics::body::BodyId::Moon),
                         _ => {}
                     }
                     i += 1;
@@ -73,9 +74,14 @@ fn main() {
                 println!("Controls:");
                 println!("  [+/-]          Zoom In / Zoom Out (continuous exponential)");
                 println!("  [WASD/Arrows]  Orbit camera around targeted planet");
-                println!("  [1]            Focus camera on Earth");
-                println!("  [2]            Focus camera on Moon");
-                println!("  [3]            Focus camera on Sun");
+                println!("  [1]            Focus camera on Sun");
+                println!("  [2]            Focus camera on Mercury");
+                println!("  [3]            Focus camera on Venus");
+                println!("  [4]            Focus camera on Earth");
+                println!("  [M]            Contextual Moon/Earth toggle (when orbiting Earth or Moon)");
+                println!("  [V]            Toggle Venus Optical Cloud Tops <-> Magellan SAR Radar");
+                println!("  [H]            Toggle HUD astronomical overlay");
+                println!("  [L]            Toggle planet name labels");
                 println!("  [B]            Toggle mode: ASCII (Standard) <-> Half-Block (HD)");
                 println!("  [Space]        Pause / Resume simulation");
                 println!("  [[/]]          Decrease / Increase time warp speed");

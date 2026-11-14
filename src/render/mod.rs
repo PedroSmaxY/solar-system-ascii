@@ -8,3 +8,4 @@ pub mod moon_shader;
 pub mod raycaster;
 pub mod stars;
 pub mod sun_shader;
+pub mod venus_shader;
