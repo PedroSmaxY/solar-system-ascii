@@ -1,9 +1,18 @@
-//! 6-DOF Astronomical Camera with continuous logarithmic/exponential zoom.
+//! 6-DOF Astronomical Camera with continuous logarithmic/exponential zoom
+//! and independent per-body perspective and zoom memory (Earth, Moon, Sun).
 
 use crate::math::{Ray, Vec3};
 use crate::physics::body::BodyId;
 use crate::render::buffer::RenderMode;
 use std::f64::consts::PI;
+
+/// Saved view state per celestial body (azimuth, elevation, distance).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BodyViewState {
+    pub azimuth: f64,   // Radians
+    pub elevation: f64, // Radians (-PI/2 .. PI/2)
+    pub distance_km: f64,
+}
 
 pub struct Camera {
     pub target_body: BodyId,
@@ -12,7 +21,7 @@ pub struct Camera {
     pub elevation: f64, // Radians (-PI/2 .. PI/2)
     pub distance_km: f64,
     pub fov_y_rad: f64,
-    pub saved_distances: [f64; 3], // [Sun, Earth, Moon]
+    pub saved_views: [BodyViewState; 3], // [Sun, Earth, Moon]
 
     // Free flight mode
     pub free_flight: bool,
@@ -23,18 +32,43 @@ pub struct Camera {
 
 impl Camera {
     pub fn new() -> Self {
+        let earth_view = Self::default_view(BodyId::Earth);
+        let moon_view = Self::default_view(BodyId::Moon);
+        let sun_view = Self::default_view(BodyId::Sun);
+
         Self {
             target_body: BodyId::Earth,
             target_pos: Vec3::ZERO,
-            azimuth: 2.30,        // Framing both day lit hemisphere and night city lights
-            elevation: 0.28,
-            distance_km: 21_000.0, // Initial balanced view of Earth
+            azimuth: earth_view.azimuth,
+            elevation: earth_view.elevation,
+            distance_km: earth_view.distance_km,
             fov_y_rad: 45.0 * PI / 180.0,
-            saved_distances: [3_500_000.0, 21_000.0, 8_000.0],
+            saved_views: [sun_view, earth_view, moon_view],
             free_flight: false,
             free_pos: Vec3::ZERO,
             free_yaw: 0.0,
             free_pitch: 0.0,
+        }
+    }
+
+    /// Default perspective and viewing distance for each celestial body.
+    pub fn default_view(body: BodyId) -> BodyViewState {
+        match body {
+            BodyId::Sun => BodyViewState {
+                azimuth: 0.0,
+                elevation: 0.0,
+                distance_km: 3_500_000.0,
+            },
+            BodyId::Earth => BodyViewState {
+                azimuth: 2.30,        // Framing both daylit Americas/Atlantic and night city lights
+                elevation: 0.28,
+                distance_km: 21_000.0, // Balanced orbital perspective of Earth
+            },
+            BodyId::Moon => BodyViewState {
+                azimuth: 0.85,        // Framing illuminated Near Side maria, Tycho rays & terminator
+                elevation: 0.12,
+                distance_km: 8_000.0,  // Dedicated lunar view framing entire disk
+            },
         }
     }
 
@@ -46,35 +80,48 @@ impl Camera {
             BodyId::Sun => 750_000.0,
         };
         self.distance_km = (self.distance_km * 0.88).max(min_dist);
-        self.saved_distances[self.target_body.index()] = self.distance_km;
+        self.saved_views[self.target_body.index()].distance_km = self.distance_km;
     }
 
     pub fn zoom_out(&mut self) {
         // Logarithmic zoom: increase distance by 12% up to deep space
         self.distance_km = (self.distance_km * 1.14).min(5e9);
-        self.saved_distances[self.target_body.index()] = self.distance_km;
+        self.saved_views[self.target_body.index()].distance_km = self.distance_km;
     }
 
     pub fn orbit(&mut self, d_az: f64, d_el: f64) {
         self.azimuth = (self.azimuth + d_az).rem_euclid(2.0 * PI);
         self.elevation = (self.elevation + d_el).rem_euclid(2.0 * PI);
+        let idx = self.target_body.index();
+        self.saved_views[idx].azimuth = self.azimuth;
+        self.saved_views[idx].elevation = self.elevation;
     }
 
     pub fn recenter(&mut self) {
-        self.azimuth = 2.30;
-        self.elevation = 0.28;
-        self.distance_km = self.saved_distances[self.target_body.index()];
+        let def = Self::default_view(self.target_body);
+        self.azimuth = def.azimuth;
+        self.elevation = def.elevation;
+        self.distance_km = def.distance_km;
+        self.saved_views[self.target_body.index()] = def;
     }
 
     pub fn set_target(&mut self, body: BodyId, body_pos: Vec3) {
-        // Save current distance for the body being left
-        self.saved_distances[self.target_body.index()] = self.distance_km;
+        // Save current perspective & zoom for the body being left
+        let curr_idx = self.target_body.index();
+        self.saved_views[curr_idx] = BodyViewState {
+            azimuth: self.azimuth,
+            elevation: self.elevation,
+            distance_km: self.distance_km,
+        };
 
         self.target_body = body;
         self.target_pos = body_pos;
 
-        // Restore target's dedicated viewing distance
-        self.distance_km = self.saved_distances[body.index()];
+        // Restore target body's dedicated perspective & zoom
+        let target_view = self.saved_views[body.index()];
+        self.azimuth = target_view.azimuth;
+        self.elevation = target_view.elevation;
+        self.distance_km = target_view.distance_km;
     }
 
     /// Compute camera position in world space.

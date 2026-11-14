@@ -82,17 +82,28 @@ fn test_camera_target_zoom_memory() {
     assert_eq!(cam.target_body, BodyId::Earth);
     assert!((cam.distance_km - 21_000.0).abs() < 1e-4);
 
-    // Zoom in on Earth
+    // Zoom and orbit on Earth
     cam.zoom_in();
+    cam.orbit(0.42, -0.15);
     let earth_zoomed = cam.distance_km;
+    let earth_az = cam.azimuth;
+    let earth_el = cam.elevation;
     assert!(earth_zoomed < 21_000.0);
 
-    // Switch to Moon
+    // Switch to Moon -> must load Moon's dedicated perspective and distance
     cam.set_target(BodyId::Moon, Vec3::new(384_400.0, 0.0, 0.0));
     assert_eq!(cam.target_body, BodyId::Moon);
     assert!((cam.distance_km - 8_000.0).abs() < 1e-4);
+    assert!((cam.azimuth - 0.85).abs() < 1e-4);
 
-    // Switch back to Earth -> must restore Earth's zoomed distance without hyper-zoom bug!
+    // Customize Moon's perspective and zoom
+    cam.zoom_in();
+    cam.orbit(-0.60, 0.30);
+    let moon_zoomed = cam.distance_km;
+    let moon_az = cam.azimuth;
+    let moon_el = cam.elevation;
+
+    // Switch back to Earth -> must restore Earth's exact customized perspective and zoom!
     cam.set_target(BodyId::Earth, Vec3::ZERO);
     assert_eq!(cam.target_body, BodyId::Earth);
     assert!(
@@ -101,6 +112,15 @@ fn test_camera_target_zoom_memory() {
         earth_zoomed,
         cam.distance_km
     );
+    assert!((cam.azimuth - earth_az).abs() < 1e-6);
+    assert!((cam.elevation - earth_el).abs() < 1e-6);
+
+    // Switch back to Moon -> must restore Moon's exact customized perspective and zoom!
+    cam.set_target(BodyId::Moon, Vec3::new(384_400.0, 0.0, 0.0));
+    assert_eq!(cam.target_body, BodyId::Moon);
+    assert!((cam.distance_km - moon_zoomed).abs() < 1e-4);
+    assert!((cam.azimuth - moon_az).abs() < 1e-6);
+    assert!((cam.elevation - moon_el).abs() < 1e-6);
 }
 
 #[test]

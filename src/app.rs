@@ -56,6 +56,10 @@ impl App {
         if let Some(d) = distance {
             self.camera.distance_km = d;
         }
+        let idx = self.camera.target_body.index();
+        self.camera.saved_views[idx].azimuth = self.camera.azimuth;
+        self.camera.saved_views[idx].elevation = self.camera.elevation;
+        self.camera.saved_views[idx].distance_km = self.camera.distance_km;
     }
 
     pub fn run(&mut self, test_frames: Option<u64>) {
