@@ -474,23 +474,28 @@ fn test_sun_shader_photosphere_and_limb_darkening() {
     let center_hit = Vec3::new(0.0, 0.0, 1.0);
     let center_color = shader.shade_photosphere(center_hit, view, 0, 0.0);
 
-    // Extreme limb of solar disk (mu ≈ 0.05): local_hit grazing
-    let limb_hit = Vec3::new(0.9987, 0.0, 0.05).normalize();
+    // Mid-disk of solar photosphere (mu ≈ 0.35): Eddington-Barbier darkening active
+    let mid_hit = Vec3::new(0.936, 0.0, 0.35).normalize();
+    let mid_color = shader.shade_photosphere(mid_hit, view, 0, 0.0);
+
+    // Extreme limb of solar disk (mu ≈ 0.03): Chromospheric inversion matches coronal base
+    let limb_hit = Vec3::new(0.9995, 0.0, 0.03).normalize();
     let limb_color = shader.shade_photosphere(limb_hit, view, 0, 0.0);
 
-    // 1. Center must be significantly brighter and hotter (incandescent white-gold) than limb
+    // 1. Center must be hotter and brighter (white-gold) than mid-disk (darkening)
     let center_lum = center_color[0] as f64 * 0.299 + center_color[1] as f64 * 0.587 + center_color[2] as f64 * 0.114;
-    let limb_lum = limb_color[0] as f64 * 0.299 + limb_color[1] as f64 * 0.587 + limb_color[2] as f64 * 0.114;
+    let mid_lum = mid_color[0] as f64 * 0.299 + mid_color[1] as f64 * 0.587 + mid_color[2] as f64 * 0.114;
     assert!(
-        center_lum > limb_lum * 1.5,
-        "Center luminosity ({}) must exceed limb ({}) due to Eddington-Barbier darkening",
-        center_lum, limb_lum
+        center_lum > mid_lum * 1.20,
+        "Center luminosity ({}) must exceed mid-disk ({}) due to Eddington-Barbier darkening",
+        center_lum, mid_lum
     );
 
-    // 2. Chromatic transition: Center has prominent blue component (incandescent white-gold), limb is amber/copper (blue extinguished)
-    assert!(center_color[2] > 180, "Center should have strong blue component, got {}", center_color[2]);
-    assert!(limb_color[2] < 80, "Limb should have suppressed blue component, got {}", limb_color[2]);
-    assert!(limb_color[0] > limb_color[1], "Limb should be warm amber/copper (R > G)");
+    // 2. Chromatic transition & No Muddy Ring: Center has high blue component, limb is radiant gold/plasma
+    assert!(center_color[2] > 220, "Center should have strong blue component, got {}", center_color[2]);
+    assert!(limb_color[0] > 230, "Limb should maintain radiant red emission, got {}", limb_color[0]);
+    assert!(limb_color[1] > 180, "Limb should maintain radiant gold emission (no muddy brown)");
+    assert!(limb_color[2] < center_color[2], "Limb blue component should be lower than center");
 
     // 3. Sunspots: Umbra core in Spörer belt (lat 17.5°, lon 45°) at t=0
     let lat_rad = 17.5f64.to_radians();

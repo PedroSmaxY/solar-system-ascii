@@ -134,22 +134,17 @@ impl SunShader {
         // mu = cos(theta) between surface normal and observer line of sight
         let mu = local_hit.dot(view_dir).clamp(0.005, 1.0);
 
-        // Analytical Eddington-Barbier Limb Darkening: I(mu) = 1 - u(1-mu) - v(1-mu)^2
-        let u = 0.45;
-        let v = 0.22;
-        let one_minus_mu = 1.0 - mu;
-        let limb_factor = (1.0 - u * one_minus_mu - v * one_minus_mu * one_minus_mu).clamp(0.25, 1.0);
-
         // Dynamic plasma granulation (Voronoi convection cells)
         let gran = Self::granulation(local_hit, elapsed);
         // Granulation modulation: ±12% temperature variation
         let gran_mod = 0.88 + gran * 0.24;
 
         // Chromospheric limb spicules / boiling plasma fibrils at the grazing edge (Image 1)
-        let spicule_mod = if mu < 0.15 {
-            let p_spic = local_hit * 120.0;
+        let spicule_mod = if mu < 0.20 {
+            let p_spic = local_hit * 110.0;
             let s_noise = (p_spic.x.sin() * p_spic.y.cos() * p_spic.z.sin()).abs();
-            1.0 + s_noise * 0.22 * (1.0 - mu / 0.15)
+            let t_edge = ((0.20 - mu) / 0.20).clamp(0.0, 1.0);
+            1.0 + s_noise * 0.18 * t_edge
         } else {
             1.0
         };
@@ -162,30 +157,46 @@ impl SunShader {
 
         let spot_mod = Self::sunspot_factor(lat_deg, lon_deg, elapsed);
 
-        // Planckian Chromatic Gradient based on local optical depth (mu)
-        let (base_r, base_g, base_b) = if mu > 0.55 {
+        // Planckian Chromatic Gradient: Radiant incandescent solar plasma
+        let (base_r, base_g, base_b) = if mu > 0.50 {
             // Center to mid-disk: Incandescent White-Gold
-            let t = (mu - 0.55) / 0.45;
+            let t = (mu - 0.50) / 0.50;
             (
                 255.0,
-                198.0 + 54.0 * t,
-                55.0 + 185.0 * t,
+                225.0 + 30.0 * t,
+                110.0 + 135.0 * t,
             )
         } else {
-            // Mid-disk to extreme limb: Golden Amber to Deep Copper/Orange
-            let t = (mu / 0.55).clamp(0.0, 1.0);
+            // Mid-disk to extreme limb: Radiant Solar Gold to Warm Plasma
+            let t = (mu / 0.50).clamp(0.0, 1.0);
             (
-                228.0 + 27.0 * t,
-                82.0 + 116.0 * t,
-                10.0 + 45.0 * t,
+                255.0,
+                195.0 + 30.0 * t,
+                85.0 + 25.0 * t,
             )
         };
 
-        let intensity = limb_factor * gran_mod * spot_mod * spicule_mod;
+        // Chromospheric Limb Transition (Inversion Layer & Flash Spectrum):
+        // Eliminates any muddy rim by blending seamlessly into the base coronal glow
+        let t_edge = ((0.20 - mu) / 0.20).max(0.0);
+        let chromo_blend = t_edge * t_edge;
 
-        let r = (base_r * intensity).clamp(0.0, 255.0) as u8;
-        let g = (base_g * intensity).clamp(0.0, 255.0) as u8;
-        let b = (base_b * intensity).clamp(0.0, 255.0) as u8;
+        // Base coronal color at alt = 0.0 matches: R=255, G=206, B=108 with intensity 0.95
+        let chromo_r = 255.0;
+        let chromo_g = 206.0;
+        let chromo_b = 108.0;
+
+        let blend_r = base_r * (1.0 - chromo_blend) + chromo_r * chromo_blend;
+        let blend_g = base_g * (1.0 - chromo_blend) + chromo_g * chromo_blend;
+        let blend_b = base_b * (1.0 - chromo_blend) + chromo_b * chromo_blend;
+
+        let limb_decay = 0.72 + 0.28 * mu.powf(0.8);
+        let effective_intensity = limb_decay * (1.0 - chromo_blend) + 0.95 * chromo_blend;
+        let intensity = effective_intensity * gran_mod * spot_mod * spicule_mod;
+
+        let r = (blend_r * intensity).clamp(0.0, 255.0) as u8;
+        let g = (blend_g * intensity).clamp(0.0, 255.0) as u8;
+        let b = (blend_b * intensity).clamp(0.0, 255.0) as u8;
 
         [r, g, b]
     }
@@ -304,26 +315,27 @@ impl SunShader {
             loop_glow = loop_glow.clamp(0.0, 1.0);
         }
 
-        // 6. Eruptive Solar Flare Nexus & Prominence Filaments (Image 1)
-        let mut active_flare = 0.0f64;
-        let mut flare_core_intensity = 0.0f64;
-        if altitude < 0.25 {
-            let flare_psi = 1.25 + (elapsed * 0.04).sin() * 0.15;
-            let d_flare_ang = (psi - flare_psi).abs();
-            let d_flare_rad = (r - 1.01).abs();
-            let d_flare = (d_flare_ang * d_flare_ang * 2.0 + d_flare_rad * d_flare_rad).sqrt();
+        // 6. Eruptive Solar Flare Nexus & Prominence Plume (Image 1)
+        // Completely smooth continuous asymptotic radial decay into the ambient solar wind (no cutoffs)
+        let flare_psi = 1.25 + (elapsed * 0.04).sin() * 0.15;
+        let d_flare_ang = (psi - flare_psi).abs();
+        let d_flare_rad = (r - 1.01).abs();
+        let d_flare = (d_flare_ang * d_flare_ang * 2.0 + d_flare_rad * d_flare_rad).sqrt();
 
-            // Blinding white reconnection core right at the footpoint
-            flare_core_intensity = (-((d_flare / 0.030).powi(2))).exp() * 1.8;
+        // Blinding white reconnection core right at the footpoint
+        let flare_core_intensity = (-((d_flare / 0.032).powi(2))).exp() * 1.8;
 
-            // Erupting twisted plasma plume
-            let jet_path = flare_psi + altitude * 0.18 + (altitude * 15.0 - elapsed * 0.3).sin() * 0.02;
-            let d_jet = (psi - jet_path).abs();
-            let jet_glow = (-((d_jet / 0.025).powi(2))).exp() * (-altitude / 0.12).exp() * 1.2;
+        // Erupting twisted plasma plume expanding smoothly into deep space
+        let jet_path = flare_psi + altitude * 0.22 + (altitude * 8.0 - elapsed * 0.25).sin() * 0.03;
+        let d_jet = (psi - jet_path).abs();
+        let plume_sigma = 0.025 + altitude * 0.05;
+        let plume_profile = (-((d_jet / plume_sigma).powi(2))).exp();
+        // Smooth asymptotic power-exponential falloff: never cuts off abruptly
+        let plume_radial_falloff = (-((altitude / 0.45).powf(1.4))).exp() * (1.0 + altitude * 0.4);
+        let jet_glow = plume_profile * plume_radial_falloff * 1.3;
 
-            let flare_pulse = (elapsed * 0.5).sin() * 0.20 + 0.80;
-            active_flare = (flare_core_intensity + jet_glow) * flare_pulse;
-        }
+        let flare_pulse = (elapsed * 0.5).sin() * 0.20 + 0.80;
+        let active_flare = (flare_core_intensity + jet_glow) * flare_pulse * taper;
 
         let total_energy = base_glow + loop_glow * 0.8 + active_flare;
         if total_energy < 0.0005 {
