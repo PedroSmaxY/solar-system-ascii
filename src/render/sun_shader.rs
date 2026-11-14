@@ -287,37 +287,93 @@ impl SunShader {
 
         let base_glow = (k_corona + f_corona + polar_plumes * 0.16) * taper;
 
-        // 5. Active Magnetic Arcades on the Limb (SDO AIA 171 Å: soft glowing plasma canopies)
+        // 5. Active Magnetic Arcades on the Limb (Reconnection & Plasmoid Detachment Life Cycle)
+        // Eliminates artificial pendulum oscillation: active regions drift unidirectionally with solar rotation.
+        let solar_rot = elapsed * 0.015;
         let mut loop_glow = 0.0f64;
-        if altitude < 0.09 {
-            // Active latitudes around the limb (psi near +-70° and +-110°)
-            // Active regions drift organically with solar rotation
-            let rot_phase = elapsed * 0.04;
-            let active_angles = [
-                1.25 + (rot_phase).sin() * 0.15,
-                -1.25 - (rot_phase * 0.9).cos() * 0.15,
-                1.90 - (rot_phase * 1.1).sin() * 0.15,
-                -1.90 + (rot_phase * 0.8).cos() * 0.15,
+        let mut loop_flash = 0.0f64;
+
+        if altitude < 0.42 {
+            // 4 active coronal arcade regions on the limb with distinct periods and offsets
+            let active_specs = [
+                // (base_angle, period_secs, time_offset, max_span)
+                (1.25, 10.5, 0.0, 0.16),
+                (-1.25, 13.0, 4.2, 0.15),
+                (1.95, 9.0, 7.1, 0.17),
+                (-1.95, 11.5, 2.8, 0.15),
             ];
 
-            for &psi_0 in &active_angles {
+            for &(base_psi, period, offset, span) in &active_specs {
+                let psi_0 = base_psi + solar_rot;
                 let d_psi = (psi - psi_0).abs();
-                if d_psi < 0.16 {
-                    let norm_span = d_psi / 0.16;
-                    let arch_h = 0.065 * (1.0 - norm_span * norm_span).sqrt();
-                    // Diffuse magnetic canopy + fine loop threads
-                    let canopy = (-((altitude / 0.035).powi(2))).exp() * (1.0 - norm_span);
-                    let loop_thread = (-(((altitude - arch_h) / 0.009).powi(2))).exp();
-                    let striation = (d_psi * 70.0).sin().powi(2) * 0.35 + 0.65;
-                    loop_glow += (canopy * 0.40 + loop_thread * 0.60) * striation * 0.55;
+
+                // Compute lifecycle phase tau in [0.0, 1.0)
+                let tau = ((elapsed + offset) / period).fract();
+
+                if tau < 0.62 {
+                    // Phase 1: Flux accumulation & inflation
+                    if altitude < 0.09 && d_psi < span {
+                        let norm_span = d_psi / span;
+                        let arch_h = 0.052 + 0.020 * (tau / 0.62);
+                        let arch_shape = arch_h * (1.0 - norm_span * norm_span).max(0.0).sqrt();
+                        let canopy = (-((altitude / 0.035).powi(2))).exp() * (1.0 - norm_span);
+                        let loop_thread = (-(((altitude - arch_shape) / 0.008).powi(2))).exp();
+                        let striation = (d_psi * 70.0).sin().powi(2) * 0.35 + 0.65;
+                        let loop_intensity = 0.50 + 0.50 * (tau / 0.62);
+                        loop_glow += (canopy * 0.40 + loop_thread * 0.60) * striation * loop_intensity * 0.60;
+                    }
+                } else if tau < 0.70 {
+                    // Phase 2: Magnetic Reconnection "SNAP"
+                    let snap_t = (tau - 0.62) / 0.08;
+                    // Flash of reconnection at the apex
+                    let flash_profile = (-((snap_t * 4.0).powi(2))).exp()
+                        * (-((d_psi / 0.05).powi(2))).exp()
+                        * (-(((altitude - 0.072) / 0.015).powi(2))).exp();
+                    loop_flash += flash_profile * 2.2;
+
+                    // Lower legs contracting back (elastic recoil)
+                    if altitude < 0.08 && d_psi < span {
+                        let norm_span = d_psi / span;
+                        let leg_h = 0.072 * (1.0 - 0.50 * snap_t);
+                        let leg_shape = leg_h * (1.0 - norm_span * norm_span).max(0.0).sqrt();
+                        let leg_thread = (-(((altitude - leg_shape) / 0.007).powi(2))).exp() * (1.0 - 0.4 * snap_t);
+                        loop_glow += leg_thread * 0.50;
+                    }
+                } else if tau < 0.94 {
+                    // Phase 3: Plasmoid / CME Detachment and Outward Flight ("se desgruda e viaja")
+                    let eject_t = (tau - 0.70) / 0.24;
+                    let blob_alt = 0.072 + 0.32 * eject_t.powf(1.2);
+                    let blob_psi = psi_0 + (blob_alt * 4.0 - elapsed * 0.2).sin() * 0.015;
+                    let blob_sigma = 0.016 + 0.038 * eject_t;
+                    let blob_decay = (-3.2 * eject_t).exp();
+
+                    let d_blob_ang = (psi - blob_psi).abs();
+                    let d_blob_rad = (altitude - blob_alt).abs();
+                    let d_blob = (d_blob_ang * d_blob_ang * 2.0 + d_blob_rad * d_blob_rad).sqrt();
+
+                    let blob_emission = (-((d_blob / blob_sigma).powi(2))).exp() * blob_decay * 1.4;
+                    loop_glow += blob_emission;
+
+                    // Footpoints calm down into diffuse chromosphere
+                    if altitude < 0.04 && d_psi < span {
+                        let foot_glow = (-((altitude / 0.020).powi(2))).exp() * (1.0 - d_psi / span) * 0.25;
+                        loop_glow += foot_glow;
+                    }
+                } else {
+                    // Phase 4: Quiet recovery and flux recharging
+                    if altitude < 0.04 && d_psi < span {
+                        let quiet_glow = (-((altitude / 0.020).powi(2))).exp() * (1.0 - d_psi / span) * 0.20;
+                        loop_glow += quiet_glow;
+                    }
                 }
             }
-            loop_glow = loop_glow.clamp(0.0, 1.0);
+            loop_glow = loop_glow.clamp(0.0, 1.2);
+            loop_flash = loop_flash.clamp(0.0, 2.0);
         }
 
         // 6. Eruptive Solar Flare Nexus & Prominence Plume (Image 1)
         // Completely smooth continuous asymptotic radial decay into the ambient solar wind (no cutoffs)
-        let flare_psi = 1.25 + (elapsed * 0.04).sin() * 0.15;
+        let flare_psi = 1.25 + solar_rot;
         let d_flare_ang = (psi - flare_psi).abs();
         let d_flare_rad = (r - 1.01).abs();
         let d_flare = (d_flare_ang * d_flare_ang * 2.0 + d_flare_rad * d_flare_rad).sqrt();
@@ -337,7 +393,7 @@ impl SunShader {
         let flare_pulse = (elapsed * 0.5).sin() * 0.20 + 0.80;
         let active_flare = (flare_core_intensity + jet_glow) * flare_pulse * taper;
 
-        let total_energy = base_glow + loop_glow * 0.8 + active_flare;
+        let total_energy = base_glow + loop_glow * 0.8 + loop_flash + active_flare;
         if total_energy < 0.0005 {
             return None;
         }
@@ -348,10 +404,10 @@ impl SunShader {
         let corona_g = (195.0 + 40.0 * (1.0 - (altitude / 3.5))) * base_glow * 0.88;
         let corona_b = (50.0 + 130.0 * (1.0 - (altitude / 2.0)).max(0.0)) * base_glow * 0.60;
 
-        // Coronal loops: ultra-hot golden plasma 10^6 K (Image 2)
-        let loop_r = 255.0 * loop_glow;
-        let loop_g = 200.0 * loop_glow;
-        let loop_b = 50.0 * loop_glow;
+        // Coronal loops: ultra-hot golden plasma 10^6 K + white reconnection flashes (Image 2)
+        let loop_r = (255.0 * loop_glow + 255.0 * loop_flash).min(255.0);
+        let loop_g = (200.0 * loop_glow + 240.0 * loop_flash).min(255.0);
+        let loop_b = (50.0 * loop_glow + 255.0 * loop_flash).min(255.0);
 
         // Solar flare: blinding white core + hydrogen-alpha deep orange-crimson fringes (Image 1)
         let flare_r = 255.0 * active_flare;

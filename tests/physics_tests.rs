@@ -680,4 +680,117 @@ fn test_render_sun_demo() {
         &cam,
         "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_granulation_sunspots.ppm",
     );
+
+    // 5. Earth Orbital View with Solar Glare & Telemetry ([F] Align to Sun)
+    let mut cam_earth = Camera::new();
+    cam_earth.set_target(BodyId::Earth, physics.earth.position);
+    cam_earth.align_to_sun(physics.sun.position);
+    render_ppm(
+        &mut buffer,
+        &cam_earth,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/earth_view_sun_glare.ppm",
+    );
+}
+
+#[test]
+fn test_coronal_loop_reconnection_and_blob_ejection() {
+    use solar_system_ascii::render::sun_shader::SunShader;
+
+    let shader = SunShader::new();
+    let ray_dir = Vec3::new(0.0, 0.0, -1.0);
+
+    // Site 0 base angle is psi ≈ 1.25 rad, rotating with solar_rot = t * 0.015:
+    let norm_at = |t: f64| {
+        let psi = 1.25 + t * 0.015;
+        Vec3::new(psi.cos(), psi.sin(), 0.0)
+    };
+
+    // 1. Snapshot during Snap & Detachment phase (t = 7.8s -> tau ≈ 0.74 in an 10.5s period)
+    let detached_corona = shader.shade_corona(1.12, norm_at(7.8), ray_dir, 7.8);
+    assert!(
+        detached_corona.is_some(),
+        "Detached plasmoid / CME bubble must be visible at altitude 0.12 R_sun during ejection phase"
+    );
+
+    // 2. Snapshot of outer plasmoid vs quiet phase
+    // At t = 8.8s (tau ≈ 0.84), plasmoid is passing r ≈ 1.24 R_sun
+    let detached_outer = shader.shade_corona(1.24, norm_at(8.8), ray_dir, 8.8).unwrap();
+    // At t = 10.2s (tau ≈ 0.97), phase 4 is quiet recovery (plasmoid dispersed)
+    let quiet_outer = shader.shade_corona(1.24, norm_at(10.2), ray_dir, 10.2).unwrap();
+
+    let detached_lum = detached_outer[0] as f64 * 0.299 + detached_outer[1] as f64 * 0.587 + detached_outer[2] as f64 * 0.114;
+    let quiet_lum = quiet_outer[0] as f64 * 0.299 + quiet_outer[1] as f64 * 0.587 + quiet_outer[2] as f64 * 0.114;
+
+    assert!(
+        detached_lum > quiet_lum * 1.05,
+        "Ejected plasmoid passing at 1.24 R_sun ({}) must exceed quiet background ({})",
+        detached_lum, quiet_lum
+    );
+}
+
+#[test]
+fn test_solar_navigation_and_alignment() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+    cam.set_target(BodyId::Earth, physics.earth.position);
+
+    let start_az = cam.azimuth;
+    cam.align_to_sun(physics.sun.position);
+
+    // Azimuth must have moved to align with the sun vector
+    assert!(
+        (cam.azimuth - start_az).abs() > 0.1,
+        "align_to_sun must rotate camera perspective towards the Sun"
+    );
+
+    // Compute dot product of forward vector with sun direction:
+    let cam_pos = cam.position();
+    let sun_dir = (physics.sun.position - cam_pos).normalize();
+
+    let (sin_az, cos_az) = cam.azimuth.sin_cos();
+    let (sin_el, cos_el) = cam.elevation.sin_cos();
+    let forward = Vec3::new(-cos_el * sin_az, -sin_el, -cos_el * cos_az);
+    let right = Vec3::new(cos_az, 0.0, -sin_az);
+
+    let f_dot = sun_dir.dot(forward);
+    let r_dot = sun_dir.dot(right);
+
+    assert!(f_dot > 0.70, "Sun must be in the forward visual field of the camera, got {}", f_dot);
+    assert!(r_dot.abs() < 0.60, "Sun must be framed near the horizontal visual center, got {}", r_dot);
+}
+
+#[test]
+fn test_interplanetary_solar_glare() {
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 80;
+    let rows = 40;
+    let mut buffer = FrameBuffer::new(cols, rows, RenderMode::HalfBlock);
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+    let raycaster = Raycaster::new();
+
+    // From Earth orbit, align camera directly with Sun:
+    cam.set_target(solar_system_ascii::physics::body::BodyId::Earth, physics.earth.position);
+    cam.align_to_sun(physics.sun.position);
+
+    buffer.pixels.fill(Pixel::BLACK);
+    raycaster.render_frame(&mut buffer, &cam, &physics, 1, 0.0);
+
+    // Check that buffer contains radiant gold pixels from the interplanetary solar glare
+    let mut found_glare = false;
+    for p in &buffer.pixels {
+        if p.r > 200 && p.g > 150 && p.b < 200 {
+            found_glare = true;
+            break;
+        }
+    }
+    assert!(found_glare, "Interplanetary solar glare must illuminate pixels when looking towards Sun from Earth");
 }

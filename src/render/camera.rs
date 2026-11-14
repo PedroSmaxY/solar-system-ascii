@@ -221,6 +221,26 @@ impl Camera {
         self.saved_views[self.target_body.index()] = def;
     }
 
+    /// Rotate orbital perspective to frame the Sun directly in view alongside the target body.
+    pub fn align_to_sun(&mut self, sun_pos: Vec3) {
+        if self.target_body == BodyId::Sun {
+            return;
+        }
+        let target_to_sun = sun_pos - self.target_pos;
+        if target_to_sun.length_squared() < 1.0 {
+            return;
+        }
+        let dir = target_to_sun.normalize();
+        // Camera positioned on the terminator/night side looking towards target with Sun framed on the limb:
+        let sun_az = dir.x.atan2(dir.z);
+        self.azimuth = sun_az + std::f64::consts::PI - 0.28;
+        self.elevation = 0.06;
+
+        let idx = self.target_body.index();
+        self.saved_views[idx].azimuth = self.azimuth;
+        self.saved_views[idx].elevation = self.elevation;
+    }
+
     pub fn set_target(&mut self, body: BodyId, body_pos: Vec3) {
         self.cancel_transition();
         let curr_idx = self.target_body.index();

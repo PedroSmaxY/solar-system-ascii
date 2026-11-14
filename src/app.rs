@@ -108,6 +108,9 @@ impl App {
                         let to_pos = self.physics.sun.position;
                         self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.4);
                     }
+                    KeyCode::Char('f') | KeyCode::Char('F') => {
+                        self.camera.align_to_sun(self.physics.sun.position);
+                    }
                     KeyCode::Char('r') | KeyCode::Char('R') => {
                         self.camera.recenter();
                     }

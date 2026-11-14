@@ -219,11 +219,29 @@ impl Raycaster {
                             }
                         }
 
-                        // 3. Deep space background stars (sampled for all sky directions)
+                        // 3. Interplanetary Solar Glare for distant observers (> 10,000,000 km, e.g. Earth or Moon)
+                        let dist_to_sun = (-oc_sun).length();
+                        let mut interplanetary_glare = None;
+                        if dist_to_sun > 10_000_000.0 {
+                            let sun_dir = -oc_sun / dist_to_sun;
+                            let cos_sun = ray.dir.dot(sun_dir);
+                            if cos_sun > 0.988 {
+                                let ang_t = ((cos_sun - 0.988) / 0.012).clamp(0.0, 1.0);
+                                let intensity = ang_t.powf(2.6);
+                                interplanetary_glare = Some([
+                                    (255.0 * intensity) as u8,
+                                    (225.0 * intensity * 0.90) as u8,
+                                    (130.0 * intensity * 0.70) as u8,
+                                ]);
+                            }
+                        }
+
+                        // 4. Deep space background stars (sampled for all sky directions)
                         let (star_rgb, star_ch) = Starfield::sample(ray.dir, tick);
 
-                        // 4. Additive semi-transparent compositing (no star occlusion, no black border)
-                        if let Some(corona) = corona_color {
+                        // 5. Additive semi-transparent compositing (no star occlusion, no black border)
+                        let active_solar = corona_color.or(interplanetary_glare);
+                        if let Some(corona) = active_solar {
                             let r = corona[0].saturating_add(star_rgb[0]);
                             let g = corona[1].saturating_add(star_rgb[1]);
                             let b = corona[2].saturating_add(star_rgb[2]);
