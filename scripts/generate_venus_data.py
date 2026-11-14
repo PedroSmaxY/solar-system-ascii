@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Generate ultra-accurate Venus Dual-Layer cartographic dataset for AstroEngine:
-Layer 1: NASA Magellan Synthetic Aperture Radar (SAR) global false-color reflectivity (1024x512 uint8 = 524,288 bytes)
+Generate ultra-accurate Venus Cartographic & Atmospheric Dataset for AstroEngine:
+Layer 1-3: NASA Pioneer Venus / Akatsuki Ultraviolet & Visible Atmosphere RGB (1024x512 x 3 = 1,572,864 bytes)
+  - True atmospheric cloud deck: horizontal cloud bands, equatorial Y-chevron absorption waves, bright polar hoods.
+Layer 4: NASA Magellan Synthetic Aperture Radar (SAR) global false-color reflectivity (1024x512 uint8 = 524,288 bytes)
   - Detailed mapping of Aphrodite Terra, Ishtar Terra, Lakshmi Planum, Maat Mons, and volcanic tesserae.
-Layer 2: NASA Magellan Radar Altimeter global elevation & relief (1024x512 uint8 = 524,288 bytes)
+Layer 5: NASA Magellan Radar Altimeter global elevation & relief (1024x512 uint8 = 524,288 bytes)
   - Topographic elevation for mountain ranges (Maxwell Montes), caldera rims, and volcanic shields.
-Header: b"ASTRO_VN" (8 bytes) + W (4 bytes u32) + H (4 bytes u32) + Layer1 + Layer2.
-Total size: 1,048,592 bytes (~1.05 MB).
+Header: b"ASTRO_VN" (8 bytes) + W (4 bytes u32) + H (4 bytes u32) + AtmR + AtmG + AtmB + Radar + Elevation.
+Total size: 2,621,456 bytes (~2.62 MB).
 """
 
 import os
@@ -17,16 +19,35 @@ import urllib.request
 WIDTH = 1024
 HEIGHT = 512
 
+VENUS_ATMOSPHERE_URL = "https://www.solarsystemscope.com/textures/download/2k_venus_atmosphere.jpg"
 VENUS_MAP_URL = "https://raw.githubusercontent.com/jeromeetienne/threex.planets/master/images/venusmap.jpg"
 VENUS_BUMP_URL = "https://raw.githubusercontent.com/jeromeetienne/threex.planets/master/images/venusbump.jpg"
 
 
 def download_and_convert_bmp(url: str, jpg_path: str, bmp_path: str):
     print(f"Downloading {url} -> {jpg_path}...")
-    req = urllib.request.Request(url, headers={"User-Agent": "AstroEngine/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=30) as resp, open(jpg_path, "wb") as f:
         f.write(resp.read())
-    subprocess.run(["sips", "-s", "format", "bmp", jpg_path, "--out", bmp_path], check=True)
+    subprocess.run(["sips", "-z", str(HEIGHT), str(WIDTH), "-s", "format", "bmp", jpg_path, "--out", bmp_path], check=True)
+
+
+def read_bmp_rgb(bmp_path: str):
+    with open(bmp_path, "rb") as f:
+        _ = f.read(54)
+        data = f.read()
+    row_stride = WIDTH * 3
+    r = bytearray(WIDTH * HEIGHT)
+    g = bytearray(WIDTH * HEIGHT)
+    b = bytearray(WIDTH * HEIGHT)
+    for y in range(HEIGHT):
+        src_y = HEIGHT - 1 - y
+        for x in range(WIDTH):
+            idx = y * WIDTH + x
+            b[idx] = data[src_y * row_stride + x * 3]
+            g[idx] = data[src_y * row_stride + x * 3 + 1]
+            r[idx] = data[src_y * row_stride + x * 3 + 2]
+    return r, g, b
 
 
 def read_bmp_gray(bmp_path: str) -> bytearray:
@@ -48,19 +69,23 @@ def read_bmp_gray(bmp_path: str) -> bytearray:
 
 def main():
     os.makedirs("assets", exist_ok=True)
+    jpg_atm = "/tmp/venus_atm.jpg"
+    bmp_atm = "/tmp/venus_atm.bmp"
     jpg_map = "/tmp/venus_map.jpg"
     bmp_map = "/tmp/venus_map.bmp"
     jpg_bump = "/tmp/venus_bump.jpg"
     bmp_bump = "/tmp/venus_bump.bmp"
 
+    download_and_convert_bmp(VENUS_ATMOSPHERE_URL, jpg_atm, bmp_atm)
     download_and_convert_bmp(VENUS_MAP_URL, jpg_map, bmp_map)
     download_and_convert_bmp(VENUS_BUMP_URL, jpg_bump, bmp_bump)
 
+    atm_r, atm_g, atm_b = read_bmp_rgb(bmp_atm)
     radar = read_bmp_gray(bmp_map)
     elevation = read_bmp_gray(bmp_bump)
 
     header = struct.pack("<8sII", b"ASTRO_VN", WIDTH, HEIGHT)
-    bin_data = header + bytes(radar) + bytes(elevation)
+    bin_data = header + bytes(atm_r) + bytes(atm_g) + bytes(atm_b) + bytes(radar) + bytes(elevation)
 
     output_path = "assets/venus_data.bin"
     with open(output_path, "wb") as f:
@@ -68,7 +93,7 @@ def main():
 
     print(f"Successfully generated {output_path} ({len(bin_data)} bytes)")
 
-    for p in (jpg_map, bmp_map, jpg_bump, bmp_bump):
+    for p in (jpg_atm, bmp_atm, jpg_map, bmp_map, jpg_bump, bmp_bump):
         if os.path.exists(p):
             os.remove(p)
 

@@ -1290,8 +1290,9 @@ fn test_venus_dual_layer_shader() {
     let optical_pixel = shader.shade(Vec3::Z, Vec3::Z, Vec3::Z, 0.0);
     // Optical mode should be yellowish-cream sulfuric acid cloud tops
     assert!(optical_pixel[0] > 180, "Optical Venus red component: got {}", optical_pixel[0]);
-    assert!(optical_pixel[1] > 170, "Optical Venus green component: got {}", optical_pixel[1]);
-    assert!(optical_pixel[2] > 120, "Optical Venus blue component: got {}", optical_pixel[2]);
+    assert!(optical_pixel[1] > 150, "Optical Venus green component: got {}", optical_pixel[1]);
+    assert!(optical_pixel[2] > 90, "Optical Venus blue component: got {}", optical_pixel[2]);
+    assert!(optical_pixel[0] >= optical_pixel[1] && optical_pixel[1] >= optical_pixel[2], "Venus optical spectrum: R >= G >= B");
 
     // 2. Radar SAR mode test
     shader.radar_mode = true;
@@ -1403,5 +1404,17 @@ fn test_render_venus_demo() {
         &cam,
         &raycaster,
         "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/venus_twilight_arc.ppm",
+    );
+
+    // 4. Venus Polar & Mid-Latitude View (Elevation looking at top pole and horizontal cloud streaks)
+    let mut cam_user = Camera::new();
+    cam_user.set_target(BodyId::Venus, physics.venus.position);
+    cam_user.azimuth = -1.10;
+    cam_user.elevation = 0.35;
+    render_ppm(
+        &mut buffer,
+        &cam_user,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/venus_user_view.ppm",
     );
 }

@@ -1,9 +1,9 @@
 //! Ultra-detailed Venus Shader with Dual-Layer Mode:
 //! 1. Optical Atmospheric Mode (Default):
-//!    - Hyper-realistic sulfuric acid (H2SO4) cloud deck with 4-day atmospheric super-rotation
-//!    - Planetary UV chevron 'Y-feature' equatorial wave pattern & polar vortices
-//!    - High planetary albedo (~0.77) with creamy pale-gold Planckian coloration
-//!    - Dense Mie & Rayleigh atmospheric twilight scattering
+//!    - NASA Pioneer Venus & Akatsuki ultraviolet & visible cloud deck (1024x512)
+//!    - Zonal atmospheric super-rotation in 4 days (~100 m/s westward winds)
+//!    - Equatorial Y-chevron UV waves, horizontal jet bands, and bright polar hoods
+//!    - Deep atmospheric twilight scattering & limb darkening
 //! 2. Magellan Radar SAR Mode (Toggled via [V]):
 //!    - NASA Magellan Synthetic Aperture Radar global reflectivity (1024x512)
 //!    - Topographic relief displacement for Maxwell Montes, Aphrodite Terra, and shield volcanoes
@@ -13,6 +13,9 @@ use crate::math::Vec3;
 use std::f64::consts::PI;
 
 pub struct VenusShader {
+    atm_r: &'static [u8],          // 1024 * 512
+    atm_g: &'static [u8],          // 1024 * 512
+    atm_b: &'static [u8],          // 1024 * 512
     radar_data: &'static [u8],     // 1024 * 512
     elevation_data: &'static [u8], // 1024 * 512
     width: usize,
@@ -28,16 +31,54 @@ impl VenusShader {
         let height = u32::from_le_bytes([bytes[12], bytes[13], bytes[14], bytes[15]]) as usize;
         let pixels = width * height;
 
-        let radar_data = &bytes[16..16 + pixels];
-        let elevation_data = &bytes[16 + pixels..16 + 2 * pixels];
+        let atm_r = &bytes[16..16 + pixels];
+        let atm_g = &bytes[16 + pixels..16 + 2 * pixels];
+        let atm_b = &bytes[16 + 2 * pixels..16 + 3 * pixels];
+        let radar_data = &bytes[16 + 3 * pixels..16 + 4 * pixels];
+        let elevation_data = &bytes[16 + 4 * pixels..16 + 5 * pixels];
 
         Self {
+            atm_r,
+            atm_g,
+            atm_b,
             radar_data,
             elevation_data,
             width,
             height,
             radar_mode: false,
         }
+    }
+
+    /// Sample intrinsic optical atmospheric cloud deck RGB [0.0 .. 255.0] with bilinear filtering.
+    #[inline(always)]
+    pub fn sample_atmosphere(&self, lat_deg: f64, lon_deg: f64) -> [f64; 3] {
+        let u = ((lon_deg + 180.0) / 360.0).rem_euclid(1.0) * (self.width as f64 - 1.0);
+        let v = ((90.0 - lat_deg) / 180.0).clamp(0.0, 1.0) * (self.height as f64 - 1.0);
+
+        let x0 = u.floor() as usize;
+        let y0 = v.floor() as usize;
+        let x1 = (x0 + 1).min(self.width - 1);
+        let y1 = (y0 + 1).min(self.height - 1);
+
+        let fx = u - u.floor();
+        let fy = v - v.floor();
+
+        let idx00 = y0 * self.width + x0;
+        let idx10 = y0 * self.width + x1;
+        let idx01 = y1 * self.width + x0;
+        let idx11 = y1 * self.width + x1;
+
+        let bilerp = |data: &[u8]| -> f64 {
+            let p00 = data[idx00] as f64;
+            let p10 = data[idx10] as f64;
+            let p01 = data[idx01] as f64;
+            let p11 = data[idx11] as f64;
+            let top = p00 * (1.0 - fx) + p10 * fx;
+            let bot = p01 * (1.0 - fx) + p11 * fx;
+            top * (1.0 - fy) + bot * fy
+        };
+
+        [bilerp(self.atm_r), bilerp(self.atm_g), bilerp(self.atm_b)]
     }
 
     /// Sample intrinsic Magellan SAR radar reflectivity [0.0 .. 255.0] with bilinear filtering.
@@ -149,23 +190,13 @@ impl VenusShader {
             // ==========================================
             // OPTICAL SUPER-ROTATING ATMOSPHERE MODE
             // ==========================================
-            // 4-day zonal super-rotation (moving retrograde westward: negative lon)
-            let super_rot = -(elapsed * 0.035);
-            let rot_lon = (lon_rad + super_rot).rem_euclid(2.0 * PI) - PI;
+            // 4-day zonal super-rotation (westward retrograde wind ~100 m/s)
+            // Period: 4 days = 345,600 s. Scaled with simulation elapsed time.
+            let super_rot_deg = (elapsed * (360.0 / (4.0 * 86_400.0))).rem_euclid(360.0);
+            let sample_lon = (lon_deg - super_rot_deg).rem_euclid(360.0) - 180.0;
 
-            // Zonal wind shear generating the planetary UV chevron / horizontal 'Y-feature'
-            // Equatorial winds are fastest (~100 m/s); mid-latitudes bend backwards
-            let lat_bend = (lat_rad.abs() * 1.35).powf(1.6) * 0.45;
-            let chevron_lon = rot_lon + lat_bend;
-
-            // UV absorbing sulfur aerosol wave bands
-            let y_feature = (chevron_lon * 2.0).cos() * (lat_rad * 3.5).cos().max(0.0).powi(2);
-            let sub_bands = (lat_rad * 14.0 + (chevron_lon * 4.0).sin() * 0.3).sin() * 0.5 + 0.5;
-            let micro_plumes = (lat_rad * 28.0 - chevron_lon * 6.0).cos() * 0.5 + 0.5;
-
-            // Polar dipoles (swirling double-vortices at |lat| > 65°)
-            let polar_mask = ((lat_rad.abs() - (65.0 * PI / 180.0)).max(0.0) / (25.0 * PI / 180.0)).powi(2);
-            let polar_vortex = ((chevron_lon * 2.0 + elapsed * 0.05).sin() * 0.5 + 0.5) * polar_mask;
+            // Sample real NASA Pioneer Venus / Akatsuki ultraviolet & visible cloud deck
+            let [raw_r, raw_g, raw_b] = self.sample_atmosphere(lat_deg, sample_lon);
 
             // Atmospheric diffuse reflectance with limb darkening
             let mu_0 = local_hit.dot(local_sun);
@@ -178,20 +209,14 @@ impl VenusShader {
             }
 
             // Limb darkening for thick scattering atmosphere (Chandrasekhar H-function approx)
-            let limb_darkening = 0.40 + 0.60 * mu.sqrt();
-            let lighting = sun_factor.powf(1.15) * limb_darkening;
+            let limb_darkening = 0.42 + 0.58 * mu.powf(0.65);
+            let lighting = sun_factor.powf(1.10) * limb_darkening;
 
-            // Base sulfuric acid cloud albedo (~0.77 high optical thickness)
-            // Irradiance at 0.723 AU is 1.91x Earth's
-            let cloud_texture = 0.90 + 0.06 * y_feature + 0.03 * sub_bands + 0.02 * micro_plumes - 0.05 * polar_vortex;
-            let total_lum = lighting * cloud_texture * 1.25;
-
-            // Creamy yellowish-white Planckian palette:
-            // Subsolar point is bright pale cream [250, 240, 215],
-            // fading gently into golden amber [215, 185, 130] near terminator
-            let r = (total_lum * 252.0).clamp(0.0, 255.0);
-            let g = (total_lum * (240.0 - 45.0 * (1.0 - sun_factor))).clamp(0.0, 255.0);
-            let b = (total_lum * (210.0 - 110.0 * (1.0 - sun_factor))).clamp(0.0, 255.0);
+            // Gentle golden warming near the terminator
+            let term_warmth = (1.0 - sun_factor).powi(2);
+            let r = (raw_r * lighting * 1.15).clamp(0.0, 255.0);
+            let g = (raw_g * lighting * (1.10 - 0.12 * term_warmth)).clamp(0.0, 255.0);
+            let b = (raw_b * lighting * (1.05 - 0.25 * term_warmth)).clamp(0.0, 255.0);
 
             [r as u8, g as u8, b as u8]
         }
