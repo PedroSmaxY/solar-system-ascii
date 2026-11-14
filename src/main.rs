@@ -9,6 +9,10 @@ fn main() {
 
     let mut test_frames = None;
     let mut initial_mode = RenderMode::Ascii;
+    let mut target_body = None;
+    let mut custom_azimuth = None;
+    let mut custom_elevation = None;
+    let mut custom_distance = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -18,6 +22,35 @@ fn main() {
             }
             "--ascii" => {
                 initial_mode = RenderMode::Ascii;
+            }
+            "--target" => {
+                if i + 1 < args.len() {
+                    match args[i + 1].to_lowercase().as_str() {
+                        "moon" | "luna" | "lua" => target_body = Some(solar_system_ascii::physics::body::BodyId::Moon),
+                        "earth" | "terra" => target_body = Some(solar_system_ascii::physics::body::BodyId::Earth),
+                        "sun" | "sol" => target_body = Some(solar_system_ascii::physics::body::BodyId::Sun),
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            "--azimuth" => {
+                if i + 1 < args.len() {
+                    custom_azimuth = args[i + 1].parse::<f64>().ok();
+                    i += 1;
+                }
+            }
+            "--elevation" => {
+                if i + 1 < args.len() {
+                    custom_elevation = args[i + 1].parse::<f64>().ok();
+                    i += 1;
+                }
+            }
+            "--distance" => {
+                if i + 1 < args.len() {
+                    custom_distance = args[i + 1].parse::<f64>().ok();
+                    i += 1;
+                }
             }
             "--frames" => {
                 if i + 1 < args.len() {
@@ -53,5 +86,13 @@ fn main() {
     }
 
     let mut app = App::new(initial_mode);
+    if let Some(target) = target_body {
+        app.set_target(target);
+    }
+    if custom_azimuth.is_some() || custom_elevation.is_some() || custom_distance.is_some() {
+        let az = custom_azimuth.unwrap_or(2.30);
+        let el = custom_elevation.unwrap_or(0.28);
+        app.set_view(az, el, custom_distance);
+    }
     app.run(test_frames);
 }

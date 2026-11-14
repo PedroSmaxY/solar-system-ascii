@@ -14,6 +14,7 @@ const ASCII_RAMP: &[u8] = b" .:-=+*x%#@";
 
 pub struct Raycaster {
     earth_shader: EarthShader,
+    moon_shader: MoonShader,
 }
 
 struct SphereHit {
@@ -27,6 +28,7 @@ impl Raycaster {
     pub fn new() -> Self {
         Self {
             earth_shader: EarthShader::new(),
+            moon_shader: MoonShader::new(),
         }
     }
 
@@ -136,7 +138,9 @@ impl Raycaster {
                             }
                             BodyId::Moon => {
                                 let local_norm = moon_mat_inv.mul_vec(hit.world_norm);
-                                MoonShader::shade(local_norm, hit.world_norm, sun_dir)
+                                let local_sun = moon_mat_inv.mul_vec(sun_dir);
+                                let local_view = moon_mat_inv.mul_vec(view_dir);
+                                self.moon_shader.shade(local_norm, local_sun, local_view)
                             }
                             _ => [255, 255, 255],
                         };

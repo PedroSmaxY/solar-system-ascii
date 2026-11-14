@@ -36,9 +36,8 @@ impl SolarSystemPhysics {
         if let Some(ref orb) = self.moon.orbit {
             let rel_pos = orb.calculate_position(t);
             self.moon.position = self.earth.position + rel_pos;
-            // Tidal locking: Moon rotation matches its orbital period
-            let mean_motion = TWO_PI / orb.period;
-            self.moon.rotation_angle = (orb.m0 + mean_motion * t).rem_euclid(TWO_PI);
+            // Synchronous tidal locking: Prime meridian (0° lon, Sinus Medii) permanently faces Earth
+            self.moon.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
         }
     }
 

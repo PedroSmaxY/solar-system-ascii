@@ -41,6 +41,22 @@ impl App {
         }
     }
 
+    pub fn set_target(&mut self, body: BodyId) {
+        let pos = match body {
+            BodyId::Earth => self.physics.earth.position,
+            BodyId::Moon => self.physics.moon.position,
+            BodyId::Sun => self.physics.sun.position,
+        };
+        self.camera.set_target(body, pos);
+    }
+
+    pub fn set_view(&mut self, azimuth: f64, elevation: f64, distance: Option<f64>) {
+        self.camera.azimuth = azimuth;
+        self.camera.elevation = elevation;
+        if let Some(d) = distance {
+            self.camera.distance_km = d;
+        }
+    }
 
     pub fn run(&mut self, test_frames: Option<u64>) {
         self.term.init();

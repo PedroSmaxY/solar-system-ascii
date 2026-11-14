@@ -128,6 +128,8 @@ fn test_camera_360_orbit_and_recenter() {
 fn test_moon_far_side_features() {
     use solar_system_ascii::render::moon_shader::MoonShader;
 
+    let shader = MoonShader::new();
+
     // Local hit for Tsiolkovskiy on the far side (lat ~ -20.4 deg, lon ~ +129.1 deg)
     let lat_rad = -20.4f64.to_radians();
     let lon_rad = 129.1f64.to_radians();
@@ -135,11 +137,26 @@ fn test_moon_far_side_features() {
     let y = lat_rad.sin();
     let z = lat_rad.cos() * lon_rad.sin();
     let hit = Vec3::new(x, y, z).normalize();
-    let sun = Vec3::new(x, y, z).normalize(); // direct sun
+    let sun = hit; // direct sun
+    let view = hit; // direct view
 
-    let rgb = MoonShader::shade(hit, hit, sun);
+    let rgb = shader.shade(hit, sun, view);
     // Should be valid RGB
     assert!(rgb[0] > 0);
+
+    // Verify geological contrast: Tycho ray crater vs Mare Tranquillitatis
+    let tycho_albedo = shader.sample_albedo(-43.3, -11.2);
+    let mare_albedo = shader.sample_albedo(8.5, 31.0);
+    assert!(
+        tycho_albedo > mare_albedo,
+        "Tycho crater ray albedo ({}) must exceed basaltic mare albedo ({})",
+        tycho_albedo,
+        mare_albedo
+    );
+
+    // Verify elevation data exists and is non-zero
+    let tycho_elev = shader.sample_elevation(-43.3, -11.2);
+    assert!(tycho_elev > 0.0);
 }
 
 #[test]

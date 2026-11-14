@@ -83,7 +83,7 @@ impl CelestialBody {
             orbit: Some(KeplerOrbit::moon_around_earth()),
             parent: Some(BodyId::Earth),
             position: Vec3::new(149_597_870.7 + 384_400.0, 0.0, 0.0),
-            rotation_angle: 0.0,
+            rotation_angle: PI,
         }
     }
 
