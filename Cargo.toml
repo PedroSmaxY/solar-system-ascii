@@ -1,0 +1,17 @@
+[package]
+name = "solar-system-ascii"
+version = "0.1.0"
+edition = "2021"
+authors = ["PedroSmaxY <pedrohenrique.nv@icloud.com>"]
+description = "AstroEngine ASCII - Real-time 3D Solar System & Earth Simulator in TrueColor ANSI"
+
+[dependencies]
+crossterm = "0.28"
+rand = "0.8"
+rayon = "1.10"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
