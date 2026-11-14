@@ -15,20 +15,45 @@ impl SunShader {
         Self
     }
 
-    /// Dynamic plasma granulation using multi-frequency cellular harmonics.
+    /// Dynamic plasma granulation using rotated non-separable tetrahedral Voronoi cellular harmonics.
+    /// Completely eliminates Cartesian square checkerboard / low-poly grid artifacts.
     #[inline(always)]
     fn granulation(local_hit: Vec3, time: f64) -> f64 {
-        let p = local_hit * 52.0;
-        let (st1, ct1) = (time * 0.4).sin_cos();
-        let (st2, ct2) = (time * 0.25).sin_cos();
+        // Rotated non-separable frame 1 (irrational rotation matrix)
+        let p = local_hit * 68.0;
+        let t1 = time * 0.35;
+        let (st1, ct1) = t1.sin_cos();
 
-        let w1 = (p.x + st1).sin() * (p.y + ct1).cos() * (p.z * 1.1 + st2).sin();
-        let w2 = (p.y * 1.4 - ct1).sin() * (p.z * 1.3 + st1).cos() * (p.x * 1.2 - ct2).sin();
-        let w3 = (p.z * 2.1 + st2).sin() * (p.x * 2.0 - ct1).cos() * (p.y * 1.9 + st1).sin();
+        // Wave set 1: Tetrahedral non-orthogonal vectors
+        // k1 = (1, 1, 1)/sqrt(3), k2 = (1, -1, -1)/sqrt(3), k3 = (-1, 1, -1)/sqrt(3), k4 = (-1, -1, 1)/sqrt(3)
+        let inv_sqrt3 = 0.57735026919;
+        let d1 = (p.x + p.y + p.z) * inv_sqrt3;
+        let d2 = (p.x - p.y - p.z) * inv_sqrt3;
+        let d3 = (-p.x + p.y - p.z) * inv_sqrt3;
+        let d4 = (-p.x - p.y + p.z) * inv_sqrt3;
 
-        // Cellular contrast: bright hot convective centers with narrow cooler intergranular lanes
-        let raw = (w1 * 0.50 + w2 * 0.35 + w3 * 0.15).abs();
-        (raw * 1.6).powf(0.85).clamp(0.0, 1.0)
+        let w1 = ((d1 + st1).cos() + (d2 - ct1).cos() + (d3 + ct1).cos() + (d4 - st1).cos()) * 0.25;
+
+        // Wave set 2: Rotated by 47° and 73° around golden ratio axes (scale 136.0)
+        let p2 = Vec3::new(
+            0.80 * local_hit.x - 0.48 * local_hit.y + 0.36 * local_hit.z,
+            0.48 * local_hit.x + 0.86 * local_hit.y + 0.16 * local_hit.z,
+            -0.36 * local_hit.x + 0.05 * local_hit.y + 0.93 * local_hit.z,
+        ) * 136.0;
+
+        let t2 = time * 0.50;
+        let (st2, ct2) = t2.sin_cos();
+        let e1 = (p2.x + p2.y + p2.z) * inv_sqrt3;
+        let e2 = (p2.x - p2.y - p2.z) * inv_sqrt3;
+        let e3 = (-p2.x + p2.y - p2.z) * inv_sqrt3;
+        let e4 = (-p2.x - p2.y + p2.z) * inv_sqrt3;
+
+        let w2 = ((e1 - st2).cos() + (e2 + ct2).cos() + (e3 - ct2).cos() + (e4 + st2).cos()) * 0.25;
+
+        // Convective cellular contrast:
+        // Centers of cells have high values; narrow downflow lanes between cells are cooler
+        let cell = (w1 * 0.65 + w2 * 0.35) * 0.5 + 0.5; // in [0, 1]
+        cell.powf(0.55).clamp(0.0, 1.0)
     }
 
     /// Sunspot groups in the Spörer tropical magnetic belt (±10° to ±35°).
@@ -201,55 +226,79 @@ impl SunShader {
         let sin_psi = rel_norm.dot(right_axis).clamp(-1.0, 1.0);
         let psi = sin_psi.atan2(cos_psi); // -PI .. +PI
 
+        // 1. Magnetic Field Deflection: Near the Sun, magnetic dipole lines curve towards the equator
+        let equator_sign = if sin_psi >= 0.0 { 1.0 } else { -1.0 };
+        let dip_bend = equator_sign * (cos_psi.abs() * (1.0 - cos_psi.abs())) * 0.28 * (-altitude / 0.70).exp();
+
+        // 2. 2D/3D Organic Fractal Domain Warping along the ray (eliminates straight bicycle spokes)
+        let warp1 = (3.0 * psi + altitude * 1.5 - elapsed * 0.10).sin() * 0.12;
+        let warp2 = (7.0 * psi - altitude * 2.8 + elapsed * 0.06).cos() * 0.06;
+        let warp3 = (15.0 * psi + altitude * 4.5).sin() * 0.025;
+        let psi_eff = psi + dip_bend + warp1 + warp2 + warp3;
+
         // Smooth C^1 continuous outer boundary taper to exactly zero at 4.5 R_sun
         let taper = (1.0 - (altitude / 3.5).powi(2)).max(0.0).powi(2);
 
-        // 1. Inner K-Corona (dense Thomson scattering glow near limb)
+        // K-Corona (dense Thomson scattering glow near limb)
         let k_corona = (-altitude / 0.14).exp() * 0.95;
 
-        // 2. Equatorial Helmet Streamers (Large magnetic lobes extending to 4.5 R_sun - Image 3)
-        let eq_mask = (1.0 - cos_psi.abs().powi(4)).max(0.0);
-        let lobe1 = ((6.0 * psi + elapsed * 0.04).cos() * 0.5 + 0.5).powi(2);
-        let lobe2 = ((10.0 * psi - elapsed * 0.02 + 1.2).cos() * 0.5 + 0.5).powi(3);
-        let major_streamers = eq_mask * (0.55 * lobe1 + 0.35 * lobe2 + 0.10);
+        // Latitudinal envelope: Helmet streamers dominate equatorial & mid-latitudes (Image 3)
+        let eq_mask = (1.0 - cos_psi.abs().powi(3)).max(0.0);
+        let m1 = (4.0 * psi_eff + elapsed * 0.03).cos() * 0.5 + 0.5;
+        let m2 = (6.0 * psi_eff - 0.7 - elapsed * 0.02).sin() * 0.5 + 0.5;
+        let macro_lobes = m1.powi(3) * 0.60 + m2.powi(4) * 0.40;
 
-        // 3. Sharp Needle-like Coronal Rays / Fibrous Striations (Image 3)
-        let ray_freq1 = (32.0 * psi + elapsed * 0.03).cos().abs().powf(2.0);
-        let ray_freq2 = (48.0 * psi - 0.8).sin().abs().powf(2.5);
-        let ray_freq3 = (64.0 * psi + 1.5).cos().abs().powf(3.0);
-        let fine_fibers = ray_freq1 * 0.50 + ray_freq2 * 0.30 + ray_freq3 * 0.20;
-        let ray_mod = 0.35 + 0.95 * fine_fibers;
+        // Intermediate Streamers (Scale 14 - 24)
+        let s1 = (16.0 * psi_eff + altitude * 0.8).cos() * 0.5 + 0.5;
+        let s2 = (24.0 * psi_eff - altitude * 1.2).sin() * 0.5 + 0.5;
+        let intermediate = s1.powf(2.0) * 0.55 + s2.powf(2.2) * 0.45;
 
-        // 4. Polar Coronal Plumes (fine radial rays from coronal holes)
-        let polar_mask = (cos_psi.abs() - 0.65).max(0.0) / 0.35;
+        // Whispy Coronal Fibrils & Micro-rays (Scale 38 - 64)
+        let f1 = (40.0 * psi_eff + altitude * 2.2).cos() * 0.5 + 0.5;
+        let f2 = (64.0 * psi_eff - altitude * 3.8).sin() * 0.5 + 0.5;
+        let fibrils = f1.powf(2.5) * 0.60 + f2.powf(3.0) * 0.40;
+
+        // Polar Coronal Plumes (fine radial plumes from polar coronal holes)
+        let polar_mask = (cos_psi.abs() - 0.60).max(0.0) / 0.40;
         let polar_plumes = polar_mask.powi(2)
-            * ((28.0 * psi).sin().abs().powf(1.5))
+            * ((24.0 * psi_eff).sin().abs().powf(1.5))
             * (-altitude / 0.45).exp();
+
+        // Turbulent density eddies along the outflowing solar wind stream
+        let radial_eddy = (altitude * 6.0 - elapsed * 0.25 + psi * 3.0).sin() * 0.12 + 0.88;
+
+        let streamer_field = (macro_lobes * 0.50 + intermediate * 0.32 + fibrils * 0.18) * eq_mask;
+        let ray_intensity = (0.06 + 0.94 * streamer_field) * radial_eddy;
 
         // Extended F-corona rays & helmet streamers with power-law radial decay (Image 3)
         let falloff = (1.0 + altitude / 0.55).powf(-1.5);
-        let f_corona = falloff * (0.50 * major_streamers * ray_mod + 0.08 * ray_mod + 0.02);
+        let f_corona = falloff * (0.50 * ray_intensity + 0.02);
 
-        let base_glow = (k_corona + f_corona + polar_plumes * 0.18) * taper;
+        let base_glow = (k_corona + f_corona + polar_plumes * 0.16) * taper;
 
-        // 5. Towering Magnetic Coronal Loop Arcades (Images 1 & 2)
-        // Concentrated in active latitudes at the limb (alt < 0.20 R_sun)
+        // 5. Active Magnetic Arcades on the Limb (SDO AIA 171 Å: soft glowing plasma canopies)
         let mut loop_glow = 0.0f64;
-        if altitude < 0.20 {
-            let loop_centers = [1.32, -1.28, 1.88, -1.82];
-            for &psi_0 in &loop_centers {
+        if altitude < 0.09 {
+            // Active latitudes around the limb (psi near +-70° and +-110°)
+            // Active regions drift organically with solar rotation
+            let rot_phase = elapsed * 0.04;
+            let active_angles = [
+                1.25 + (rot_phase).sin() * 0.15,
+                -1.25 - (rot_phase * 0.9).cos() * 0.15,
+                1.90 - (rot_phase * 1.1).sin() * 0.15,
+                -1.90 + (rot_phase * 0.8).cos() * 0.15,
+            ];
+
+            for &psi_0 in &active_angles {
                 let d_psi = (psi - psi_0).abs();
-                if d_psi < 0.18 {
-                    let norm_span = d_psi / 0.18;
-                    let arch_factor = (1.0 - norm_span * norm_span).sqrt();
-                    // Fine delicate nested coronal loops (Image 2)
-                    for &(h_peak, thickness) in &[(0.12, 0.010), (0.075, 0.008), (0.040, 0.006)] {
-                        let arch_h = h_peak * arch_factor;
-                        let dist_to_loop = (altitude - arch_h).abs();
-                        let thread = (-((dist_to_loop / thickness).powi(2))).exp();
-                        let striation = (d_psi * 55.0).sin().powi(2) * 0.4 + 0.6;
-                        loop_glow += thread * striation * 0.70;
-                    }
+                if d_psi < 0.16 {
+                    let norm_span = d_psi / 0.16;
+                    let arch_h = 0.065 * (1.0 - norm_span * norm_span).sqrt();
+                    // Diffuse magnetic canopy + fine loop threads
+                    let canopy = (-((altitude / 0.035).powi(2))).exp() * (1.0 - norm_span);
+                    let loop_thread = (-(((altitude - arch_h) / 0.009).powi(2))).exp();
+                    let striation = (d_psi * 70.0).sin().powi(2) * 0.35 + 0.65;
+                    loop_glow += (canopy * 0.40 + loop_thread * 0.60) * striation * 0.55;
                 }
             }
             loop_glow = loop_glow.clamp(0.0, 1.0);
@@ -258,21 +307,21 @@ impl SunShader {
         // 6. Eruptive Solar Flare Nexus & Prominence Filaments (Image 1)
         let mut active_flare = 0.0f64;
         let mut flare_core_intensity = 0.0f64;
-        if altitude < 0.45 {
-            let flare_psi = 1.34;
+        if altitude < 0.25 {
+            let flare_psi = 1.25 + (elapsed * 0.04).sin() * 0.15;
             let d_flare_ang = (psi - flare_psi).abs();
-            let d_flare_rad = (r - 1.015).abs();
+            let d_flare_rad = (r - 1.01).abs();
             let d_flare = (d_flare_ang * d_flare_ang * 2.0 + d_flare_rad * d_flare_rad).sqrt();
 
-            // Blinding white reconnection core
-            flare_core_intensity = (-((d_flare / 0.045).powi(2))).exp() * 2.0;
+            // Blinding white reconnection core right at the footpoint
+            flare_core_intensity = (-((d_flare / 0.030).powi(2))).exp() * 1.8;
 
-            // Erupting twisted plasma jet
-            let jet_path = flare_psi + altitude * 0.22 + (altitude * 10.0 - elapsed * 0.4).sin() * 0.025;
+            // Erupting twisted plasma plume
+            let jet_path = flare_psi + altitude * 0.18 + (altitude * 15.0 - elapsed * 0.3).sin() * 0.02;
             let d_jet = (psi - jet_path).abs();
-            let jet_glow = (-((d_jet / 0.032).powi(2))).exp() * (-altitude / 0.20).exp() * 1.5;
+            let jet_glow = (-((d_jet / 0.025).powi(2))).exp() * (-altitude / 0.12).exp() * 1.2;
 
-            let flare_pulse = (elapsed * 0.6).sin() * 0.25 + 0.75;
+            let flare_pulse = (elapsed * 0.5).sin() * 0.20 + 0.80;
             active_flare = (flare_core_intensity + jet_glow) * flare_pulse;
         }
 
