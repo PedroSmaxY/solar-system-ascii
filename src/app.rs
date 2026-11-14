@@ -103,6 +103,11 @@ impl App {
                         let to_pos = self.physics.moon.position;
                         self.camera.start_transition(BodyId::Moon, from_pos, to_pos, 1.2);
                     }
+                    KeyCode::Char('3') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.sun.position;
+                        self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.4);
+                    }
                     KeyCode::Char('r') | KeyCode::Char('R') => {
                         self.camera.recenter();
                     }

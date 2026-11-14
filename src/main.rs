@@ -74,6 +74,7 @@ fn main() {
                 println!("  [WASD/Arrows]  Orbit camera around targeted planet");
                 println!("  [1]            Focus camera on Earth");
                 println!("  [2]            Focus camera on Moon");
+                println!("  [3]            Focus camera on Sun");
                 println!("  [B]            Toggle mode: ASCII (Standard) <-> Half-Block (HD)");
                 println!("  [Space]        Pause / Resume simulation");
                 println!("  [[/]]          Decrease / Increase time warp speed");

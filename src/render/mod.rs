@@ -6,3 +6,4 @@ pub mod hud;
 pub mod moon_shader;
 pub mod raycaster;
 pub mod stars;
+pub mod sun_shader;

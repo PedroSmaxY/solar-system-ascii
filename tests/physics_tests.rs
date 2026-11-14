@@ -462,3 +462,165 @@ fn test_polar_auroras_emission() {
         eq_night
     );
 }
+
+#[test]
+fn test_sun_shader_photosphere_and_limb_darkening() {
+    use solar_system_ascii::render::sun_shader::SunShader;
+
+    let shader = SunShader::new();
+    let view = Vec3::new(0.0, 0.0, 1.0);
+
+    // Center of solar disk (mu = 1.0): local_hit directly facing observer
+    let center_hit = Vec3::new(0.0, 0.0, 1.0);
+    let center_color = shader.shade_photosphere(center_hit, view, 0, 0.0);
+
+    // Extreme limb of solar disk (mu ≈ 0.05): local_hit grazing
+    let limb_hit = Vec3::new(0.9987, 0.0, 0.05).normalize();
+    let limb_color = shader.shade_photosphere(limb_hit, view, 0, 0.0);
+
+    // 1. Center must be significantly brighter and hotter (incandescent white-gold) than limb
+    let center_lum = center_color[0] as f64 * 0.299 + center_color[1] as f64 * 0.587 + center_color[2] as f64 * 0.114;
+    let limb_lum = limb_color[0] as f64 * 0.299 + limb_color[1] as f64 * 0.587 + limb_color[2] as f64 * 0.114;
+    assert!(
+        center_lum > limb_lum * 1.5,
+        "Center luminosity ({}) must exceed limb ({}) due to Eddington-Barbier darkening",
+        center_lum, limb_lum
+    );
+
+    // 2. Chromatic transition: Center has prominent blue component (incandescent white-gold), limb is amber/copper (blue extinguished)
+    assert!(center_color[2] > 180, "Center should have strong blue component, got {}", center_color[2]);
+    assert!(limb_color[2] < 80, "Limb should have suppressed blue component, got {}", limb_color[2]);
+    assert!(limb_color[0] > limb_color[1], "Limb should be warm amber/copper (R > G)");
+
+    // 3. Sunspots: Umbra core in Spörer belt (lat 17.5°, lon 45°) at t=0
+    let lat_rad = 17.5f64.to_radians();
+    let lon_rad = 45.0f64.to_radians();
+    let spot_hit = Vec3::new(lat_rad.cos() * lon_rad.cos(), lat_rad.sin(), lat_rad.cos() * lon_rad.sin()).normalize();
+    let spot_color = shader.shade_photosphere(spot_hit, spot_hit, 0, 0.0);
+
+    // Quiet photosphere at equivalent mu=1.0 but quiet latitude (lat 55°)
+    let quiet_lat_rad = 55.0f64.to_radians();
+    let quiet_hit = Vec3::new(quiet_lat_rad.cos() * lon_rad.cos(), quiet_lat_rad.sin(), quiet_lat_rad.cos() * lon_rad.sin()).normalize();
+    let quiet_color = shader.shade_photosphere(quiet_hit, quiet_hit, 0, 0.0);
+
+    assert!(
+        (spot_color[0] as f64) < (quiet_color[0] as f64) * 0.5,
+        "Sunspot umbra must show sharp luminosity drop: spot={:?}, quiet={:?}",
+        spot_color, quiet_color
+    );
+}
+
+#[test]
+fn test_sun_shader_corona_falloff() {
+    use solar_system_ascii::render::sun_shader::SunShader;
+
+    let shader = SunShader::new();
+    let dir = Vec3::new(1.0, 0.0, 0.0);
+
+    // Near-limb corona (1.05 R_sun)
+    let inner_corona = shader.shade_corona(1.05, dir, 0.0).expect("Inner corona must be visible");
+    // Outer corona (1.8 R_sun)
+    let outer_corona = shader.shade_corona(1.80, dir, 0.0).expect("Outer corona must be visible");
+    // Far outer / deep space (> 2.2 R_sun)
+    let space = shader.shade_corona(2.25, dir, 0.0);
+
+    assert!(space.is_none(), "Beyond 2.2 R_sun must yield None (deep space)");
+    assert!(shader.shade_corona(0.95, dir, 0.0).is_none(), "Inside solar disk must yield None");
+
+    let inner_lum = inner_corona[0] as f64 * 0.299 + inner_corona[1] as f64 * 0.587 + inner_corona[2] as f64 * 0.114;
+    let outer_lum = outer_corona[0] as f64 * 0.299 + outer_corona[1] as f64 * 0.587 + outer_corona[2] as f64 * 0.114;
+
+    assert!(
+        inner_lum > outer_lum * 3.0,
+        "Coronal glow must exhibit sharp exponential decay: inner={}, outer={}",
+        inner_lum, outer_lum
+    );
+}
+
+#[test]
+fn test_camera_flyto_sun_transition() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+    let earth_pos = physics.earth.position;
+    let sun_pos = physics.sun.position;
+
+    // Start interplanetary fly-to from Earth to Sun (1.4s duration)
+    cam.start_transition(BodyId::Sun, earth_pos, sun_pos, 1.4);
+    assert!(cam.transition.is_some());
+
+    // Step animation halfway (0.7s)
+    cam.update(0.7, &physics);
+    assert!(cam.transition.is_some());
+    assert!(cam.distance_km > 3_500_000.0, "Apex of fly-to zoom out should be high");
+
+    // Complete transition (0.8s more -> total 1.5s > 1.4s)
+    cam.update(0.8, &physics);
+    assert!(cam.transition.is_none());
+    assert_eq!(cam.target_body, BodyId::Sun);
+    assert!((cam.distance_km - 3_500_000.0).abs() < 1e-4);
+}
+
+#[test]
+fn test_render_sun_demo() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 160;
+    let rows = 80;
+    let mut buffer = FrameBuffer::new(cols, rows, RenderMode::HalfBlock);
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+    let raycaster = Raycaster::new();
+
+    let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
+        buf.pixels.fill(Pixel::BLACK);
+        raycaster.render_frame(buf, camera, &physics, 1, 0.0);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+
+        let v_h = buf.virtual_height();
+        let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
+        for p in &buf.pixels {
+            ppm.push(p.r);
+            ppm.push(p.g);
+            ppm.push(p.b);
+        }
+        std::fs::write(path, ppm).unwrap();
+    };
+
+    // 1. Full Solar Disk with Volumetric Corona (3,500,000 km)
+    cam.set_target(BodyId::Sun, physics.sun.position);
+    render_ppm(
+        &mut buffer,
+        &cam,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_full_disk_corona.ppm",
+    );
+
+    // 2. Solar Granulation Close-Up (850,000 km)
+    cam.distance_km = 850_000.0;
+    cam.orbit(0.45, -0.20);
+    render_ppm(
+        &mut buffer,
+        &cam,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_granulation_sunspots.ppm",
+    );
+
+    // 3. Spörer Belt Giant Sunspot Group Close-Up (1,250,000 km)
+    let mut cam_spot = Camera::new();
+    cam_spot.set_target(BodyId::Sun, physics.sun.position);
+    cam_spot.distance_km = 1_250_000.0;
+    cam_spot.azimuth = 45.0f64.to_radians();
+    cam_spot.elevation = 18.0f64.to_radians();
+    render_ppm(
+        &mut buffer,
+        &cam_spot,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_spot_closeup.ppm",
+    );
+}

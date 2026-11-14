@@ -8,6 +8,7 @@ use crate::render::camera::Camera;
 use crate::render::earth_shader::EarthShader;
 use crate::render::moon_shader::MoonShader;
 use crate::render::stars::Starfield;
+use crate::render::sun_shader::SunShader;
 use rayon::prelude::*;
 
 const ASCII_RAMP: &[u8] = b" .:-=+*x%#@";
@@ -15,6 +16,7 @@ const ASCII_RAMP: &[u8] = b" .:-=+*x%#@";
 pub struct Raycaster {
     earth_shader: EarthShader,
     moon_shader: MoonShader,
+    sun_shader: SunShader,
 }
 
 struct SphereHit {
@@ -29,6 +31,7 @@ impl Raycaster {
         Self {
             earth_shader: EarthShader::new(),
             moon_shader: MoonShader::new(),
+            sun_shader: SunShader::new(),
         }
     }
 
@@ -77,6 +80,8 @@ impl Raycaster {
         let moon_mat_inv = physics.moon.orientation_matrix().transpose();
 
         let sun_pos = physics.sun.position;
+        let sun_rad = physics.sun.radius_km;
+        let sun_mat_inv = physics.sun.orientation_matrix().transpose();
 
         // Render each scanline in parallel with Rayon
         buffer
@@ -120,8 +125,30 @@ impl Raycaster {
                         }
                     }
 
+                    // Sun hit
+                    if let Some(t_sun) = Self::intersect_sphere(&ray, sun_pos, sun_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_sun < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_sun);
+                            let norm = (hit_pos - sun_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_sun,
+                                body_id: BodyId::Sun,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
                     let (rgb, ch) = if let Some(hit) = closest_hit {
-                        let sun_dir = (sun_pos - hit.world_pos).normalize();
+                        let sun_dir = if hit.body_id == BodyId::Sun {
+                            Vec3::new(0.0, 1.0, 0.0)
+                        } else {
+                            (sun_pos - hit.world_pos).normalize()
+                        };
                         let view_dir = (ray.origin - hit.world_pos).normalize();
 
                         let color = match hit.body_id {
@@ -142,7 +169,10 @@ impl Raycaster {
                                 let local_view = moon_mat_inv.mul_vec(view_dir);
                                 self.moon_shader.shade(local_norm, local_sun, local_view)
                             }
-                            _ => [255, 255, 255],
+                            BodyId::Sun => {
+                                let local_norm = sun_mat_inv.mul_vec(hit.world_norm);
+                                self.sun_shader.shade_photosphere(local_norm, view_dir, tick, elapsed)
+                            }
                         };
 
                         let lum = 0.299 * color[0] as f64 + 0.587 * color[1] as f64 + 0.114 * color[2] as f64;
@@ -150,37 +180,58 @@ impl Raycaster {
                             .clamp(1, ASCII_RAMP.len() - 1);
                         (color, ASCII_RAMP[r_idx] as char)
                     } else {
-                        // Check atmospheric limb scattering for Earth
-                        let oc = ray.origin - earth_pos;
-                        let proj = -oc.dot(ray.dir);
-                        let mut atm_color = None;
+                        // 1. Check Solar Corona & Prominences
+                        let oc_sun = ray.origin - sun_pos;
+                        let proj_sun = -oc_sun.dot(ray.dir);
+                        let mut corona_color = None;
 
-                        if proj > 0.0 {
-                            let closest_p = ray.at(proj);
-                            let d_center = (closest_p - earth_pos).length();
-                            let atm_top = earth_rad + 140.0; // 140 km atmospheric limb
-                            if d_center > earth_rad && d_center < atm_top {
-                                let factor = (1.0 - (d_center - earth_rad) / 140.0).powf(1.8);
-                                let sun_dir = (sun_pos - closest_p).normalize();
-                                let limb_norm = (closest_p - earth_pos).normalize();
-                                let sun_facing = limb_norm.dot(sun_dir).max(-0.2) + 0.2;
-                                let glow = factor * sun_facing.clamp(0.0, 1.0);
-                                atm_color = Some([
-                                    (65.0 * glow) as u8,
-                                    (165.0 * glow) as u8,
-                                    (255.0 * glow) as u8,
-                                ]);
+                        if proj_sun > 0.0 {
+                            let closest_p = ray.at(proj_sun);
+                            let d_center = (closest_p - sun_pos).length();
+                            let d_ratio = d_center / sun_rad;
+                            if d_ratio > 1.0 && d_ratio < 2.2 {
+                                corona_color = self.sun_shader.shade_corona(d_ratio, ray.dir, elapsed);
                             }
                         }
 
-                        if let Some(atm) = atm_color {
-                            let lum = 0.299 * atm[0] as f64 + 0.587 * atm[1] as f64 + 0.114 * atm[2] as f64;
+                        if let Some(corona) = corona_color {
+                            let lum = 0.299 * corona[0] as f64 + 0.587 * corona[1] as f64 + 0.114 * corona[2] as f64;
                             let r_idx = ((lum / 255.0 * (ASCII_RAMP.len() - 1) as f64) as usize)
                                 .clamp(1, ASCII_RAMP.len() - 1);
-                            (atm, ASCII_RAMP[r_idx] as char)
+                            (corona, ASCII_RAMP[r_idx] as char)
                         } else {
-                            // Deep space stars
-                            Starfield::sample(ray.dir, tick)
+                            // 2. Check atmospheric limb scattering for Earth
+                            let oc = ray.origin - earth_pos;
+                            let proj = -oc.dot(ray.dir);
+                            let mut atm_color = None;
+
+                            if proj > 0.0 {
+                                let closest_p = ray.at(proj);
+                                let d_center = (closest_p - earth_pos).length();
+                                let atm_top = earth_rad + 140.0; // 140 km atmospheric limb
+                                if d_center > earth_rad && d_center < atm_top {
+                                    let factor = (1.0 - (d_center - earth_rad) / 140.0).powf(1.8);
+                                    let sun_dir = (sun_pos - closest_p).normalize();
+                                    let limb_norm = (closest_p - earth_pos).normalize();
+                                    let sun_facing = limb_norm.dot(sun_dir).max(-0.2) + 0.2;
+                                    let glow = factor * sun_facing.clamp(0.0, 1.0);
+                                    atm_color = Some([
+                                        (65.0 * glow) as u8,
+                                        (165.0 * glow) as u8,
+                                        (255.0 * glow) as u8,
+                                    ]);
+                                }
+                            }
+
+                            if let Some(atm) = atm_color {
+                                let lum = 0.299 * atm[0] as f64 + 0.587 * atm[1] as f64 + 0.114 * atm[2] as f64;
+                                let r_idx = ((lum / 255.0 * (ASCII_RAMP.len() - 1) as f64) as usize)
+                                    .clamp(1, ASCII_RAMP.len() - 1);
+                                (atm, ASCII_RAMP[r_idx] as char)
+                            } else {
+                                // Deep space stars
+                                Starfield::sample(ray.dir, tick)
+                            }
                         }
                     };
 
