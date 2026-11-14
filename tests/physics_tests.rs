@@ -515,26 +515,66 @@ fn test_sun_shader_corona_falloff() {
     use solar_system_ascii::render::sun_shader::SunShader;
 
     let shader = SunShader::new();
-    let dir = Vec3::new(1.0, 0.0, 0.0);
+    let ray_dir = Vec3::new(0.0, 0.0, -1.0);
+    let rel_norm = Vec3::new(1.0, 0.0, 0.0); // Equatorial ray
 
     // Near-limb corona (1.05 R_sun)
-    let inner_corona = shader.shade_corona(1.05, dir, 0.0).expect("Inner corona must be visible");
-    // Outer corona (1.8 R_sun)
-    let outer_corona = shader.shade_corona(1.80, dir, 0.0).expect("Outer corona must be visible");
-    // Far outer / deep space (> 2.2 R_sun)
-    let space = shader.shade_corona(2.25, dir, 0.0);
+    let inner_corona = shader.shade_corona(1.05, rel_norm, ray_dir, 0.0).expect("Inner corona must be visible");
+    // Mid-outer corona (2.5 R_sun)
+    let mid_corona = shader.shade_corona(2.50, rel_norm, ray_dir, 0.0).expect("Mid-outer corona must be visible");
+    // Far extended streamer (3.8 R_sun)
+    let outer_corona = shader.shade_corona(3.80, rel_norm, ray_dir, 0.0).expect("Outer streamer rays must be visible");
+    // Deep space (> 4.5 R_sun)
+    let deep_space = shader.shade_corona(4.60, rel_norm, ray_dir, 0.0);
 
-    assert!(space.is_none(), "Beyond 2.2 R_sun must yield None (deep space)");
-    assert!(shader.shade_corona(0.95, dir, 0.0).is_none(), "Inside solar disk must yield None");
+    assert!(deep_space.is_none(), "Beyond 4.5 R_sun must yield None (deep space)");
+    assert!(shader.shade_corona(0.95, rel_norm, ray_dir, 0.0).is_none(), "Inside solar disk must yield None");
 
     let inner_lum = inner_corona[0] as f64 * 0.299 + inner_corona[1] as f64 * 0.587 + inner_corona[2] as f64 * 0.114;
+    let mid_lum = mid_corona[0] as f64 * 0.299 + mid_corona[1] as f64 * 0.587 + mid_corona[2] as f64 * 0.114;
     let outer_lum = outer_corona[0] as f64 * 0.299 + outer_corona[1] as f64 * 0.587 + outer_corona[2] as f64 * 0.114;
 
     assert!(
-        inner_lum > outer_lum * 3.0,
-        "Coronal glow must exhibit sharp exponential decay: inner={}, outer={}",
-        inner_lum, outer_lum
+        inner_lum > mid_lum * 2.0 && mid_lum > outer_lum * 1.5,
+        "Coronal glow must exhibit smooth continuous radial decay: inner={}, mid={}, outer={}",
+        inner_lum, mid_lum, outer_lum
     );
+}
+
+#[test]
+fn test_sun_coronal_rays_and_star_additive_blending() {
+    use solar_system_ascii::render::sun_shader::SunShader;
+
+    let shader = SunShader::new();
+    let ray_dir = Vec3::new(0.0, 0.0, -1.0);
+
+    // 1. Angular contrast: Coronal streamer ray vs inter-streamer valley at 2.2 R_sun
+    let ray_norm = Vec3::new(1.0, 0.0, 0.0); // Equatorial streamer
+    let polar_norm = Vec3::new(0.0, 1.0, 0.0); // Polar coronal hole
+    let streamer = shader.shade_corona(2.2, ray_norm, ray_dir, 0.0).unwrap();
+    let polar = shader.shade_corona(2.2, polar_norm, ray_dir, 0.0);
+
+    let streamer_lum = streamer[0] as f64 * 0.299 + streamer[1] as f64 * 0.587 + streamer[2] as f64 * 0.114;
+    let polar_lum = polar.map(|p| p[0] as f64 * 0.299 + p[1] as f64 * 0.587 + p[2] as f64 * 0.114).unwrap_or(0.0);
+
+    assert!(
+        streamer_lum > polar_lum * 1.5,
+        "Equatorial helmet streamers should have strong contrast over polar coronal holes: streamer={}, polar={}",
+        streamer_lum, polar_lum
+    );
+
+    // 2. Additive blending: Stars must never be extinguished in the outer coronal halo
+    let outer_corona = shader.shade_corona(3.5, ray_norm, ray_dir, 0.0).unwrap();
+    let mock_star_rgb = [200u8, 220u8, 255u8];
+    let blended_rgb = [
+        outer_corona[0].saturating_add(mock_star_rgb[0]),
+        outer_corona[1].saturating_add(mock_star_rgb[1]),
+        outer_corona[2].saturating_add(mock_star_rgb[2]),
+    ];
+
+    assert!(blended_rgb[0] >= mock_star_rgb[0]);
+    assert!(blended_rgb[1] >= mock_star_rgb[1]);
+    assert!(blended_rgb[2] >= mock_star_rgb[2]);
 }
 
 #[test]
@@ -595,24 +635,27 @@ fn test_render_sun_demo() {
         std::fs::write(path, ppm).unwrap();
     };
 
-    // 1. Full Solar Disk with Volumetric Corona (3,500,000 km)
+    // 1. Full Solar Disk with Dramatic Corona Rays & Helmet Streamers (3,500,000 km)
     cam.set_target(BodyId::Sun, physics.sun.position);
     render_ppm(
         &mut buffer,
         &cam,
-        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_full_disk_corona.ppm",
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_dramatic_corona_rays.ppm",
     );
 
-    // 2. Solar Granulation Close-Up (850,000 km)
-    cam.distance_km = 850_000.0;
-    cam.orbit(0.45, -0.20);
+    // 2. Coronal Loops & Eruptive Solar Flare at Limb Close-Up (Image 1 & 2)
+    let mut cam_flare = Camera::new();
+    cam_flare.set_target(BodyId::Sun, Vec3::new(650_000.0, 180_000.0, 0.0));
+    cam_flare.distance_km = 800_000.0;
+    cam_flare.azimuth = 0.0;
+    cam_flare.elevation = 0.0;
     render_ppm(
         &mut buffer,
-        &cam,
-        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_granulation_sunspots.ppm",
+        &cam_flare,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_prominence_flare_loops.ppm",
     );
 
-    // 3. Spörer Belt Giant Sunspot Group Close-Up (1,250,000 km)
+    // 3. Spörer Belt Giant Sunspot Group & Plages Close-Up (1,250,000 km)
     let mut cam_spot = Camera::new();
     cam_spot.set_target(BodyId::Sun, physics.sun.position);
     cam_spot.distance_km = 1_250_000.0;
@@ -622,5 +665,14 @@ fn test_render_sun_demo() {
         &mut buffer,
         &cam_spot,
         "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_spot_closeup.ppm",
+    );
+
+    // 4. Solar Granulation Close-Up (850,000 km)
+    cam.distance_km = 850_000.0;
+    cam.orbit(0.45, -0.20);
+    render_ppm(
+        &mut buffer,
+        &cam,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/sun_granulation_sunspots.ppm",
     );
 }

@@ -180,58 +180,80 @@ impl Raycaster {
                             .clamp(1, ASCII_RAMP.len() - 1);
                         (color, ASCII_RAMP[r_idx] as char)
                     } else {
-                        // 1. Check Solar Corona & Prominences
+                        // 1. Check Solar Corona & Extended Radial Rays (up to 4.5 R_sun)
                         let oc_sun = ray.origin - sun_pos;
                         let proj_sun = -oc_sun.dot(ray.dir);
                         let mut corona_color = None;
 
                         if proj_sun > 0.0 {
                             let closest_p = ray.at(proj_sun);
-                            let d_center = (closest_p - sun_pos).length();
+                            let sun_to_p = closest_p - sun_pos;
+                            let d_center = sun_to_p.length();
                             let d_ratio = d_center / sun_rad;
-                            if d_ratio > 1.0 && d_ratio < 2.2 {
-                                corona_color = self.sun_shader.shade_corona(d_ratio, ray.dir, elapsed);
+                            if d_ratio > 1.0 && d_ratio < 4.5 {
+                                let rel_norm = sun_to_p / d_center;
+                                corona_color = self.sun_shader.shade_corona(d_ratio, rel_norm, ray.dir, elapsed);
                             }
                         }
 
+                        // 2. Check atmospheric limb scattering for Earth
+                        let oc = ray.origin - earth_pos;
+                        let proj = -oc.dot(ray.dir);
+                        let mut atm_color = None;
+
+                        if proj > 0.0 {
+                            let closest_p = ray.at(proj);
+                            let d_center = (closest_p - earth_pos).length();
+                            let atm_top = earth_rad + 140.0; // 140 km atmospheric limb
+                            if d_center > earth_rad && d_center < atm_top {
+                                let factor = (1.0 - (d_center - earth_rad) / 140.0).powf(1.8);
+                                let sun_dir = (sun_pos - closest_p).normalize();
+                                let limb_norm = (closest_p - earth_pos).normalize();
+                                let sun_facing = limb_norm.dot(sun_dir).max(-0.2) + 0.2;
+                                let glow = factor * sun_facing.clamp(0.0, 1.0);
+                                atm_color = Some([
+                                    (65.0 * glow) as u8,
+                                    (165.0 * glow) as u8,
+                                    (255.0 * glow) as u8,
+                                ]);
+                            }
+                        }
+
+                        // 3. Deep space background stars (sampled for all sky directions)
+                        let (star_rgb, star_ch) = Starfield::sample(ray.dir, tick);
+
+                        // 4. Additive semi-transparent compositing (no star occlusion, no black border)
                         if let Some(corona) = corona_color {
-                            let lum = 0.299 * corona[0] as f64 + 0.587 * corona[1] as f64 + 0.114 * corona[2] as f64;
+                            let r = corona[0].saturating_add(star_rgb[0]);
+                            let g = corona[1].saturating_add(star_rgb[1]);
+                            let b = corona[2].saturating_add(star_rgb[2]);
+                            let lum = 0.299 * r as f64 + 0.587 * g as f64 + 0.114 * b as f64;
+                            let ch = if lum > 190.0 {
+                                '@'
+                            } else if lum > 140.0 {
+                                '#'
+                            } else if lum > 90.0 {
+                                '*'
+                            } else if lum > 50.0 {
+                                '+'
+                            } else if lum > 22.0 {
+                                ':'
+                            } else if lum > 6.0 {
+                                '.'
+                            } else {
+                                star_ch
+                            };
+                            ([r, g, b], ch)
+                        } else if let Some(atm) = atm_color {
+                            let r = atm[0].saturating_add(star_rgb[0]);
+                            let g = atm[1].saturating_add(star_rgb[1]);
+                            let b = atm[2].saturating_add(star_rgb[2]);
+                            let lum = 0.299 * r as f64 + 0.587 * g as f64 + 0.114 * b as f64;
                             let r_idx = ((lum / 255.0 * (ASCII_RAMP.len() - 1) as f64) as usize)
                                 .clamp(1, ASCII_RAMP.len() - 1);
-                            (corona, ASCII_RAMP[r_idx] as char)
+                            ([r, g, b], ASCII_RAMP[r_idx] as char)
                         } else {
-                            // 2. Check atmospheric limb scattering for Earth
-                            let oc = ray.origin - earth_pos;
-                            let proj = -oc.dot(ray.dir);
-                            let mut atm_color = None;
-
-                            if proj > 0.0 {
-                                let closest_p = ray.at(proj);
-                                let d_center = (closest_p - earth_pos).length();
-                                let atm_top = earth_rad + 140.0; // 140 km atmospheric limb
-                                if d_center > earth_rad && d_center < atm_top {
-                                    let factor = (1.0 - (d_center - earth_rad) / 140.0).powf(1.8);
-                                    let sun_dir = (sun_pos - closest_p).normalize();
-                                    let limb_norm = (closest_p - earth_pos).normalize();
-                                    let sun_facing = limb_norm.dot(sun_dir).max(-0.2) + 0.2;
-                                    let glow = factor * sun_facing.clamp(0.0, 1.0);
-                                    atm_color = Some([
-                                        (65.0 * glow) as u8,
-                                        (165.0 * glow) as u8,
-                                        (255.0 * glow) as u8,
-                                    ]);
-                                }
-                            }
-
-                            if let Some(atm) = atm_color {
-                                let lum = 0.299 * atm[0] as f64 + 0.587 * atm[1] as f64 + 0.114 * atm[2] as f64;
-                                let r_idx = ((lum / 255.0 * (ASCII_RAMP.len() - 1) as f64) as usize)
-                                    .clamp(1, ASCII_RAMP.len() - 1);
-                                (atm, ASCII_RAMP[r_idx] as char)
-                            } else {
-                                // Deep space stars
-                                Starfield::sample(ray.dir, tick)
-                            }
+                            (star_rgb, star_ch)
                         }
                     };
 
