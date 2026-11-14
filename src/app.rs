@@ -94,10 +94,14 @@ impl App {
                         self.camera.orbit(0.0, -0.06);
                     }
                     KeyCode::Char('1') => {
-                        self.camera.set_target(BodyId::Earth, self.physics.earth.position);
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.earth.position;
+                        self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.2);
                     }
                     KeyCode::Char('2') => {
-                        self.camera.set_target(BodyId::Moon, self.physics.moon.position);
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.moon.position;
+                        self.camera.start_transition(BodyId::Moon, from_pos, to_pos, 1.2);
                     }
                     KeyCode::Char('r') | KeyCode::Char('R') => {
                         self.camera.recenter();
@@ -141,9 +145,8 @@ impl App {
                 self.physics.update(self.sim_time);
             }
 
-            // Keep camera target updated to body position
-            let target_pos = self.physics.get_body(self.camera.target_body).position;
-            self.camera.target_pos = target_pos;
+            // Update camera flight transition and track moving target body
+            self.camera.update(dt, &self.physics);
 
             // Render scene
             self.raycaster.render_frame(

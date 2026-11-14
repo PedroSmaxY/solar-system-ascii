@@ -124,6 +124,99 @@ fn test_camera_target_zoom_memory() {
 }
 
 #[test]
+fn test_camera_transition_interpolation() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+
+    let earth_pos = physics.earth.position;
+    let moon_pos = physics.moon.position;
+
+    // Start transition from Earth to Moon (1.2 seconds duration)
+    cam.start_transition(BodyId::Moon, earth_pos, moon_pos, 1.2);
+    assert!(cam.transition.is_some());
+
+    // Progress at t = 0.0s (p = 0.0) -> exactly at Earth
+    cam.update(0.0, &physics);
+    assert!((cam.distance_km - 21_000.0).abs() < 1.0);
+    assert!((cam.target_pos - earth_pos).length() < 1.0);
+
+    // Progress at t = 0.6s (p = 0.5) -> apex altitude zoom-out
+    cam.update(0.6, &physics);
+    assert!(cam.transition.is_some());
+    // Distance should be at apex altitude (> 100,000 km) for full interplanetary view
+    assert!(
+        cam.distance_km > 100_000.0,
+        "Mid-transit distance should expand to apex altitude (> 100,000 km), was {} km",
+        cam.distance_km
+    );
+    // Target position should be approximately halfway between Earth and Moon
+    let mid_expected = earth_pos * 0.5 + moon_pos * 0.5;
+    assert!((cam.target_pos - mid_expected).length() < 100.0);
+
+    // Progress at t = 1.2s (p = 1.0) -> smooth zoom-in docking at Moon
+    cam.update(0.6, &physics);
+    assert!(cam.transition.is_none(), "Transition must complete at progress = 1.0");
+    assert_eq!(cam.target_body, BodyId::Moon);
+    assert!((cam.distance_km - 8_000.0).abs() < 1.0, "Moon distance should be 8,000 km, was {} km", cam.distance_km);
+    assert!((cam.azimuth - 0.85).abs() < 1e-4);
+    assert!((cam.target_pos - moon_pos).length() < 1.0);
+}
+
+#[test]
+fn test_render_transition_demo() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 92;
+    let lines = 24;
+    let mut buffer = FrameBuffer::new(cols, lines, RenderMode::HalfBlock);
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+    let raycaster = Raycaster::new();
+
+    let earth_pos = physics.earth.position;
+    let moon_pos = physics.moon.position;
+
+    // Start transition to Moon
+    cam.start_transition(BodyId::Moon, earth_pos, moon_pos, 1.2);
+
+    let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
+        buf.pixels.fill(Pixel::BLACK);
+        raycaster.render_frame(buf, camera, &physics, 1, 0.0);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+
+        let v_h = buf.virtual_height();
+        let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
+        for p in &buf.pixels {
+            ppm.push(p.r);
+            ppm.push(p.g);
+            ppm.push(p.b);
+        }
+        std::fs::write(path, ppm).unwrap();
+    };
+
+    // Frame 1: Departure at Earth (p = 0.0)
+    cam.update(0.0, &physics);
+    render_ppm(&mut buffer, &cam, "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/trans_step1_earth.ppm");
+
+    // Frame 2: Mid-flight apex zoom-out (p = 0.5)
+    cam.update(0.6, &physics);
+    render_ppm(&mut buffer, &cam, "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/trans_step2_apex.ppm");
+
+    // Frame 3: Arrival at Moon (p = 1.0)
+    cam.update(0.6, &physics);
+    render_ppm(&mut buffer, &cam, "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/trans_step3_moon.ppm");
+}
+
+#[test]
 fn test_camera_360_orbit_and_recenter() {
     use solar_system_ascii::render::camera::Camera;
 

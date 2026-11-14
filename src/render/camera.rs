@@ -1,8 +1,9 @@
-//! 6-DOF Astronomical Camera with continuous logarithmic/exponential zoom
-//! and independent per-body perspective and zoom memory (Earth, Moon, Sun).
+//! 6-DOF Astronomical Camera with continuous logarithmic/exponential zoom,
+//! independent per-body perspective memory, and smooth interplanetary fly-to transitions.
 
 use crate::math::{Ray, Vec3};
 use crate::physics::body::BodyId;
+use crate::physics::SolarSystemPhysics;
 use crate::render::buffer::RenderMode;
 use std::f64::consts::PI;
 
@@ -14,6 +15,18 @@ pub struct BodyViewState {
     pub distance_km: f64,
 }
 
+/// Active interplanetary fly-to camera transition.
+#[derive(Clone, Copy, Debug)]
+pub struct CameraTransition {
+    pub from_body: BodyId,
+    pub to_body: BodyId,
+    pub start_view: BodyViewState,
+    pub end_view: BodyViewState,
+    pub elapsed_secs: f64,
+    pub duration_secs: f64,
+    pub journey_dist_km: f64,
+}
+
 pub struct Camera {
     pub target_body: BodyId,
     pub target_pos: Vec3,
@@ -22,6 +35,7 @@ pub struct Camera {
     pub distance_km: f64,
     pub fov_y_rad: f64,
     pub saved_views: [BodyViewState; 3], // [Sun, Earth, Moon]
+    pub transition: Option<CameraTransition>,
 
     // Free flight mode
     pub free_flight: bool,
@@ -44,6 +58,7 @@ impl Camera {
             distance_km: earth_view.distance_km,
             fov_y_rad: 45.0 * PI / 180.0,
             saved_views: [sun_view, earth_view, moon_view],
+            transition: None,
             free_flight: false,
             free_pos: Vec3::ZERO,
             free_yaw: 0.0,
@@ -72,8 +87,107 @@ impl Camera {
         }
     }
 
+    /// Start a smooth interplanetary fly-to transition with zoom-out and zoom-in.
+    pub fn start_transition(
+        &mut self,
+        to_body: BodyId,
+        from_pos: Vec3,
+        to_pos: Vec3,
+        duration_secs: f64,
+    ) {
+        if to_body == self.target_body && self.transition.is_none() {
+            return;
+        }
+
+        // Save current view state of the body being left
+        let curr_idx = self.target_body.index();
+        let start_view = BodyViewState {
+            azimuth: self.azimuth,
+            elevation: self.elevation,
+            distance_km: self.distance_km,
+        };
+        self.saved_views[curr_idx] = start_view;
+
+        let end_view = self.saved_views[to_body.index()];
+        let journey_dist_km = (to_pos - from_pos).length().max(10_000.0);
+
+        self.transition = Some(CameraTransition {
+            from_body: self.target_body,
+            to_body,
+            start_view,
+            end_view,
+            elapsed_secs: 0.0,
+            duration_secs: duration_secs.max(0.1),
+            journey_dist_km,
+        });
+    }
+
+    /// Cancel any active transition immediately.
+    pub fn cancel_transition(&mut self) {
+        if let Some(trans) = self.transition.take() {
+            self.target_body = trans.to_body;
+            let target_view = self.saved_views[trans.to_body.index()];
+            self.azimuth = target_view.azimuth;
+            self.elevation = target_view.elevation;
+            self.distance_km = target_view.distance_km;
+        }
+    }
+
+    /// Update camera flight transition animation and track moving target body.
+    pub fn update(&mut self, dt: f64, physics: &SolarSystemPhysics) {
+        if let Some(mut trans) = self.transition {
+            trans.elapsed_secs += dt;
+            let progress = (trans.elapsed_secs / trans.duration_secs).clamp(0.0, 1.0);
+
+            // Quintic smoothstep curve C^2 continuous: 6p^5 - 15p^4 + 10p^3
+            let s = progress * progress * progress * (progress * (progress * 6.0 - 15.0) + 10.0);
+
+            // Interpolate target focal position between moving bodies
+            let from_pos = physics.get_body(trans.from_body).position;
+            let to_pos = physics.get_body(trans.to_body).position;
+            self.target_pos = from_pos * (1.0 - s) + to_pos * s;
+
+            // Shortest circular angular arc for azimuth
+            let d_az = ((trans.end_view.azimuth - trans.start_view.azimuth + PI).rem_euclid(2.0 * PI)) - PI;
+            self.azimuth = (trans.start_view.azimuth + d_az * s).rem_euclid(2.0 * PI);
+
+            // Elevation interpolation
+            self.elevation = trans.start_view.elevation + (trans.end_view.elevation - trans.start_view.elevation) * s;
+
+            // Logarithmic distance interpolation with parabolic altitude arc (zoom-out then zoom-in)
+            let log_start = trans.start_view.distance_km.ln();
+            let log_end = trans.end_view.distance_km.ln();
+            let base_log = log_start * (1.0 - s) + log_end * s;
+
+            // Apex altitude pulls out to reveal interplanetary scale
+            let apex_dist = (trans.journey_dist_km * 0.70)
+                .max(trans.start_view.distance_km * 1.5)
+                .max(trans.end_view.distance_km * 1.5);
+            let apex_log = apex_dist.ln();
+            let arc_height = (apex_log - base_log).max(0.0);
+            let arc_factor = 4.0 * s * (1.0 - s); // Parabola peaking at 1.0 at s=0.5
+            let current_log = base_log + arc_factor * arc_height;
+            self.distance_km = current_log.exp();
+
+            if progress >= 1.0 {
+                // Completed transition: anchor cleanly at destination
+                self.target_body = trans.to_body;
+                self.target_pos = to_pos;
+                self.azimuth = trans.end_view.azimuth;
+                self.elevation = trans.end_view.elevation;
+                self.distance_km = trans.end_view.distance_km;
+                self.transition = None;
+            } else {
+                self.transition = Some(trans);
+            }
+        } else {
+            // Keep camera target tracked to the current body
+            self.target_pos = physics.get_body(self.target_body).position;
+        }
+    }
+
     pub fn zoom_in(&mut self) {
-        // Logarithmic zoom: decrease distance by 12%
+        self.cancel_transition();
         let min_dist = match self.target_body {
             BodyId::Earth => 6_800.0, // ~430 km above surface (ISS orbit)
             BodyId::Moon => 1_900.0,
@@ -84,12 +198,13 @@ impl Camera {
     }
 
     pub fn zoom_out(&mut self) {
-        // Logarithmic zoom: increase distance by 12% up to deep space
+        self.cancel_transition();
         self.distance_km = (self.distance_km * 1.14).min(5e9);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;
     }
 
     pub fn orbit(&mut self, d_az: f64, d_el: f64) {
+        self.cancel_transition();
         self.azimuth = (self.azimuth + d_az).rem_euclid(2.0 * PI);
         self.elevation = (self.elevation + d_el).rem_euclid(2.0 * PI);
         let idx = self.target_body.index();
@@ -98,6 +213,7 @@ impl Camera {
     }
 
     pub fn recenter(&mut self) {
+        self.cancel_transition();
         let def = Self::default_view(self.target_body);
         self.azimuth = def.azimuth;
         self.elevation = def.elevation;
@@ -106,7 +222,7 @@ impl Camera {
     }
 
     pub fn set_target(&mut self, body: BodyId, body_pos: Vec3) {
-        // Save current perspective & zoom for the body being left
+        self.cancel_transition();
         let curr_idx = self.target_body.index();
         self.saved_views[curr_idx] = BodyViewState {
             azimuth: self.azimuth,
@@ -117,7 +233,6 @@ impl Camera {
         self.target_body = body;
         self.target_pos = body_pos;
 
-        // Restore target body's dedicated perspective & zoom
         let target_view = self.saved_views[body.index()];
         self.azimuth = target_view.azimuth;
         self.elevation = target_view.elevation;

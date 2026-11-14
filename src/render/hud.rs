@@ -22,10 +22,24 @@ impl Hud {
             return;
         }
 
-        let target_name = match camera.target_body {
-            BodyId::Earth => "Earth (Terra)",
-            BodyId::Moon => "Moon (Luna)",
-            BodyId::Sun => "Sun (Sol)",
+        let target_name = if let Some(ref trans) = camera.transition {
+            let from = match trans.from_body {
+                BodyId::Earth => "Earth",
+                BodyId::Moon => "Moon",
+                BodyId::Sun => "Sun",
+            };
+            let to = match trans.to_body {
+                BodyId::Earth => "Earth",
+                BodyId::Moon => "Moon",
+                BodyId::Sun => "Sun",
+            };
+            format!("Transit: {} -> {}", from, to)
+        } else {
+            match camera.target_body {
+                BodyId::Earth => "Earth (Terra)".to_string(),
+                BodyId::Moon => "Moon (Luna)".to_string(),
+                BodyId::Sun => "Sun (Sol)".to_string(),
+            }
         };
 
         let dist_str = if camera.distance_km < 1_000_000.0 {
