@@ -77,84 +77,102 @@ impl Hud {
             Self::draw_text(buffer, 1, 0, &title, [180, 215, 255]);
         }
 
-        // Solar Direction & On-Screen Pip for Earth and Moon perspectives
-        if camera.target_body != BodyId::Sun {
-            let cam_pos = camera.position();
-            let sun_vec = physics.sun.position - cam_pos;
-            let sun_dist_km = sun_vec.length();
-            let sun_dist_au = sun_dist_km / 149_597_870.7;
-            let sun_dir = sun_vec / sun_dist_km;
+        // 3D Celestial Body Labels ([Sol], [Terra], [Lua]) with elegant offsets
+        let cam_pos = camera.position();
+        let (sin_az, cos_az) = camera.azimuth.sin_cos();
+        let (sin_el, cos_el) = camera.elevation.sin_cos();
+        let f = Vec3::new(-cos_el * sin_az, -sin_el, -cos_el * cos_az);
+        let r = Vec3::new(cos_az, 0.0, -sin_az);
+        let u = Vec3::new(-sin_el * sin_az, cos_el, -sin_el * cos_az);
 
-            // Camera orientation vectors
-            let (sin_az, cos_az) = camera.azimuth.sin_cos();
-            let (sin_el, cos_el) = camera.elevation.sin_cos();
-            let f = Vec3::new(-cos_el * sin_az, -sin_el, -cos_el * cos_az);
-            let r = Vec3::new(cos_az, 0.0, -sin_az);
-            let u = Vec3::new(-sin_el * sin_az, cos_el, -sin_el * cos_az);
+        let pixel_aspect = match buffer.mode {
+            RenderMode::Ascii => 2.15,
+            RenderMode::HalfBlock => 1.05,
+        };
+        let v_height = buffer.virtual_height();
+        let screen_aspect = (cols as f64) / (v_height as f64) / pixel_aspect;
+        let tan_half_fov_y = (camera.fov_y_rad * 0.5).tan();
+        let tan_half_fov_x = tan_half_fov_y * screen_aspect;
 
-            let f_dot = sun_dir.dot(f);
-            let r_dot = sun_dir.dot(r);
-            let u_dot = sun_dir.dot(u);
+        let bodies = [
+            (BodyId::Sun, physics.sun.position, "[Sol]", [255, 220, 90]),
+            (BodyId::Earth, physics.earth.position, "[Terra]", [120, 205, 255]),
+            (BodyId::Moon, physics.moon.position, "[Lua]", [210, 215, 225]),
+        ];
 
-            let pixel_aspect = match buffer.mode {
-                RenderMode::Ascii => 2.15,
-                RenderMode::HalfBlock => 1.05,
-            };
-            let v_height = buffer.virtual_height();
-            let screen_aspect = (cols as f64) / (v_height as f64) / pixel_aspect;
-            let tan_half_fov_y = (camera.fov_y_rad * 0.5).tan();
-            let tan_half_fov_x = tan_half_fov_y * screen_aspect;
+        let mut sun_in_fov = false;
+        let mut sun_r_dot = 0.0;
+        let mut sun_u_dot = 0.0;
+        let mut sun_dist_au = 1.0;
 
-            let in_fov = if f_dot > 0.05 {
+        for &(id, pos, label, color) in &bodies {
+            let to_pos = pos - cam_pos;
+            let dist_km = to_pos.length();
+            if dist_km < 1.0 {
+                continue;
+            }
+            let dir = to_pos / dist_km;
+            let f_dot = dir.dot(f);
+            let r_dot = dir.dot(r);
+            let u_dot = dir.dot(u);
+
+            if id == BodyId::Sun {
+                sun_dist_au = dist_km / 149_597_870.7;
+                sun_r_dot = r_dot;
+                sun_u_dot = u_dot;
+            }
+
+            if f_dot > 0.05 {
                 let ndc_x = r_dot / (f_dot * tan_half_fov_x);
                 let ndc_y = u_dot / (f_dot * tan_half_fov_y);
                 if ndc_x.abs() < 0.90 && ndc_y.abs() < 0.85 {
+                    if id == BodyId::Sun {
+                        sun_in_fov = true;
+                    }
                     let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
                     let py = ((1.0 - ndc_y) * 0.5 * lines as f64) as usize;
-                    if px + 8 < cols && py > 1 && py < lines - 2 {
-                        Self::draw_text(buffer, px, py, "[* Sol]", [255, 220, 90]);
+                    // Position label with an elegant offset beside the celestial body:
+                    let label_x = px + 2;
+                    let label_y = if py > 2 { py - 1 } else { py + 1 };
+                    if label_x + label.len() < cols && label_y > 1 && label_y < lines - 2 {
+                        Self::draw_text(buffer, label_x, label_y, label, color);
                     }
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
-
-            // Secondary Solar Telemetry (Line 1)
-            if lines > 4 {
-                let dir_guide = if in_fov {
-                    "EM TELA [*]".to_string()
-                } else {
-                    let mut dir = String::new();
-                    if r_dot > 0.25 {
-                        dir.push_str("Girar Direita >");
-                    } else if r_dot < -0.25 {
-                        dir.push_str("< Girar Esquerda");
-                    }
-                    if u_dot > 0.35 {
-                        if !dir.is_empty() { dir.push(' '); }
-                        dir.push_str("^ Acima");
-                    } else if u_dot < -0.35 {
-                        if !dir.is_empty() { dir.push(' '); }
-                        dir.push_str("v Abaixo");
-                    }
-                    if dir.is_empty() {
-                        dir = "Atras da visao".to_string();
-                    }
-                    format!("[{}] ([F] p/ alinhar)", dir)
-                };
-
-                let nav_text = format!("Sol: {:.2} AU | Direcao: {}", sun_dist_au, dir_guide);
-                if cols >= nav_text.len() + 2 {
-                    Self::draw_text(buffer, 1, 1, &nav_text, [255, 205, 110]);
                 }
             }
         }
 
+        // Secondary Solar Telemetry (Line 1)
+        if camera.target_body != BodyId::Sun && lines > 4 {
+            let dir_guide = if sun_in_fov {
+                "EM TELA [Sol]".to_string()
+            } else {
+                let mut dir = String::new();
+                if sun_r_dot > 0.25 {
+                    dir.push_str("Girar Direita >");
+                } else if sun_r_dot < -0.25 {
+                    dir.push_str("< Girar Esquerda");
+                }
+                if sun_u_dot > 0.35 {
+                    if !dir.is_empty() { dir.push(' '); }
+                    dir.push_str("^ Acima");
+                } else if sun_u_dot < -0.35 {
+                    if !dir.is_empty() { dir.push(' '); }
+                    dir.push_str("v Abaixo");
+                }
+                if dir.is_empty() {
+                    dir = "Atras da visao".to_string();
+                }
+                format!("[{}] ([F] p/ alinhar)", dir)
+            };
+
+            let nav_text = format!("Sol: {:.2} AU | Direcao: {}", sun_dist_au, dir_guide);
+            if cols >= nav_text.len() + 2 {
+                Self::draw_text(buffer, 1, 1, &nav_text, [255, 205, 110]);
+            }
+        }
+
         // Bottom Controls Guide (Bottom Line)
-        let controls = "[+/-] Zoom  [WASD] Orbit  [R] Reset  [1] Earth  [2] Moon  [3] Sun  [F] Find Sun  [B] Mode  [Space] Pause  [[/]] Warp  [Q] Quit";
+        let controls = "[+/-] Zoom  [WASD] Orbit  [R] Reset  [1] Earth  [2] Moon  [3] Sun  [F] Find Sun  [H] Labels  [B] Mode  [Space] Pause  [Q] Quit";
         if lines > 1 && cols >= controls.len() + 2 {
             Self::draw_text(buffer, 1, lines - 1, controls, [150, 165, 185]);
         }

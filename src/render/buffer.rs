@@ -158,9 +158,14 @@ impl FrameBuffer {
 
                         // If HUD or character overlay is present
                         if p_top.is_text {
-                            if curr_bg.is_some() {
-                                out.push_str("\x1b[49m");
-                                curr_bg = None;
+                            if curr_bg != Some(bg) {
+                                if bg == [0, 0, 0] {
+                                    out.push_str("\x1b[49m");
+                                    curr_bg = None;
+                                } else {
+                                    let _ = write!(out, "\x1b[48;2;{};{};{}m", bg[0], bg[1], bg[2]);
+                                    curr_bg = Some(bg);
+                                }
                             }
                             if curr_fg != Some(fg) {
                                 let _ = write!(out, "\x1b[38;2;{};{};{}m", fg[0], fg[1], fg[2]);

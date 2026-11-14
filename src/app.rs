@@ -21,6 +21,7 @@ pub struct App {
     paused: bool,
     sim_time: f64,
     tick: u64,
+    pub show_hud: bool,
 }
 
 impl App {
@@ -38,6 +39,7 @@ impl App {
             paused: false,
             sim_time: 0.0,
             tick: 0,
+            show_hud: true,
         }
     }
 
@@ -111,6 +113,9 @@ impl App {
                     KeyCode::Char('f') | KeyCode::Char('F') => {
                         self.camera.align_to_sun(self.physics.sun.position);
                     }
+                    KeyCode::Char('h') | KeyCode::Char('H') => {
+                        self.show_hud = !self.show_hud;
+                    }
                     KeyCode::Char('r') | KeyCode::Char('R') => {
                         self.camera.recenter();
                     }
@@ -165,15 +170,17 @@ impl App {
                 self.sim_time,
             );
 
-            // Overlay HUD
-            Hud::render(
-                &mut self.buffer,
-                &self.camera,
-                &self.physics,
-                fps,
-                self.time_warp,
-                self.paused,
-            );
+            // Overlay HUD (if enabled)
+            if self.show_hud {
+                Hud::render(
+                    &mut self.buffer,
+                    &self.camera,
+                    &self.physics,
+                    fps,
+                    self.time_warp,
+                    self.paused,
+                );
+            }
 
             // Flush frame buffer to terminal
             let output = self.buffer.flush_to_string();

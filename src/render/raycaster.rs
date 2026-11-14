@@ -170,8 +170,14 @@ impl Raycaster {
                                 self.moon_shader.shade(local_norm, local_sun, local_view)
                             }
                             BodyId::Sun => {
-                                let local_norm = sun_mat_inv.mul_vec(hit.world_norm);
-                                self.sun_shader.shade_photosphere(local_norm, view_dir, tick, elapsed)
+                                let oc_sun = ray.origin - sun_pos;
+                                if oc_sun.length_squared() > 100_000_000_000_000.0 {
+                                    // Distant incandescent white-gold solar star core
+                                    [255, 255, 240]
+                                } else {
+                                    let local_norm = sun_mat_inv.mul_vec(hit.world_norm);
+                                    self.sun_shader.shade_photosphere(local_norm, view_dir, tick, elapsed)
+                                }
                             }
                         };
 
@@ -180,19 +186,22 @@ impl Raycaster {
                             .clamp(1, ASCII_RAMP.len() - 1);
                         (color, ASCII_RAMP[r_idx] as char)
                     } else {
-                        // 1. Check Solar Corona & Extended Radial Rays (up to 4.5 R_sun)
+                        // 1. Check Solar Corona & Extended Radial Rays (only close-up, <= 10,000,000 km)
                         let oc_sun = ray.origin - sun_pos;
-                        let proj_sun = -oc_sun.dot(ray.dir);
+                        let dist_to_sun = (-oc_sun).length();
                         let mut corona_color = None;
 
-                        if proj_sun > 0.0 {
-                            let closest_p = ray.at(proj_sun);
-                            let sun_to_p = closest_p - sun_pos;
-                            let d_center = sun_to_p.length();
-                            let d_ratio = d_center / sun_rad;
-                            if d_ratio > 1.0 && d_ratio < 4.5 {
-                                let rel_norm = sun_to_p / d_center;
-                                corona_color = self.sun_shader.shade_corona(d_ratio, rel_norm, ray.dir, elapsed);
+                        if dist_to_sun <= 10_000_000.0 {
+                            let proj_sun = -oc_sun.dot(ray.dir);
+                            if proj_sun > 0.0 {
+                                let closest_p = ray.at(proj_sun);
+                                let sun_to_p = closest_p - sun_pos;
+                                let d_center = sun_to_p.length();
+                                let d_ratio = d_center / sun_rad;
+                                if d_ratio > 1.0 && d_ratio < 4.5 {
+                                    let rel_norm = sun_to_p / d_center;
+                                    corona_color = self.sun_shader.shade_corona(d_ratio, rel_norm, ray.dir, elapsed);
+                                }
                             }
                         }
 
@@ -220,18 +229,18 @@ impl Raycaster {
                         }
 
                         // 3. Interplanetary Solar Glare for distant observers (> 10,000,000 km, e.g. Earth or Moon)
-                        let dist_to_sun = (-oc_sun).length();
+                        // Smooth, monotonic radial falloff all the way to center (no black void!)
                         let mut interplanetary_glare = None;
                         if dist_to_sun > 10_000_000.0 {
                             let sun_dir = -oc_sun / dist_to_sun;
                             let cos_sun = ray.dir.dot(sun_dir);
-                            if cos_sun > 0.988 {
-                                let ang_t = ((cos_sun - 0.988) / 0.012).clamp(0.0, 1.0);
-                                let intensity = ang_t.powf(2.6);
+                            if cos_sun > 0.985 {
+                                let ang_t = ((cos_sun - 0.985) / 0.015).clamp(0.0, 1.0);
+                                let intensity = ang_t.powf(2.4);
                                 interplanetary_glare = Some([
-                                    (255.0 * intensity) as u8,
-                                    (225.0 * intensity * 0.90) as u8,
-                                    (130.0 * intensity * 0.70) as u8,
+                                    (255.0 * intensity.powf(0.85)) as u8,
+                                    (240.0 * intensity) as u8,
+                                    (180.0 * intensity.powf(1.4)) as u8,
                                 ]);
                             }
                         }
@@ -240,7 +249,11 @@ impl Raycaster {
                         let (star_rgb, star_ch) = Starfield::sample(ray.dir, tick);
 
                         // 5. Additive semi-transparent compositing (no star occlusion, no black border)
-                        let active_solar = corona_color.or(interplanetary_glare);
+                        let active_solar = if dist_to_sun <= 10_000_000.0 {
+                            corona_color
+                        } else {
+                            interplanetary_glare
+                        };
                         if let Some(corona) = active_solar {
                             let r = corona[0].saturating_add(star_rgb[0]);
                             let g = corona[1].saturating_add(star_rgb[1]);

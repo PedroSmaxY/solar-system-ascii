@@ -794,3 +794,84 @@ fn test_interplanetary_solar_glare() {
     }
     assert!(found_glare, "Interplanetary solar glare must illuminate pixels when looking towards Sun from Earth");
 }
+
+#[test]
+fn test_prominent_coronal_loops_height_and_contrast() {
+    use solar_system_ascii::render::sun_shader::SunShader;
+
+    let shader = SunShader::new();
+    let ray_dir = Vec3::new(0.0, 0.0, -1.0);
+
+    // Site 0 (Northeast) is at base psi ≈ 1.15 rad + solar rotation
+    let t = 5.0f64;
+    let psi_ne = 1.15 + t * 0.015;
+    // With ray_dir = -Z, up = Y, right = X:
+    // cos_psi = Y, sin_psi = X, so X = sin(psi), Y = cos(psi)
+    let norm_ne = Vec3::new(psi_ne.sin(), psi_ne.cos(), 0.0);
+
+    // Loops reach up to 0.24 R_sun altitude during inflation (t = 5.0s -> tau ≈ 0.48)
+    let loop_high = shader.shade_corona(1.20, norm_ne, ray_dir, t);
+    assert!(
+        loop_high.is_some(),
+        "Prominent coronal loop arch must reach at least 1.20 R_sun (0.20 R_sun altitude)"
+    );
+    let color = loop_high.unwrap();
+    assert!(
+        color[0] > 120 && color[1] > 80,
+        "Prominent coronal loops must emit bright golden plasma, got {:?}",
+        color
+    );
+}
+
+#[test]
+fn test_interplanetary_glare_continuity_no_void() {
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 120;
+    let rows = 60;
+    let mut buffer = FrameBuffer::new(cols, rows, RenderMode::HalfBlock);
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+    let raycaster = Raycaster::new();
+
+    // Align camera towards Sun from Earth orbit
+    cam.set_target(solar_system_ascii::physics::body::BodyId::Earth, physics.earth.position);
+    cam.align_to_sun(physics.sun.position);
+
+    buffer.pixels.fill(Pixel::BLACK);
+    raycaster.render_frame(&mut buffer, &cam, &physics, 1, 0.0);
+
+    // Find the brightest pixel (the solar core center)
+    let mut max_lum = 0.0f64;
+    let mut center_idx = 0;
+    for (i, p) in buffer.pixels.iter().enumerate() {
+        let lum = p.r as f64 * 0.299 + p.g as f64 * 0.587 + p.b as f64 * 0.114;
+        if lum > max_lum {
+            max_lum = lum;
+            center_idx = i;
+        }
+    }
+
+    assert!(max_lum > 240.0, "Solar core must be blinding bright (> 240 lum), got {}", max_lum);
+
+    // Check pixels in horizontal radius from the solar core:
+    // Luminosity must remain high and smoothly decay outwards, NEVER plunging into a black void near center!
+    let _v_h = buffer.virtual_height();
+    let cy = center_idx / cols;
+    let cx = center_idx % cols;
+
+    for dx in 1..=4 {
+        if cx + dx < cols {
+            let p = &buffer.pixels[cy * cols + (cx + dx)];
+            let lum = p.r as f64 * 0.299 + p.g as f64 * 0.587 + p.b as f64 * 0.114;
+            assert!(
+                lum > 100.0,
+                "Pixel at offset +{} from sun core must be radiant glare (> 100 lum), got {} (no black void!)",
+                dx, lum
+            );
+        }
+    }
+}
