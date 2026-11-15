@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release (e.g. v1.0.0)'
-        required: false
-        default: 'v1.0.0'
 
 permissions:
   contents: write
@@ -21,15 +15,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Create GitHub Release
         uses: taiki-e/create-gh-release-action@v1
         with:
           changelog: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.ref_type == 'tag' && github.ref || format('refs/tags/{0}', inputs.tag || 'v1.0.0') }}
 
   upload-assets:
     name: Build & Upload (${{ matrix.target }})
@@ -70,4 +61,3 @@ jobs:
           bin: solar-system-ascii
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.ref_type == 'tag' && github.ref || format('refs/tags/{0}', inputs.tag || 'v1.0.0') }}
