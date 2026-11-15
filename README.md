@@ -47,6 +47,43 @@
   <em>Left: Uranus with its extreme 97.8° axial tilt and vertical ring system.<br />Right: Binary dwarf world Pluto featuring the Tombaugh Regio nitrogen ice heart and tidally locked Charon.</em>
 </p>
 
+### 🖥️ Dual-Mode Rendering: HD Half-Block vs Classic Retro ASCII (`[B]`)
+
+AstroEngine features two distinct terminal rendering pipelines that can be toggled in real time with key `[B]`:
+
+1. **High-Definition Half-Block Mode (`▀`, `U+2580`)**: Pairs 24-bit TrueColor foreground and background ANSI escape sequences to achieve double vertical resolution ($160 \times 100$ in an $80 \times 50$ terminal), rendering smooth spherical curvatures, cloud patterns, and ring divisions.
+2. **Classic Monospace ASCII Mode**: A pure retro character matrix mapping physical photometric radiance directly to an ASCII luminance ramp (` .:-=+*x%#@`):
+
+```text
+                                    .                     .                 
+                                     .                    . .               
+                                     .              .       .               
+                           *         . .                  . .               
+                                     .                    . .               
+      ·                              .                   . .                
+              .................       .                  . .                
+            ..............................     +         . .                
+            ................ ................            ..                 
+          ...............   ...................          ..             .   
+           .............   .....................        . .                 
+           ..............  ------.:................     . .                 
+             .... .........++=====-::::.::::..........  ..                  
+              .............+=****++++=----:::::::.........                  
+                ............*+++xx*******++=====  ........                  
+                  ............-**+*x%xxxxxxx**x   .........                 
+                    .............=:*=**xxx%%    ............   .            
+                       .................................:....       .       
+                          ....................................              
+                        *     ...............................               
+                                  ..........................                
+                                      * .................                   
+                                        .           . ..                    
+                                                      .                     
+```
+<p align="center">
+  <em>Saturn captured in Classic ASCII Mode: Cassini division, planetary ring disc, ring shadow cast across northern latitudes, and illuminated southern hemisphere.</em>
+</p>
+
 ---
 
 ## 🌟 Highlights
