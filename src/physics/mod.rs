@@ -13,7 +13,7 @@ use self::neptunian_swarm::NeptunianMoonSwarm;
 use self::saturnian_swarm::SaturnianMoonSwarm;
 use self::uranian_swarm::UranianMoonSwarm;
 use crate::math::{Mat3, Vec3};
-use ephemeris::{NEPTUNE_AXIAL_TILT_RAD, TWO_PI, URANUS_AXIAL_TILT_RAD};
+use ephemeris::{NEPTUNE_AXIAL_TILT_RAD, PLUTO_AXIAL_TILT_RAD, TWO_PI, URANUS_AXIAL_TILT_RAD};
 
 pub struct SolarSystemPhysics {
     pub sun: CelestialBody,
@@ -51,6 +51,8 @@ pub struct SolarSystemPhysics {
     pub triton: CelestialBody,
     pub proteus: CelestialBody,
     pub neptunian_swarm: NeptunianMoonSwarm,
+    pub pluto: CelestialBody,
+    pub charon: CelestialBody,
 }
 
 impl SolarSystemPhysics {
@@ -91,6 +93,8 @@ impl SolarSystemPhysics {
             triton: CelestialBody::new_triton(),
             proteus: CelestialBody::new_proteus(),
             neptunian_swarm: NeptunianMoonSwarm::new(),
+            pluto: CelestialBody::new_pluto(),
+            charon: CelestialBody::new_charon(),
         }
     }
 
@@ -299,6 +303,20 @@ impl SolarSystemPhysics {
             self.proteus.position = self.neptune.position + rel_pos;
             self.proteus.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
         }
+
+        // 31. Pluto orbits Sun (highly eccentric e=0.2488, i=17.16°, retrograde spin)
+        if let Some(ref orb) = self.pluto.orbit {
+            self.pluto.position = orb.calculate_position(t);
+        }
+        self.pluto.rotation_angle = (t * (TWO_PI / self.pluto.rotation_period_secs)).rem_euclid(TWO_PI);
+
+        // 32. Charon orbits Pluto (tidally locked binary system, tilted orbital plane)
+        let pluto_tilt = Mat3::rotation_x(PLUTO_AXIAL_TILT_RAD);
+        if let Some(ref orb) = self.charon.orbit {
+            let rel_pos = pluto_tilt.mul_vec(orb.calculate_position(t));
+            self.charon.position = self.pluto.position + rel_pos;
+            self.charon.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
     }
 
     pub fn get_body(&self, id: BodyId) -> &CelestialBody {
@@ -333,6 +351,8 @@ impl SolarSystemPhysics {
             BodyId::Neptune => &self.neptune,
             BodyId::Triton => &self.triton,
             BodyId::Proteus => &self.proteus,
+            BodyId::Pluto => &self.pluto,
+            BodyId::Charon => &self.charon,
         }
     }
 
@@ -368,6 +388,8 @@ impl SolarSystemPhysics {
             BodyId::Neptune => &mut self.neptune,
             BodyId::Triton => &mut self.triton,
             BodyId::Proteus => &mut self.proteus,
+            BodyId::Pluto => &mut self.pluto,
+            BodyId::Charon => &mut self.charon,
         }
     }
 }

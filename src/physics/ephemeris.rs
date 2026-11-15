@@ -114,6 +114,21 @@ pub const TRITON_SIDEREAL_DAY_SECS: f64 = -507_773.0; // -5.877d (retrograde syn
 pub const PROTEUS_RADIUS_KM: f64 = 210.0;
 pub const PROTEUS_SIDEREAL_DAY_SECS: f64 = 96_941.0; // 1.122d
 
+// Pluto & Charon (New Horizons)
+pub const PLUTO_RADIUS_KM: f64 = 1_188.3;
+pub const PLUTO_AXIAL_TILT_RAD: f64 = 122.53 * PI / 180.0; // Highly tilted (retrograde spin)
+pub const PLUTO_SIDEREAL_DAY_SECS: f64 = -551_856.7; // -6.3872d (retrograde synchronous with Charon)
+
+pub const CHARON_RADIUS_KM: f64 = 606.0;
+pub const CHARON_AXIAL_TILT_RAD: f64 = 0.0; // Synchronous with Pluto
+pub const CHARON_SIDEREAL_DAY_SECS: f64 = 551_856.7; // 6.3872d (tidally locked)
+
+// Interstellar Probes Telemetry Vectors (JPL Horizons, J2000 heliocentric)
+// Voyager 1: ~163.5 AU (~2.446e10 km), high north declination (~+35.2°)
+pub const VOYAGER_1_VEC_KM: Vec3 = Vec3::new(-6.15e9, 1.41e10, 1.90e10);
+// Voyager 2: ~136.8 AU (~2.046e10 km), southern declination (~-31.3°)
+pub const VOYAGER_2_VEC_KM: Vec3 = Vec3::new(8.78e9, -1.53e10, -1.04e10);
+
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]
 pub struct KeplerOrbit {
@@ -508,6 +523,32 @@ impl KeplerOrbit {
             peri: 0.0,
             m0: 0.0,
             period: 96_941.0,
+        }
+    }
+
+    /// Pluto's orbit around the Sun (J2000 Keplerian elements)
+    pub fn pluto_around_sun() -> Self {
+        Self {
+            a: 5_906_380_000.0, // 39.482 AU
+            e: 0.2488,          // High eccentricity
+            i: 17.16 * PI / 180.0, // High inclination
+            node: 110.299 * PI / 180.0,
+            peri: 113.834 * PI / 180.0,
+            m0: 14.53 * PI / 180.0,
+            period: 7_824_000_000.0, // 247.94 years
+        }
+    }
+
+    /// Charon's orbit around Pluto (Synchronous binary orbit)
+    pub fn charon_around_pluto() -> Self {
+        Self {
+            a: 19_591.4,
+            e: 0.0002,
+            i: 0.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 551_856.7, // 6.3872 days
         }
     }
 

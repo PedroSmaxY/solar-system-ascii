@@ -2,6 +2,7 @@
 
 use crate::math::Vec3;
 use crate::physics::body::BodyId;
+use crate::physics::ephemeris::{VOYAGER_1_VEC_KM, VOYAGER_2_VEC_KM};
 use crate::physics::SolarSystemPhysics;
 use crate::render::buffer::{FrameBuffer, Pixel, RenderMode};
 use crate::render::camera::Camera;
@@ -55,6 +56,8 @@ impl Hud {
                 BodyId::Neptune => "Neptune",
                 BodyId::Triton => "Triton",
                 BodyId::Proteus => "Proteus",
+                BodyId::Pluto => "Pluto",
+                BodyId::Charon => "Charon",
             };
             let to = match trans.to_body {
                 BodyId::Sun => "Sun",
@@ -87,11 +90,13 @@ impl Hud {
                 BodyId::Neptune => "Neptune",
                 BodyId::Triton => "Triton",
                 BodyId::Proteus => "Proteus",
+                BodyId::Pluto => "Pluto",
+                BodyId::Charon => "Charon",
             };
             format!("Transit: {} -> {}", from, to)
         } else {
             match camera.target_body {
-                BodyId::Sun => "Sun (Sol)".to_string(),
+                BodyId::Sun => "Solar System Overview (Sol)".to_string(),
                 BodyId::Mercury => "Mercury (Mercúrio)".to_string(),
                 BodyId::Venus => "Venus (Vênus)".to_string(),
                 BodyId::Earth => "Earth (Terra)".to_string(),
@@ -121,6 +126,8 @@ impl Hud {
                 BodyId::Neptune => "Neptune (Great Dark Spot)".to_string(),
                 BodyId::Triton => "Triton (Retrograde Cryo Moon)".to_string(),
                 BodyId::Proteus => "Proteus (Polyhedral Moon)".to_string(),
+                BodyId::Pluto => "Pluto (Tombaugh Regio Heart)".to_string(),
+                BodyId::Charon => "Charon (Serenity Chasma Moon)".to_string(),
             }
         };
 
@@ -206,6 +213,8 @@ impl Hud {
             (BodyId::Neptune, physics.neptune.position, physics.neptune.radius_km, "[Netuno]", [90, 145, 245]),
             (BodyId::Triton, physics.triton.position, physics.triton.radius_km, "[Tritão]", [215, 225, 235]),
             (BodyId::Proteus, physics.proteus.position, physics.proteus.radius_km, "[Proteu]", [130, 130, 135]),
+            (BodyId::Pluto, physics.pluto.position, physics.pluto.radius_km, "[Plutão]", [220, 195, 175]),
+            (BodyId::Charon, physics.charon.position, physics.charon.radius_km, "[Caronte]", [185, 175, 170]),
         ];
 
         let mut sun_in_fov = false;
@@ -258,6 +267,35 @@ impl Hud {
             }
         }
 
+        // Interstellar Probes Telemetry (Voyager 1 & Voyager 2 visible in deep space zoom)
+        if camera.distance_km > 3.0e9 {
+            let probes = [
+                (VOYAGER_1_VEC_KM, "[Voyager 1 (163.5 AU)]", [130, 215, 255]),
+                (VOYAGER_2_VEC_KM, "[Voyager 2 (136.8 AU)]", [110, 195, 240]),
+            ];
+            for &(pos, label, color) in &probes {
+                let to_pos = pos - cam_pos;
+                let dist_km = to_pos.length();
+                let dir = to_pos / dist_km;
+                let f_dot = dir.dot(f);
+                if f_dot > 0.05 {
+                    let r_dot = dir.dot(r);
+                    let u_dot = dir.dot(u);
+                    let ndc_x = r_dot / (f_dot * tan_half_fov_x);
+                    let ndc_y = u_dot / (f_dot * tan_half_fov_y);
+                    if ndc_x.abs() < 0.90 && ndc_y.abs() < 0.85 {
+                        let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                        let py = ((1.0 - ndc_y) * 0.5 * lines as f64) as usize;
+                        let label_x = px + 2;
+                        let label_y = if py > 2 { py - 1 } else { py + 1 };
+                        if label_x + label.len() < cols && label_y > 1 && label_y < lines - 2 {
+                            Self::draw_text(buffer, label_x, label_y, label, color);
+                        }
+                    }
+                }
+            }
+        }
+
         // Secondary Solar Telemetry (Line 1)
         if camera.target_body != BodyId::Sun && lines > 4 {
             let dir_guide = if sun_in_fov {
@@ -288,44 +326,14 @@ impl Hud {
             }
         }
 
-        // Bottom Controls Guide (Bottom Line)
-        let mut controls = String::from("[1-8] Sun-Saturn  [9] Uranus  [0] Neptune");
-        if camera.target_body == BodyId::Earth {
-            controls.push_str("  [M] Moon");
-        } else if camera.target_body == BodyId::Moon {
-            controls.push_str("  [M] Earth");
-        } else if camera.target_body == BodyId::Venus {
-            controls.push_str("  [V] Radar");
-        } else if camera.target_body == BodyId::Mars {
-            controls.push_str("  [M] Phobos  [N] Deimos");
-        } else if camera.target_body == BodyId::Phobos {
-            controls.push_str("  [M] Mars  [N] Deimos");
-        } else if camera.target_body == BodyId::Deimos {
-            controls.push_str("  [M] Mars  [N] Phobos");
-        } else if camera.target_body == BodyId::Ceres {
-            controls.push_str("  [M] Vesta  [N] Asteroids");
-        } else if camera.target_body == BodyId::Vesta {
-            controls.push_str("  [M] Ceres  [N] Asteroids");
-        } else if camera.target_body == BodyId::Jupiter {
-            controls.push_str("  [M] Moons  [N] Jovian Overview");
-        } else if matches!(camera.target_body, BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto) {
-            controls.push_str("  [M] Cycle Moons  [N] Jupiter");
-        } else if camera.target_body == BodyId::Saturn {
-            controls.push_str("  [M] Moons  [N] Ring Overview");
-        } else if matches!(camera.target_body, BodyId::Titan | BodyId::Enceladus | BodyId::Mimas | BodyId::Iapetus | BodyId::Rhea) {
-            controls.push_str("  [M] Cycle Moons  [N] Saturn");
-        } else if camera.target_body == BodyId::Uranus {
-            controls.push_str("  [M] Moons  [N] Uranian Overview");
-        } else if matches!(camera.target_body, BodyId::Miranda | BodyId::Ariel | BodyId::Umbriel | BodyId::Titania | BodyId::Oberon) {
-            controls.push_str("  [M] Cycle Moons  [N] Uranus");
-        } else if camera.target_body == BodyId::Neptune {
-            controls.push_str("  [M] Moons  [N] Neptunian Overview");
-        } else if matches!(camera.target_body, BodyId::Triton | BodyId::Proteus) {
-            controls.push_str("  [M] Cycle Moons  [N] Neptune");
-        }
-        controls.push_str("  [+/-] Zoom  [WASD] Orbit  [R] Reset  [F] Find Sun  [H] Labels  [B] Mode  [Space] Pause  [Q] Quit");
+        // Standardized Clean Controls (Bottom Line)
+        let controls = if camera.target_body == BodyId::Sun {
+            "[0/Tab] Sol/Visão Geral  [1-8] Planetas  [9] Plutão  [L] Órbitas  [+/-] Zoom  [WASD] Órbita  [Space] Pausa  [Q] Sair"
+        } else {
+            "[Tab] Visão Geral  [1-8] Planetas  [9] Plutão  [M] Luas  [L] Órbitas  [R] Ângulo Ideal  [+/-] Zoom  [Space] Pausa"
+        };
         if lines > 1 && cols >= controls.len() + 2 {
-            Self::draw_text(buffer, 1, lines - 1, &controls, [150, 165, 185]);
+            Self::draw_text(buffer, 1, lines - 1, controls, [150, 185, 215]);
         }
     }
 

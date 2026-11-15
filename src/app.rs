@@ -78,7 +78,28 @@ impl App {
                 match key {
                     KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => return,
                     KeyCode::Char('+') | KeyCode::Char('=') => self.camera.zoom_in(),
-                    KeyCode::Char('-') | KeyCode::Char('_') => self.camera.zoom_out(),
+                    KeyCode::Char('-') | KeyCode::Char('_') => {
+                        if self.camera.zoom_out() {
+                            let from_pos = self.physics.get_body(self.camera.target_body).position;
+                            let to_pos = self.physics.sun.position;
+                            self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.8);
+                        }
+                    }
+                    KeyCode::Tab => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        if self.camera.target_body == BodyId::Sun {
+                            let dest = self.camera.last_focused_planet;
+                            let to_pos = self.physics.get_body(dest).position;
+                            self.camera.start_transition(dest, from_pos, to_pos, 1.5);
+                        } else {
+                            self.camera.last_focused_planet = self.camera.target_body;
+                            let to_pos = self.physics.sun.position;
+                            self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.5);
+                        }
+                    }
+                    KeyCode::Char('l') | KeyCode::Char('L') => {
+                        self.camera.show_orbit_lines = !self.camera.show_orbit_lines;
+                    }
                     KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('A') => {
                         self.camera.orbit(-0.08, 0.0);
                     }
@@ -91,55 +112,70 @@ impl App {
                     KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('S') => {
                         self.camera.orbit(0.0, -0.06);
                     }
-                    KeyCode::Char('1') => {
+                    KeyCode::Char('0') => {
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.sun.position;
-                        self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.4);
+                        self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.5);
                     }
-                    KeyCode::Char('2') => {
+                    KeyCode::Char('1') => {
+                        self.camera.last_focused_planet = BodyId::Mercury;
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.mercury.position;
                         self.camera.start_transition(BodyId::Mercury, from_pos, to_pos, 1.3);
                     }
-                    KeyCode::Char('3') => {
+                    KeyCode::Char('2') => {
+                        self.camera.last_focused_planet = BodyId::Venus;
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.venus.position;
                         self.camera.start_transition(BodyId::Venus, from_pos, to_pos, 1.2);
                     }
-                    KeyCode::Char('4') => {
+                    KeyCode::Char('3') => {
+                        self.camera.last_focused_planet = BodyId::Earth;
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.earth.position;
                         self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.2);
                     }
-                    KeyCode::Char('5') => {
+                    KeyCode::Char('4') => {
+                        self.camera.last_focused_planet = BodyId::Mars;
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.mars.position;
                         self.camera.start_transition(BodyId::Mars, from_pos, to_pos, 1.3);
                     }
-                    KeyCode::Char('6') => {
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.ceres.position;
-                        self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.4);
-                    }
-                    KeyCode::Char('7') => {
+                    KeyCode::Char('5') => {
+                        self.camera.last_focused_planet = BodyId::Jupiter;
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.jupiter.position;
                         self.camera.start_transition(BodyId::Jupiter, from_pos, to_pos, 1.5);
                     }
-                    KeyCode::Char('8') => {
+                    KeyCode::Char('6') => {
+                        self.camera.last_focused_planet = BodyId::Saturn;
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.saturn.position;
                         self.camera.start_transition(BodyId::Saturn, from_pos, to_pos, 1.6);
                     }
-                    KeyCode::Char('9') => {
+                    KeyCode::Char('7') => {
+                        self.camera.last_focused_planet = BodyId::Uranus;
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.uranus.position;
                         self.camera.start_transition(BodyId::Uranus, from_pos, to_pos, 1.7);
                     }
-                    KeyCode::Char('0') => {
+                    KeyCode::Char('8') => {
+                        self.camera.last_focused_planet = BodyId::Neptune;
                         let from_pos = self.physics.get_body(self.camera.target_body).position;
                         let to_pos = self.physics.neptune.position;
                         self.camera.start_transition(BodyId::Neptune, from_pos, to_pos, 1.8);
+                    }
+                    KeyCode::Char('9') => {
+                        self.camera.last_focused_planet = BodyId::Pluto;
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.pluto.position;
+                        self.camera.start_transition(BodyId::Pluto, from_pos, to_pos, 1.8);
+                    }
+                    KeyCode::Char('p') | KeyCode::Char('P') => {
+                        self.camera.last_focused_planet = BodyId::Ceres;
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.ceres.position;
+                        self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.4);
                     }
                     KeyCode::Char('m') | KeyCode::Char('M') => {
                         if self.camera.target_body == BodyId::Earth {
@@ -246,6 +282,14 @@ impl App {
                             let from_pos = self.physics.proteus.position;
                             let to_pos = self.physics.triton.position;
                             self.camera.start_transition(BodyId::Triton, from_pos, to_pos, 1.2);
+                        } else if self.camera.target_body == BodyId::Pluto {
+                            let from_pos = self.physics.pluto.position;
+                            let to_pos = self.physics.charon.position;
+                            self.camera.start_transition(BodyId::Charon, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Charon {
+                            let from_pos = self.physics.charon.position;
+                            let to_pos = self.physics.pluto.position;
+                            self.camera.start_transition(BodyId::Pluto, from_pos, to_pos, 1.1);
                         }
                     }
                     KeyCode::Char('n') | KeyCode::Char('N') => {
@@ -314,10 +358,10 @@ impl App {
                     KeyCode::Char(' ') => {
                         self.paused = !self.paused;
                     }
-                    KeyCode::Char('[') => {
+                    KeyCode::Char('[') | KeyCode::Char(',') => {
                         self.time_warp = (self.time_warp * 0.5).max(1.0);
                     }
-                    KeyCode::Char(']') => {
+                    KeyCode::Char(']') | KeyCode::Char('.') => {
                         self.time_warp = (self.time_warp * 2.0).min(100_000.0);
                     }
                     _ => {}

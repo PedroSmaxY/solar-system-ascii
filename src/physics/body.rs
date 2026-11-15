@@ -13,6 +13,8 @@ use crate::physics::ephemeris::{
     MIMAS_SIDEREAL_DAY_SECS, MIRANDA_RADIUS_KM, MIRANDA_SIDEREAL_DAY_SECS, MOON_RADIUS_KM,
     NEPTUNE_AXIAL_TILT_RAD, NEPTUNE_MEAN_RADIUS_KM, NEPTUNE_SIDEREAL_DAY_SECS, OBERON_RADIUS_KM,
     OBERON_SIDEREAL_DAY_SECS, PHOBOS_MEAN_RADIUS_KM, PROTEUS_RADIUS_KM, PROTEUS_SIDEREAL_DAY_SECS,
+    PLUTO_AXIAL_TILT_RAD, PLUTO_RADIUS_KM, PLUTO_SIDEREAL_DAY_SECS,
+    CHARON_AXIAL_TILT_RAD, CHARON_RADIUS_KM, CHARON_SIDEREAL_DAY_SECS,
     RHEA_RADIUS_KM, RHEA_SIDEREAL_DAY_SECS, SATURN_AXIAL_TILT_RAD, SATURN_MEAN_RADIUS_KM,
     SATURN_SIDEREAL_DAY_SECS, SIDEREAL_DAY_SECS, SUN_RADIUS_KM, TITAN_RADIUS_KM,
     TITAN_SIDEREAL_DAY_SECS, TITANIA_RADIUS_KM, TITANIA_SIDEREAL_DAY_SECS, TRITON_RADIUS_KM,
@@ -54,6 +56,8 @@ pub enum BodyId {
     Neptune,
     Triton,
     Proteus,
+    Pluto,
+    Charon,
 }
 
 impl BodyId {
@@ -89,6 +93,8 @@ impl BodyId {
             BodyId::Neptune => 27,
             BodyId::Triton => 28,
             BodyId::Proteus => 29,
+            BodyId::Pluto => 30,
+            BodyId::Charon => 31,
         }
     }
 }
@@ -559,6 +565,36 @@ impl CelestialBody {
             orbit: Some(KeplerOrbit::proteus_around_neptune()),
             parent: Some(BodyId::Neptune),
             position: Vec3::new(4_498_253_000.0 + 117_646.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_pluto() -> Self {
+        Self {
+            id: BodyId::Pluto,
+            name: "Pluto",
+            radius_km: PLUTO_RADIUS_KM,
+            mass_kg: 1.303e22,
+            axial_tilt: PLUTO_AXIAL_TILT_RAD,
+            rotation_period_secs: PLUTO_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::pluto_around_sun()),
+            parent: Some(BodyId::Sun),
+            position: Vec3::new(5_906_380_000.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_charon() -> Self {
+        Self {
+            id: BodyId::Charon,
+            name: "Charon",
+            radius_km: CHARON_RADIUS_KM,
+            mass_kg: 1.586e21,
+            axial_tilt: CHARON_AXIAL_TILT_RAD,
+            rotation_period_secs: CHARON_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::charon_around_pluto()),
+            parent: Some(BodyId::Pluto),
+            position: Vec3::new(5_906_380_000.0 + 19_591.4, 0.0, 0.0),
             rotation_angle: 0.0,
         }
     }

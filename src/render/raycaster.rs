@@ -42,6 +42,9 @@ use crate::render::titania_shader::TitaniaShader;
 use crate::render::oberon_shader::OberonShader;
 use crate::render::triton_shader::TritonShader;
 use crate::render::proteus_shader::ProteusShader;
+use crate::render::pluto_shader::PlutoShader;
+use crate::render::charon_shader::CharonShader;
+use crate::physics::ephemeris::{VOYAGER_1_VEC_KM, VOYAGER_2_VEC_KM};
 use crate::render::stars::Starfield;
 use crate::render::sun_shader::SunShader;
 use crate::render::titan_shader::TitanShader;
@@ -84,6 +87,8 @@ pub struct Raycaster {
     pub neptune_shader: NeptuneShader,
     pub triton_shader: TritonShader,
     pub proteus_shader: ProteusShader,
+    pub pluto_shader: PlutoShader,
+    pub charon_shader: CharonShader,
 }
 
 struct SphereHit {
@@ -126,6 +131,8 @@ impl Raycaster {
             neptune_shader: NeptuneShader::new(),
             triton_shader: TritonShader::new(),
             proteus_shader: ProteusShader::new(),
+            pluto_shader: PlutoShader::new(),
+            charon_shader: CharonShader::new(),
         }
     }
 
@@ -358,6 +365,16 @@ impl Raycaster {
         let proteus_rad = physics.proteus.radius_km;
         let proteus_mat = physics.proteus.orientation_matrix();
         let proteus_mat_inv = proteus_mat.transpose();
+
+        let pluto_pos = physics.pluto.position;
+        let pluto_rad = physics.pluto.radius_km;
+        let pluto_mat = physics.pluto.orientation_matrix();
+        let pluto_mat_inv = pluto_mat.transpose();
+
+        let charon_pos = physics.charon.position;
+        let charon_rad = physics.charon.radius_km;
+        let charon_mat = physics.charon.orientation_matrix();
+        let charon_mat_inv = charon_mat.transpose();
 
         let mut hit_mask: Vec<bool> = vec![false; cols * v_height];
 
@@ -925,6 +942,42 @@ impl Raycaster {
                         }
                     }
 
+                    // Pluto hit (sphere)
+                    if let Some(t_pluto) = Self::intersect_sphere(&ray, pluto_pos, pluto_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_pluto < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_pluto);
+                            let norm = (hit_pos - pluto_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_pluto,
+                                body_id: BodyId::Pluto,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Charon hit (sphere)
+                    if let Some(t_charon) = Self::intersect_sphere(&ray, charon_pos, charon_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_charon < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_charon);
+                            let norm = (hit_pos - charon_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_charon,
+                                body_id: BodyId::Charon,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
                     // Saturn Ring Plane intersection (in Saturn's equatorial coordinate frame)
                     let sat_local_o = saturn_mat_inv.mul_vec(ray.origin - saturn_pos);
                     let sat_local_d = saturn_mat_inv.mul_vec(ray.dir);
@@ -1201,6 +1254,20 @@ impl Raycaster {
                                 let local_view = proteus_mat_inv.mul_vec(view_dir);
                                 self.proteus_shader.shade(local_norm, local_sun, local_view)
                             }
+                            BodyId::Pluto => {
+                                let local_norm = pluto_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = pluto_mat_inv.mul_vec(sun_dir);
+                                let local_view = pluto_mat_inv.mul_vec(view_dir);
+                                let dist_au = (hit.world_pos - sun_pos).length() / 149_597_870.7;
+                                self.pluto_shader.shade(local_norm, local_sun, local_view, dist_au)
+                            }
+                            BodyId::Charon => {
+                                let local_norm = charon_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = charon_mat_inv.mul_vec(sun_dir);
+                                let local_view = charon_mat_inv.mul_vec(view_dir);
+                                let dist_au = (hit.world_pos - sun_pos).length() / 149_597_870.7;
+                                self.charon_shader.shade(local_norm, local_sun, local_view, dist_au)
+                            }
                         };
 
                         let final_color = if let Some((t_r, ring_rgba)) = ring_hit {
@@ -1330,13 +1397,13 @@ impl Raycaster {
                         if dist_to_sun > 10_000_000.0 {
                             let sun_dir = -oc_sun / dist_to_sun;
                             let cos_sun = ray.dir.dot(sun_dir);
-                            if cos_sun > 0.985 {
-                                let ang_t = ((cos_sun - 0.985) / 0.015).clamp(0.0, 1.0);
-                                let intensity = ang_t.powf(2.4);
+                            if cos_sun > 0.950 {
+                                let ang_t = ((cos_sun - 0.950) / 0.050).clamp(0.0, 1.0);
+                                let intensity = ang_t.powf(2.0);
                                 interplanetary_glare = Some([
-                                    (255.0 * intensity.powf(0.85)) as u8,
-                                    (240.0 * intensity) as u8,
-                                    (180.0 * intensity.powf(1.4)) as u8,
+                                    (255.0 * intensity.powf(0.75)) as u8,
+                                    (250.0 * intensity) as u8,
+                                    (210.0 * intensity.powf(1.2)) as u8,
                                 ]);
                             }
                         }
@@ -1587,6 +1654,92 @@ impl Raycaster {
                             _ => (155, 160, 175, '.'),
                         };
                         buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                    }
+                }
+            }
+        }
+
+        // 11. Keplerian Planetary Orbit Lines (when camera.show_orbit_lines is active)
+        if camera.show_orbit_lines {
+            let orbits = [
+                (&physics.mercury.orbit, [135, 115, 95]),
+                (&physics.venus.orbit, [155, 145, 105]),
+                (&physics.earth.orbit, [85, 135, 185]),
+                (&physics.mars.orbit, [165, 95, 70]),
+                (&physics.ceres.orbit, [115, 115, 125]),
+                (&physics.jupiter.orbit, [160, 140, 100]),
+                (&physics.saturn.orbit, [150, 140, 95]),
+                (&physics.uranus.orbit, [90, 145, 160]),
+                (&physics.neptune.orbit, [70, 105, 175]),
+                (&physics.pluto.orbit, [140, 115, 105]),
+            ];
+
+            for (orb_opt, color) in &orbits {
+                if let Some(ref orb) = orb_opt {
+                    // Sample 256 elliptical nodes along the complete Keplerian orbit
+                    const NODES: usize = 256;
+                    let period = orb.period;
+                    for step in 0..NODES {
+                        let t_sample = (step as f64) * (period / NODES as f64);
+                        let p_pos = orb.calculate_position(t_sample);
+                        let to_p = p_pos - cam_pos;
+                        let dist = to_p.length();
+                        if dist < 1.0 {
+                            continue;
+                        }
+                        let dir = to_p / dist;
+                        let f_dot = dir.dot(f);
+                        if f_dot <= 0.05 {
+                            continue;
+                        }
+
+                        let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+                        let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+
+                        if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                            let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                            let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+
+                            if px < cols && py < v_height {
+                                let pixel_idx = py * cols + px;
+                                if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                                    buffer.pixels[pixel_idx] = Pixel::new(color[0], color[1], color[2], '.');
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 12. Interstellar Probes Voyager 1 & Voyager 2 (visible at distances > 3.0e9 km / 20 AU)
+        if camera.distance_km > 3.0e9 {
+            let probes = [
+                (VOYAGER_1_VEC_KM, [140, 230, 255]),
+                (VOYAGER_2_VEC_KM, [110, 210, 250]),
+            ];
+            for (p_pos, color) in &probes {
+                let to_p = *p_pos - cam_pos;
+                let dist = to_p.length();
+                if dist < 1.0 {
+                    continue;
+                }
+                let dir = to_p / dist;
+                let f_dot = dir.dot(f);
+                if f_dot > 0.05 {
+                    let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+                    let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+
+                    if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                        let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                        let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+
+                        if px < cols && py < v_height {
+                            let pixel_idx = py * cols + px;
+                            if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                                buffer.pixels[pixel_idx] = Pixel::new(color[0], color[1], color[2], '+');
+                            }
+                        }
                     }
                 }
             }

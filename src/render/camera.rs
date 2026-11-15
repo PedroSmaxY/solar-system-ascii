@@ -34,8 +34,10 @@ pub struct Camera {
     pub elevation: f64, // Radians (-PI/2 .. PI/2)
     pub distance_km: f64,
     pub fov_y_rad: f64,
-    pub saved_views: [BodyViewState; 30], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta, Jupiter, Io, Europa, Ganymede, Callisto, Saturn, Titan, Enceladus, Mimas, Iapetus, Rhea, Uranus, Miranda, Ariel, Umbriel, Titania, Oberon, Neptune, Triton, Proteus]
+    pub saved_views: [BodyViewState; 32], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta, Jupiter, Io, Europa, Ganymede, Callisto, Saturn, Titan, Enceladus, Mimas, Iapetus, Rhea, Uranus, Miranda, Ariel, Umbriel, Titania, Oberon, Neptune, Triton, Proteus, Pluto, Charon]
     pub transition: Option<CameraTransition>,
+    pub show_orbit_lines: bool,
+    pub last_focused_planet: BodyId,
 
     // Free flight mode
     pub free_flight: bool,
@@ -76,13 +78,15 @@ impl Camera {
         let neptune_view = Self::default_view(BodyId::Neptune);
         let triton_view = Self::default_view(BodyId::Triton);
         let proteus_view = Self::default_view(BodyId::Proteus);
+        let pluto_view = Self::default_view(BodyId::Pluto);
+        let charon_view = Self::default_view(BodyId::Charon);
 
         Self {
-            target_body: BodyId::Earth,
+            target_body: BodyId::Sun,
             target_pos: Vec3::ZERO,
-            azimuth: earth_view.azimuth,
-            elevation: earth_view.elevation,
-            distance_km: earth_view.distance_km,
+            azimuth: sun_view.azimuth,
+            elevation: sun_view.elevation,
+            distance_km: sun_view.distance_km,
             fov_y_rad: 45.0 * PI / 180.0,
             saved_views: [
                 sun_view,
@@ -115,8 +119,12 @@ impl Camera {
                 neptune_view,
                 triton_view,
                 proteus_view,
+                pluto_view,
+                charon_view,
             ],
             transition: None,
+            show_orbit_lines: true,
+            last_focused_planet: BodyId::Earth,
             free_flight: false,
             free_pos: Vec3::ZERO,
             free_yaw: 0.0,
@@ -130,7 +138,7 @@ impl Camera {
             BodyId::Sun => BodyViewState {
                 azimuth: 0.0,
                 elevation: 0.0,
-                distance_km: 3_500_000.0,
+                distance_km: 1.1e10, // ~73.5 AU - authentic top-down solar system orrery framing all orbits
             },
             BodyId::Mercury => BodyViewState {
                 azimuth: 3.90,        // Framing sunlit Caloris Basin, cratered terrain, and dramatic terminator
@@ -277,6 +285,16 @@ impl Camera {
                 elevation: 0.10,
                 distance_km: 900.0,   // Framing 420 km irregular disk
             },
+            BodyId::Pluto => BodyViewState {
+                azimuth: 2.20,        // Framing Tombaugh Regio heart, bright white Sputnik Planitia, and Cthulhu Macula
+                elevation: 0.15,
+                distance_km: 3_200.0, // Framing 2,376 km dwarf planet disk
+            },
+            BodyId::Charon => BodyViewState {
+                azimuth: 1.80,        // Framing Serenity Chasma canyons and Mordor Macula
+                elevation: 0.12,
+                distance_km: 1_800.0, // Framing 1,212 km binary companion disk
+            },
         }
     }
 
@@ -412,15 +430,31 @@ impl Camera {
             BodyId::Neptune => 25_000.0,// ~230 km above cloud deck
             BodyId::Triton => 1_380.0,  // ~26 km above cantaloupe terrain
             BodyId::Proteus => 220.0,   // ~10 km above Pharos crater rim
+            BodyId::Pluto => 1_250.0,   // ~60 km above Tombaugh Regio / Sputnik Planitia
+            BodyId::Charon => 650.0,    // ~44 km above Serenity Chasma canyon rim
         };
         self.distance_km = (self.distance_km * 0.88).max(min_dist);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;
     }
 
-    pub fn zoom_out(&mut self) {
+    /// Zoom out with smooth automated overview transition when threshold is exceeded.
+    /// Returns true if an automated transition to the top-down Solar System view should be started.
+    pub fn zoom_out(&mut self) -> bool {
         self.cancel_transition();
-        self.distance_km = (self.distance_km * 1.14).min(5e9);
+        self.distance_km = (self.distance_km * 1.14).min(3.5e10);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;
+
+        let overview_threshold = match self.target_body {
+            BodyId::Sun => 3.5e10,
+            BodyId::Jupiter | BodyId::Saturn | BodyId::Uranus | BodyId::Neptune => 4.5e8,
+            _ => 3.5e7,
+        };
+
+        if self.target_body != BodyId::Sun && self.distance_km > overview_threshold {
+            true
+        } else {
+            false
+        }
     }
 
     pub fn orbit(&mut self, d_az: f64, d_el: f64) {
