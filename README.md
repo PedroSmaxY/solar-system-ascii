@@ -129,21 +129,29 @@ Where:
 ---
 
 ### 4. Radiative Transfer in Planetary Ring Systems & Mutual Shadows
-Saturn's ring system is modeled as an infinitesimal disc plane $y = 0$ bounded between inner radius $R_{\text{in}} = 74.500\text{ km}$ (C Ring) and outer radius $R_{\text{out}} = 140.220\text{ km}$ (A Ring).
+Saturn's ring system is modeled as an infinitesimal disc plane $y = 0$ bounded between inner radius $R_{\text{in}} = 74.500\text{ km}$ and outer radius $R_{\text{out}} = 140.220\text{ km}$.
 
-1. **Ray-Ring Intersection**:
-   $$t_{\text{ring}} = -\frac{P_y}{D_y}, \qquad r = \sqrt{P_x^2 + P_z^2}$$
-2. **Radial Optical Depth Profile $\tau(r)$**:
-   $$\tau(r) = \begin{cases} 
-   0.12 & \text{C Ring } [74.500, 92.000]\text{ km} \\
-   0.85 & \text{B Ring (dense) } [92.000, 117.580]\text{ km} \\
-   0.02 & \text{Cassini Division } [117.580, 122.170]\text{ km} \\
-   0.50 & \text{A Ring } [122.170, 136.775]\text{ km} \\
-   0.05 & \text{Encke Gap } [133.400, 133.725]\text{ km}
-   \end{cases}$$
-3. **Reciprocal Shadows**:
-   - **Planet Shadow on Rings**: If a ray hits the ring plane, a shadow ray $\vec{L}$ is cast toward the Sun. If it intersects Saturn's oblate spheroid, the ring pixel is in total eclipse.
-   - **Ring Shadow on Planet**: When a ray hits Saturn's globe, a secondary ray is traced toward the Sun. If this shadow ray intersects the ring plane within $[R_{\text{in}}, R_{\text{out}}]$, incoming solar flux is attenuated by $\exp(-\tau(r) / |\cos \theta_{\text{sun}}|)$.
+#### Ray-Disc Intersection
+For a camera ray $\vec{P}(t) = \vec{O} + t\vec{D}$, the ring intersection distance and radial coordinate are:
+
+$$t_{\text{ring}} = -\frac{O_y}{D_y}, \qquad r = \sqrt{(O_x + t_{\text{ring}}D_x)^2 + (O_z + t_{\text{ring}}D_z)^2}$$
+
+#### Optical Depth Profile $\tau(r)$
+The ring structure is parameterized by radial optical depth $\tau(r)$:
+
+| Ring Structure | Radial Boundaries ($r$) | Optical Depth ($\tau$) | Visual & Physical Characteristics |
+| :--- | :---: | :---: | :--- |
+| **C Ring (Crepe)** | $74.500\text{ – }92.000\text{ km}$ | $\tau \approx 0.12$ | Semi-transparent, dusky inner ring |
+| **B Ring** | $92.000\text{ – }117.580\text{ km}$ | $\tau \approx 0.85$ | Dense, opaque, highly reflective main ring |
+| **Cassini Division** | $117.580\text{ – }122.170\text{ km}$ | $\tau \approx 0.02$ | 2:1 orbital resonance gap cleared by Mimas |
+| **A Ring** | $122.170\text{ – }136.775\text{ km}$ | $\tau \approx 0.50$ | Moderately dense outer ring |
+| **Encke Gap** | $133.400\text{ – }133.725\text{ km}$ | $\tau \approx 0.05$ | Narrow gap cleared by moonlet Pan |
+
+#### Reciprocal Shadow Casting
+- **Planet Shadow on Rings**: A shadow ray $\vec{L}$ is cast toward the Sun from the ring intersection point $\vec{P}_{\text{ring}}$. If it intersects Saturn's oblate spheroid ($B^2 - AC \ge 0$), the ring pixel lies within the planet's umbra.
+- **Ring Shadow on Planet**: When tracing solar illumination onto Saturn's globe, a secondary shadow ray is traced toward the Sun. If it pierces the ring plane at distance $r \in [R_{\text{in}}, R_{\text{out}}]$, incoming solar flux is attenuated by the Beer-Lambert law:
+
+$$I = I_0 \cdot \exp\left(-\frac{\tau(r)}{|\cos \theta_{\text{sun}}|}\right)$$
 
 ---
 
