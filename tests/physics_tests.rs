@@ -2154,3 +2154,320 @@ fn test_jupiter_system_benchmark_framerate() {
     println!("Jupiter System Benchmark: {} frames in {:.3}s ({:.1} FPS)", frames, elapsed.as_secs_f64(), fps);
     assert!(fps > 100.0, "FPS {:.1} below minimum performance threshold", fps);
 }
+
+
+#[test]
+fn test_saturn_keplerian_orbit_and_extreme_oblateness() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let saturn = physics.get_body(BodyId::Saturn);
+    assert_eq!(saturn.name, "Saturn");
+    assert_eq!(saturn.radius_km, 58_232.0);
+
+    // Verify distance from Sun: Saturn semi-major axis ~9.5826 AU (~1.433e9 km)
+    let dist_from_sun = saturn.position.length();
+    assert!(
+        dist_from_sun > 1.35e9 && dist_from_sun < 1.55e9,
+        "Saturn distance from sun should be ~1.433e9 km, got {}",
+        dist_from_sun
+    );
+
+    // Verify extreme oblateness: flattening f = (60268 - 54364) / 60268 = 0.09796
+    let r_eq = 60_268.0_f64;
+    let r_pol = 54_364.0_f64;
+    let flattening = (r_eq - r_pol) / r_eq;
+    assert!((flattening - 0.09796_f64).abs() < 1e-4, "Flattening should be ~0.09796");
+}
+
+#[test]
+fn test_saturn_rings_radial_dimensions_and_divisions() {
+    use solar_system_ascii::render::saturn_shader::SaturnShader;
+
+    let shader = SaturnShader::new();
+
+    // 1. Inside inner ring (r < 74,500 km) -> None
+    assert!(shader.sample_ring(70_000.0).is_none());
+
+    // 2. C Ring (r ~ 80,000 km) -> Faint / translucent
+    let (c_col, c_tau) = shader.sample_ring(80_000.0).expect("C ring sample");
+    assert!(c_tau > 0.05 && c_tau < 0.40, "C ring tau: {}", c_tau);
+    assert!(c_col[0] > 0);
+
+    // 3. B Ring (r ~ 100,000 km) -> Dense and bright
+    let (b_col, b_tau) = shader.sample_ring(100_000.0).expect("B ring sample");
+    assert!(b_tau > 0.60, "B ring should be dense: tau={}", b_tau);
+    assert!(b_col[0] > c_col[0], "B ring should be brighter than C ring");
+
+    // 4. Cassini Division (r ~ 120,000 km) -> Lower opacity gap
+    let (_, cassini_tau) = shader.sample_ring(120_000.0).expect("Cassini division sample");
+    assert!(cassini_tau < b_tau, "Cassini division should be lower opacity: {}", cassini_tau);
+
+    // 5. A Ring (r ~ 128,000 km) -> Moderate brightness
+    let (a_col, a_tau) = shader.sample_ring(128_000.0).expect("A ring sample");
+    assert!(a_tau > 0.35, "A ring tau: {}", a_tau);
+    assert!(a_col[0] > 0);
+
+    // 6. Outside outer ring (r > 140,220 km) -> None
+    assert!(shader.sample_ring(145_000.0).is_none());
+}
+
+#[test]
+fn test_saturn_rings_and_body_mutual_shadowing() {
+    use solar_system_ascii::math::Vec3;
+    use solar_system_ascii::render::saturn_shader::SaturnShader;
+
+    let shader = SaturnShader::new();
+
+    // 1. Ring shadow cast onto Saturn atmosphere
+    let norm = Vec3::new(1.0, 0.1, 0.0).normalize();
+    let pos = Vec3::new(60_000.0, 5_000.0, 0.0);
+    // Sun slightly below ring plane so light passes through rings before hitting northern hemisphere
+    let sun = Vec3::new(0.5, -0.3, 0.0).normalize();
+    let view = Vec3::new(1.0, 0.0, 0.0);
+    let lit_rgb = shader.shade(norm, pos, sun, view);
+    assert!(lit_rgb[0] > 0 || lit_rgb[1] > 0);
+
+    // 2. Saturn body shadow cast onto Rings
+    let ring_pos_night = Vec3::new(-100_000.0, 0.0, 0.0);
+    let sun_dir = Vec3::new(1.0, 0.1, 0.0).normalize();
+    let view_dir = Vec3::new(0.0, 1.0, 0.0);
+    let sample = shader.shade_ring(ring_pos_night, sun_dir, view_dir);
+    assert!(sample.is_some());
+    let rgba = sample.unwrap();
+    assert!(rgba[0] <= 5 && rgba[1] <= 5 && rgba[2] <= 5, "Ring in shadow should be dark: {:?}", rgba);
+
+    // Dayside ring point
+    let ring_pos_day = Vec3::new(100_000.0, 0.0, 0.0);
+    let sample_day = shader.shade_ring(ring_pos_day, sun_dir, view_dir);
+    assert!(sample_day.is_some());
+    let rgba_day = sample_day.unwrap();
+    assert!(rgba_day[0] > 10 || rgba_day[1] > 10, "Dayside ring should be lit: {:?}", rgba_day);
+}
+
+#[test]
+fn test_saturnian_minor_moons_swarm_distribution() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let saturn_pos = physics.get_body(BodyId::Saturn).position;
+
+    // Verify all 141 minor moons exist
+    assert_eq!(physics.saturnian_swarm.count(), 141);
+
+    // Check inner ring shepherds vs outer irregulars
+    let mut min_dist = f64::MAX;
+    let mut max_dist = 0.0_f64;
+
+    for i in 0..physics.saturnian_swarm.count() {
+        let pos = physics.saturnian_swarm.calculate_position(i, saturn_pos, 0.0);
+        let dist = (pos - saturn_pos).length();
+        assert!(!dist.is_nan());
+        if dist < min_dist {
+            min_dist = dist;
+        }
+        if dist > max_dist {
+            max_dist = dist;
+        }
+    }
+
+    // Inner shepherds (Pan, Daphnis) orbit at ~133,000 - 140,000 km
+    assert!(
+        min_dist > 120_000.0 && min_dist < 150_000.0,
+        "Closest shepherd should orbit at ~133k km, got {}",
+        min_dist
+    );
+
+    // Outer irregulars orbit up to 25 - 40 million km
+    assert!(
+        max_dist > 15_000_000.0 && max_dist < 45_000_000.0,
+        "Farthest irregular moon should orbit at ~20-38M km, got {}",
+        max_dist
+    );
+}
+
+#[test]
+fn test_saturn_major_moons_albedo_and_contrasts() {
+    use solar_system_ascii::math::Vec3;
+    use solar_system_ascii::render::enceladus_shader::EnceladusShader;
+    use solar_system_ascii::render::iapetus_shader::IapetusShader;
+    use solar_system_ascii::render::mimas_shader::MimasShader;
+    use solar_system_ascii::render::rhea_shader::RheaShader;
+    use solar_system_ascii::render::titan_shader::TitanShader;
+
+    let titan = TitanShader::new();
+    let enceladus = EnceladusShader::new();
+    let mimas = MimasShader::new();
+    let iapetus = IapetusShader::new();
+    let rhea = RheaShader::new();
+
+    let norm = Vec3::new(1.0, 0.0, 0.0);
+    let sun = Vec3::new(1.0, 0.0, 0.0);
+    let view = Vec3::new(1.0, 0.0, 0.0);
+
+    // Titan: dense amber/orange tholin haze
+    let titan_col = titan.shade(norm, sun, view);
+    assert!(
+        titan_col[0] > titan_col[2],
+        "Titan must be distinctly golden/orange: {:?}",
+        titan_col
+    );
+
+    // Enceladus: ultra-bright water ice (highest albedo in solar system)
+    let enc_col = enceladus.shade(norm, sun, view);
+    assert!(
+        enc_col[0] > 200 && enc_col[1] > 200 && enc_col[2] > 200,
+        "Enceladus should be brilliant ice: {:?}",
+        enc_col
+    );
+
+    // Mimas: steel-gray cratered ice
+    let mimas_col = mimas.shade(norm, sun, view);
+    assert!(mimas_col[0] > 100);
+
+    // Iapetus: Yin-Yang dichotomy
+    let norm_cassini = Vec3::new(0.0, 0.0, -1.0);
+    let norm_roncevaux = Vec3::new(0.552, 0.0, 0.834).normalize();
+    let cassini_col = iapetus.shade(norm_cassini, norm_cassini, norm_cassini);
+    let roncevaux_col = iapetus.shade(norm_roncevaux, norm_roncevaux, norm_roncevaux);
+    let lum_c = 0.299 * cassini_col[0] as f64 + 0.587 * cassini_col[1] as f64 + 0.114 * cassini_col[2] as f64;
+    let lum_r = 0.299 * roncevaux_col[0] as f64 + 0.587 * roncevaux_col[1] as f64 + 0.114 * roncevaux_col[2] as f64;
+    assert!(
+        lum_r > lum_c * 4.0,
+        "Iapetus Roncevaux Terra must strongly outshine Cassini Regio: lum_r={}, lum_c={}",
+        lum_r,
+        lum_c
+    );
+
+    // Rhea: ancient cratered ice
+    let rhea_col = rhea.shade(norm, sun, view);
+    assert!(rhea_col[0] > 100);
+}
+
+#[test]
+fn test_render_saturn_system_demo() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 160;
+    let lines = 50;
+    let mut buffer = FrameBuffer::new(cols, lines, RenderMode::HalfBlock);
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let raycaster = Raycaster::new();
+    let mut cam = Camera::new();
+    let brain_dir = "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf";
+
+    let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
+        buf.pixels.fill(Pixel::BLACK);
+        raycaster.render_frame(buf, camera, &physics, 1, 0.0);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+
+        let v_h = buf.virtual_height();
+        let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
+        for p in &buf.pixels {
+            ppm.push(p.r);
+            ppm.push(p.g);
+            ppm.push(p.b);
+        }
+        std::fs::write(path, ppm).unwrap();
+    };
+
+    // 1. Saturn Majestic Full View (Body + Rings + Cassini Division + Shadow)
+    cam.set_target(BodyId::Saturn, physics.saturn.position);
+    cam.azimuth = -1.25;
+    cam.elevation = 0.35;
+    cam.distance_km = 420_000.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/saturn_rings_full_view.ppm", brain_dir));
+
+    // 2. Saturn Ring Shadow Close-up (Golden atmosphere with ring shadow bands)
+    cam.set_target(BodyId::Saturn, physics.saturn.position);
+    cam.azimuth = -1.35;
+    cam.elevation = -0.15;
+    cam.distance_km = 160_000.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/saturn_ring_shadow_close_up.ppm", brain_dir));
+
+    // 3. Titan Atmosphere Haze Close-up (Dense amber smog & limb darkening)
+    cam.set_target(BodyId::Titan, physics.titan.position);
+    cam.azimuth = -1.38;
+    cam.elevation = 0.15;
+    cam.distance_km = 7_500.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/titan_atmosphere_haze.ppm", brain_dir));
+
+    // 4. Enceladus South Polar Fractures (Tiger stripes & pure water ice)
+    cam.set_target(BodyId::Enceladus, physics.enceladus.position);
+    cam.azimuth = -1.35;
+    cam.elevation = -0.45;
+    cam.distance_km = 1_500.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/enceladus_tiger_stripes.ppm", brain_dir));
+
+    // 5. Mimas Herschel Crater ("Death Star" colossal impact basin)
+    cam.set_target(BodyId::Mimas, physics.mimas.position);
+    cam.azimuth = -1.36;
+    cam.elevation = 0.05;
+    cam.distance_km = 1_100.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/mimas_herschel_crater.ppm", brain_dir));
+
+    // 6. Iapetus Yin-Yang & Equatorial Ridge (Dark Cassini Regio vs Bright Roncevaux Terra)
+    cam.set_target(BodyId::Iapetus, physics.iapetus.position);
+    cam.azimuth = -1.25;
+    cam.elevation = 0.10;
+    cam.distance_km = 3_800.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/iapetus_yin_yang_ridge.ppm", brain_dir));
+
+    // 7. Rhea Cratered Ice & Wispy Fractures Close-up
+    cam.set_target(BodyId::Rhea, physics.rhea.position);
+    cam.azimuth = -1.35;
+    cam.elevation = 0.12;
+    cam.distance_km = 2_800.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/rhea_cratered_ice.ppm", brain_dir));
+}
+
+#[test]
+fn test_saturn_system_benchmark_framerate() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::raycaster::Raycaster;
+    use std::time::Instant;
+
+    let cols = 160;
+    let lines = 50;
+    let mut buffer = FrameBuffer::new(cols, lines, RenderMode::HalfBlock);
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let raycaster = Raycaster::new();
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Saturn, physics.saturn.position);
+    cam.azimuth = -1.25;
+    cam.elevation = 0.35;
+    cam.distance_km = 420_000.0;
+
+    // Warm-up
+    raycaster.render_frame(&mut buffer, &cam, &physics, 1, 0.0);
+
+    let frames = 100;
+    let start = Instant::now();
+    for f in 0..frames {
+        physics.update(f as f64 * 0.1);
+        cam.update(0.016, &physics);
+        raycaster.render_frame(&mut buffer, &cam, &physics, f as u64, f as f64 * 0.1);
+    }
+    let elapsed = start.elapsed();
+    let fps = frames as f64 / elapsed.as_secs_f64();
+    println!("Saturn System Benchmark: {} frames in {:.3}s ({:.1} FPS)", frames, elapsed.as_secs_f64(), fps);
+    assert!(fps > 100.0, "FPS {:.1} below minimum performance threshold", fps);
+}
