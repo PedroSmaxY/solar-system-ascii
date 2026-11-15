@@ -3,7 +3,11 @@ name = "solar-system-ascii"
 version = "1.0.0"
 edition = "2021"
 authors = ["PedroSmaxY <pedrohenrique.nv@icloud.com>"]
-description = "AstroEngine ASCII - Real-time 3D Solar System simulator in TrueColor ANSI Half-Block raymarching"
+description = "solar-system-ascii (AstroEngine) - Real-time 3D Solar System simulator in TrueColor ANSI Half-Block raymarching"
+repository = "https://github.com/PedroSmaxY/solar-system-ascii"
+license = "MIT"
+keywords = ["solar-system", "ascii", "astronomy", "terminal", "raymarching"]
+categories = ["command-line-utilities", "science", "simulation", "rendering"]
 
 [dependencies]
 crossterm = "0.28"

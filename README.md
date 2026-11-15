@@ -1,6 +1,6 @@
-# AstroEngine ASCII 🌌
+# solar-system-ascii 🌌
 
-> **High-Precision 3D Solar System & Orbital Mechanics Simulator in Pure Rust**  
+> **AstroEngine 3D: High-Precision Solar System & Orbital Mechanics Simulator in Pure Rust**  
 > *Rendered directly in your terminal using 24-bit TrueColor ANSI Half-Block Raymarching — 100% CPU, zero GPU dependencies.*
 
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
