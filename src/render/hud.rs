@@ -217,11 +217,6 @@ impl Hud {
             (BodyId::Charon, physics.charon.position, physics.charon.radius_km, "[Caronte]", [185, 175, 170]),
         ];
 
-        let mut sun_in_fov = false;
-        let mut sun_r_dot = 0.0;
-        let mut sun_u_dot = 0.0;
-        let mut sun_dist_au = 1.0;
-
         for &(id, pos, rad, label, color) in &bodies {
             let to_pos = pos - cam_pos;
             let dist_km = to_pos.length();
@@ -242,19 +237,10 @@ impl Hud {
             let r_dot = dir.dot(r);
             let u_dot = dir.dot(u);
 
-            if id == BodyId::Sun {
-                sun_dist_au = dist_km / 149_597_870.7;
-                sun_r_dot = r_dot;
-                sun_u_dot = u_dot;
-            }
-
             if f_dot > 0.05 {
                 let ndc_x = r_dot / (f_dot * tan_half_fov_x);
                 let ndc_y = u_dot / (f_dot * tan_half_fov_y);
                 if ndc_x.abs() < 0.90 && ndc_y.abs() < 0.85 {
-                    if id == BodyId::Sun {
-                        sun_in_fov = true;
-                    }
                     let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
                     let py = ((1.0 - ndc_y) * 0.5 * lines as f64) as usize;
                     // Position label with an elegant offset beside the celestial body:
@@ -296,44 +282,72 @@ impl Hud {
             }
         }
 
-        // Secondary Solar Telemetry (Line 1)
-        if camera.target_body != BodyId::Sun && lines > 4 {
-            let dir_guide = if sun_in_fov {
-                "EM TELA [Sol]".to_string()
-            } else {
-                let mut dir = String::new();
-                if sun_r_dot > 0.25 {
-                    dir.push_str("Girar Direita >");
-                } else if sun_r_dot < -0.25 {
-                    dir.push_str("< Girar Esquerda");
-                }
-                if sun_u_dot > 0.35 {
-                    if !dir.is_empty() { dir.push(' '); }
-                    dir.push_str("^ Acima");
-                } else if sun_u_dot < -0.35 {
-                    if !dir.is_empty() { dir.push(' '); }
-                    dir.push_str("v Abaixo");
-                }
-                if dir.is_empty() {
-                    dir = "Atras da visao".to_string();
-                }
-                format!("[{}] ([F] p/ alinhar)", dir)
-            };
-
-            let nav_text = format!("Sol: {:.2} AU | Direcao: {}", sun_dist_au, dir_guide);
-            if cols >= nav_text.len() + 2 {
-                Self::draw_text(buffer, 1, 1, &nav_text, [255, 205, 110]);
-            }
-        }
-
-        // Standardized Clean Controls (Bottom Line)
-        let controls = if camera.target_body == BodyId::Sun {
-            "[0/Tab] Sol/Visão Geral  [1-8] Planetas  [9] Plutão  [L] Órbitas  [+/-] Zoom  [WASD] Órbita  [Space] Pausa  [Q] Sair"
-        } else {
-            "[Tab] Visão Geral  [1-8] Planetas  [9] Plutão  [M] Luas  [L] Órbitas  [R] Ângulo Ideal  [+/-] Zoom  [Space] Pausa"
+        // Contextual Clean Controls (Bottom Line)
+        let (controls_full, controls_compact) = match camera.target_body {
+            BodyId::Sun => (
+                "[1-8] Planetas  [9] Plutão  [P] Asteroides  [L] Órbitas  [+/-] Zoom  [WASD] Mover  [Space] Pausa  [Q] Sair",
+                "[1-9] Planetas  [L] Órbitas  [+/-] Zoom  [Space] Pausa",
+            ),
+            BodyId::Venus => (
+                "[Tab] Geral  [1-9] Planetas  [V] Radar Magellan  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [V] Radar  [R] Reset  [+/-] Zoom",
+            ),
+            BodyId::Mercury => (
+                "[Tab] Geral  [1-9] Planetas  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [1-9] Planetas  [R] Reset  [+/-] Zoom",
+            ),
+            BodyId::Earth | BodyId::Moon => (
+                "[Tab] Geral  [1-9] Planetas  [M] Terra/Lua  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [M] Lua  [R] Reset  [+/-] Zoom",
+            ),
+            BodyId::Mars | BodyId::Phobos | BodyId::Deimos => (
+                "[Tab] Geral  [1-9] Planetas  [M] Luas (Fobos/Deimos)  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+            ),
+            BodyId::Jupiter | BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto => (
+                "[Tab] Geral  [1-9] Planetas  [M] Luas Galileanas  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+            ),
+            BodyId::Saturn
+            | BodyId::Titan
+            | BodyId::Enceladus
+            | BodyId::Mimas
+            | BodyId::Iapetus
+            | BodyId::Rhea => (
+                "[Tab] Geral  [1-9] Planetas  [M] Luas de Saturno  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+            ),
+            BodyId::Uranus
+            | BodyId::Miranda
+            | BodyId::Ariel
+            | BodyId::Umbriel
+            | BodyId::Titania
+            | BodyId::Oberon => (
+                "[Tab] Geral  [1-9] Planetas  [M] Luas de Urano  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+            ),
+            BodyId::Neptune | BodyId::Triton | BodyId::Proteus => (
+                "[Tab] Geral  [1-9] Planetas  [M] Luas (Tritão/Proteu)  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+            ),
+            BodyId::Pluto | BodyId::Charon => (
+                "[Tab] Geral  [1-9] Planetas  [M] Plutão/Caronte  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [M] Caronte  [R] Reset  [+/-] Zoom",
+            ),
+            BodyId::Ceres | BodyId::Vesta => (
+                "[Tab] Geral  [1-9] Planetas  [M] Ceres/Vesta  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
+                "[Tab] Geral  [M] Ceres/Vesta  [R] Reset  [+/-] Zoom",
+            ),
         };
-        if lines > 1 && cols >= controls.len() + 2 {
-            Self::draw_text(buffer, 1, lines - 1, controls, [150, 185, 215]);
+
+        if lines > 1 {
+            if cols >= controls_full.len() + 2 {
+                Self::draw_text(buffer, 1, lines - 1, controls_full, [160, 195, 225]);
+            } else if cols >= controls_compact.len() + 2 {
+                Self::draw_text(buffer, 1, lines - 1, controls_compact, [160, 195, 225]);
+            } else if cols > 20 {
+                Self::draw_text(buffer, 1, lines - 1, "[Tab] Geral  [1-9] Planetas", [160, 195, 225]);
+            }
         }
     }
 

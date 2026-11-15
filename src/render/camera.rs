@@ -161,9 +161,9 @@ impl Camera {
                 distance_km: 8_000.0,  // Dedicated lunar view framing entire disk
             },
             BodyId::Mars => BodyViewState {
-                azimuth: 1.85,        // Framing sunlit Valles Marineris, Olympus Mons & polar cap
-                elevation: 0.22,
-                distance_km: 12_000.0, // Balanced orbital perspective of Mars
+                azimuth: -1.18,       // Framing sunlit Valles Marineris, Olympus Mons & south polar cap
+                elevation: 0.18,
+                distance_km: 10_500.0, // Balanced orbital perspective framing Mars (~65% of screen)
             },
             BodyId::Phobos => BodyViewState {
                 azimuth: 2.10,        // Framing Stickney crater excavation, raised rim & grooved terrain under oblique sunlight
@@ -271,9 +271,9 @@ impl Camera {
                 distance_km: 2_400.0, // Framing 1,523 km disk
             },
             BodyId::Neptune => BodyViewState {
-                azimuth: -1.25,       // Framing azure cobalt gas giant, Great Dark Spot and Scooter
-                elevation: 0.25,
-                distance_km: 140_000.0,// Framing 49,528 km disk
+                azimuth: -1.15,       // Framing sunlit azure cobalt gas giant, Great Dark Spot and Scooter
+                elevation: 0.18,      // Clean equatorial tilt
+                distance_km: 75_000.0, // Framing 49,528 km disk (~65% of screen height)
             },
             BodyId::Triton => BodyViewState {
                 azimuth: -1.35,       // Framing retrograde moon, cantaloupe terrain and cryogeysers
@@ -288,12 +288,12 @@ impl Camera {
             BodyId::Pluto => BodyViewState {
                 azimuth: 2.20,        // Framing Tombaugh Regio heart, bright white Sputnik Planitia, and Cthulhu Macula
                 elevation: 0.15,
-                distance_km: 3_200.0, // Framing 2,376 km dwarf planet disk
+                distance_km: 5_800.0, // Balanced perspective framing 2,376 km dwarf planet disk with Charon in view
             },
             BodyId::Charon => BodyViewState {
                 azimuth: 1.80,        // Framing Serenity Chasma canyons and Mordor Macula
                 elevation: 0.12,
-                distance_km: 1_800.0, // Framing 1,212 km binary companion disk
+                distance_km: 2_900.0, // Balanced perspective framing 1,212 km binary companion disk
             },
         }
     }

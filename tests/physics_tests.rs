@@ -1601,7 +1601,7 @@ fn test_standardized_keys_and_mars_moons_navigation() {
     // Direct key navigation [5] -> Mars
     cam.set_target(BodyId::Mars, physics.mars.position);
     assert_eq!(cam.target_body, BodyId::Mars);
-    assert!((cam.distance_km - 12_000.0).abs() < 1e-4);
+    assert!((cam.distance_km - 10_500.0).abs() < 1e-4);
 
     // Contextual [M] at Mars -> Phobos
     cam.set_target(BodyId::Phobos, physics.phobos.position);
@@ -2926,19 +2926,28 @@ fn test_render_polish_and_pluto_demos() {
     cam_voyager.distance_km = 2.8e10; // ~187 AU
     render_ppm(&mut buffer, &cam_voyager, &format!("{}/voyager_interstellar_zoom.ppm", brain_dir));
 
-    // 3. Pluto Photorealistic Close-up (Tombaugh Regio Heart & Sputnik Planitia)
+    // 3. Pluto Photorealistic Balanced View (Tombaugh Regio Heart & Charon in view)
     let mut cam_pluto = Camera::new();
     cam_pluto.set_target(BodyId::Pluto, physics.pluto.position);
-    cam_pluto.azimuth = 2.20;
-    cam_pluto.elevation = 0.15;
-    cam_pluto.distance_km = 3_000.0;
     render_ppm(&mut buffer, &cam_pluto, &format!("{}/pluto_tombaugh_regio.ppm", brain_dir));
 
-    // 4. Charon Photorealistic Close-up (Mordor Macula & Serenity Chasma)
+    // 4. Charon Photorealistic Balanced View (Mordor Macula & Serenity Chasma)
     let mut cam_charon = Camera::new();
     cam_charon.set_target(BodyId::Charon, physics.charon.position);
-    cam_charon.azimuth = 1.80;
-    cam_charon.elevation = 0.12;
-    cam_charon.distance_km = 1_800.0;
     render_ppm(&mut buffer, &cam_charon, &format!("{}/charon_serenity_chasma.ppm", brain_dir));
+
+    // 5. Mars Optimized Beauty Angle (Sunlit Valles Marineris, Olympus Mons & Polar Ice Cap)
+    let mut cam_mars = Camera::new();
+    cam_mars.set_target(BodyId::Mars, physics.mars.position);
+    render_ppm(&mut buffer, &cam_mars, &format!("{}/mars_beauty_angle.ppm", brain_dir));
+
+    // 6. Neptune Optimized Beauty Angle (Azure Cobalt Disc & Great Dark Spot)
+    let mut cam_neptune = Camera::new();
+    cam_neptune.set_target(BodyId::Neptune, physics.neptune.position);
+    render_ppm(&mut buffer, &cam_neptune, &format!("{}/neptune_beauty_angle.ppm", brain_dir));
+
+    // 7. Venus with Contextual HUD ([V] Radar Magellan)
+    let mut cam_venus = Camera::new();
+    cam_venus.set_target(BodyId::Venus, physics.venus.position);
+    render_ppm(&mut buffer, &cam_venus, &format!("{}/venus_contextual_hud.ppm", brain_dir));
 }
