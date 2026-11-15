@@ -114,14 +114,14 @@ impl Camera {
                 distance_km: 12_000.0, // Balanced orbital perspective of Mars
             },
             BodyId::Phobos => BodyViewState {
-                azimuth: 0.60,        // Framing Stickney crater excavation, raised rim & grooved terrain
-                elevation: 0.15,
-                distance_km: 55.0,     // Close perspective framing irregular 26 km triaxial asteroid
+                azimuth: 2.10,        // Framing Stickney crater excavation, raised rim & grooved terrain under oblique sunlight
+                elevation: 0.18,
+                distance_km: 44.0,     // Close perspective framing irregular 26 km moon filling 70% of screen
             },
             BodyId::Deimos => BodyViewState {
-                azimuth: 1.10,        // Framing smooth regolith blanket and crater faculae
-                elevation: 0.12,
-                distance_km: 35.0,     // Close perspective framing 15 km irregular pebble
+                azimuth: 2.10,        // Framing smooth regolith blanket and crater faculae
+                elevation: 0.15,
+                distance_km: 26.0,     // Close perspective framing 15 km moon filling 70% of screen
             },
         }
     }
@@ -234,8 +234,8 @@ impl Camera {
             BodyId::Moon => 1_900.0,
             BodyId::Sun => 750_000.0,
             BodyId::Mars => 3_550.0,  // ~160 km above surface
-            BodyId::Phobos => 16.0,   // ~3 km above surface
-            BodyId::Deimos => 9.0,    // ~2.5 km above surface
+            BodyId::Phobos => 13.5,   // ~500 m above Stickney rim
+            BodyId::Deimos => 7.8,    // ~300 m above Swift crater
         };
         self.distance_km = (self.distance_km * 0.88).max(min_dist);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;

@@ -1538,7 +1538,7 @@ fn test_ray_ellipsoid_intersection_precision() {
     assert!((t_x - (100.0 - 13.0)).abs() < 1e-4, "Distance along X should hit a = 13.0 km");
     assert!((norm_x - Vec3::new(1.0, 0.0, 0.0)).length() < 1e-4);
 
-    // Ray directed along Y-axis at center (b = 11.4)
+    // Ray directed along Y-axis at center (c = 9.1, polar axis)
     let ray_y = Ray::new(Vec3::new(0.0, 100.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
     let hit_y = solar_system_ascii::render::raycaster::Raycaster::intersect_ellipsoid(
         &ray_y,
@@ -1548,10 +1548,10 @@ fn test_ray_ellipsoid_intersection_precision() {
     );
     assert!(hit_y.is_some());
     let (t_y, norm_y) = hit_y.unwrap();
-    assert!((t_y - (100.0 - 11.4)).abs() < 1e-4, "Distance along Y should hit b = 11.4 km");
+    assert!((t_y - (100.0 - 9.1)).abs() < 1e-4, "Distance along Y should hit c = 9.1 km");
     assert!((norm_y - Vec3::new(0.0, 1.0, 0.0)).length() < 1e-4);
 
-    // Ray directed along Z-axis at center (c = 9.1)
+    // Ray directed along Z-axis at center (b = 11.4, along-orbit axis)
     let ray_z = Ray::new(Vec3::new(0.0, 0.0, 100.0), Vec3::new(0.0, 0.0, -1.0));
     let hit_z = solar_system_ascii::render::raycaster::Raycaster::intersect_ellipsoid(
         &ray_z,
@@ -1561,7 +1561,7 @@ fn test_ray_ellipsoid_intersection_precision() {
     );
     assert!(hit_z.is_some());
     let (t_z, norm_z) = hit_z.unwrap();
-    assert!((t_z - (100.0 - 9.1)).abs() < 1e-4, "Distance along Z should hit c = 9.1 km");
+    assert!((t_z - (100.0 - 11.4)).abs() < 1e-4, "Distance along Z should hit b = 11.4 km");
     assert!((norm_z - Vec3::new(0.0, 0.0, 1.0)).length() < 1e-4);
 
     // Ray missing the ellipsoid entirely
@@ -1595,12 +1595,12 @@ fn test_standardized_keys_and_mars_moons_navigation() {
     // Contextual [M] at Mars -> Phobos
     cam.set_target(BodyId::Phobos, physics.phobos.position);
     assert_eq!(cam.target_body, BodyId::Phobos);
-    assert!((cam.distance_km - 55.0).abs() < 1e-4);
+    assert!((cam.distance_km - 44.0).abs() < 1e-4);
 
     // Contextual [N] at Phobos -> Deimos
     cam.set_target(BodyId::Deimos, physics.deimos.position);
     assert_eq!(cam.target_body, BodyId::Deimos);
-    assert!((cam.distance_km - 35.0).abs() < 1e-4);
+    assert!((cam.distance_km - 26.0).abs() < 1e-4);
 
     // Contextual [M] at Deimos -> Mars
     cam.set_target(BodyId::Mars, physics.mars.position);
@@ -1666,7 +1666,7 @@ fn test_render_mars_system_demo() {
     let sun_az_phobos = sun_dir_phobos.x.atan2(sun_dir_phobos.z);
     cam.azimuth = sun_az_phobos + 0.35;
     cam.elevation = 0.18;
-    cam.distance_km = 38.0;
+    cam.distance_km = 44.0;
     render_ppm(
         &mut buffer,
         &cam,

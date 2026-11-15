@@ -1,63 +1,49 @@
-//! Phobos Shader: High-fidelity procedural triaxial ellipsoid shader for Mars' moon Phobos.
-//! - Triaxial ellipsoid shape: semi-axes (13.0, 11.4, 9.1) km, locked towards Mars along local X.
-//! - Detailed procedural topography: Stickney crater (9 km, 1.5 km depth, elevated rim),
-//!   secondary craters (Hall, Roche), and radiating / sub-Mars fracture groove striations.
-//! - Carbonaceous chondrite albedo (~0.071) with brighter bluish-gray ejecta on Stickney rim.
-//! - Lommel-Seeliger photometric scattering with absolute pitch-black nightside.
+//! Phobos Shader: High-fidelity USGS / Viking / Mars Express photographic & topographic shader
+//! for Mars' inner moon Phobos.
+//! - Triaxial ellipsoid morphology: semi-axes (13.0, 11.4, 9.1) km (sub-Mars X, along-orbit Z, polar Y).
+//! - 1024x512 USGS controlled photographic photomosaic with bilinear interpolation.
+//! - Topographic relief bump gradient rendering Stickney crater (9 km), Hall, Roche, and fracture grooves.
+//! - Lommel-Seeliger non-Lambertian scattering with opposition surge and pitch-black nightside.
 
 use crate::math::Vec3;
 use std::f64::consts::PI;
 
-/// Triaxial semi-major axis along local X (sub-Mars / anti-Mars axis) in km.
-pub const SEMI_AXIS_A: f64 = 13.0;
-/// Triaxial intermediate semi-axis along local Z (orbital motion axis) in km.
-pub const SEMI_AXIS_B: f64 = 11.4;
-/// Triaxial polar semi-minor axis along local Y (polar axis) in km.
-pub const SEMI_AXIS_C: f64 = 9.1;
+pub const SEMI_AXIS_A: f64 = 13.0; // sub-Mars X
+pub const SEMI_AXIS_B: f64 = 11.4; // along-orbit Z
+pub const SEMI_AXIS_C: f64 = 9.1;  // polar Y
 
-/// Mean geometric albedo of Phobos carbonaceous chondrite regolith.
 pub const BASE_ALBEDO: f64 = 0.071;
-
-/// Stickney Crater center longitude in radians (-50.0°).
 pub const STICKNEY_LON_RAD: f64 = -50.0 * PI / 180.0;
-/// Stickney Crater center latitude in radians (0.0°).
 pub const STICKNEY_LAT_RAD: f64 = 0.0;
-/// Stickney Crater angular radius in radians (~9 km diameter).
 pub const STICKNEY_RADIUS_RAD: f64 = 0.65;
-/// Stickney Crater excavation depression depth in km.
 pub const STICKNEY_DEPTH_KM: f64 = 1.5;
-/// Stickney Crater elevated rim crest height in km.
-pub const STICKNEY_RIM_HEIGHT_KM: f64 = 0.35;
 
-/// Hall Crater center latitude in radians (-33.0°).
-pub const HALL_LAT_RAD: f64 = -33.0 * PI / 180.0;
-/// Hall Crater center longitude in radians (-130.0°).
-pub const HALL_LON_RAD: f64 = -130.0 * PI / 180.0;
-/// Hall Crater angular radius in radians.
-pub const HALL_RADIUS_RAD: f64 = 0.25;
-/// Hall Crater depth in km.
-pub const HALL_DEPTH_KM: f64 = 0.60;
-
-/// Roche Crater center latitude in radians (+53.0°).
-pub const ROCHE_LAT_RAD: f64 = 53.0 * PI / 180.0;
-/// Roche Crater center longitude in radians (175.0°).
-pub const ROCHE_LON_RAD: f64 = 175.0 * PI / 180.0;
-/// Roche Crater angular radius in radians.
-pub const ROCHE_RADIUS_RAD: f64 = 0.20;
-/// Roche Crater depth in km.
-pub const ROCHE_DEPTH_KM: f64 = 0.45;
-
-#[derive(Clone, Copy, Debug, Default)]
-pub struct PhobosShader;
+pub struct PhobosShader {
+    albedo_map: &'static [u8],    // 1024 * 512
+    elevation_map: &'static [u8], // 1024 * 512
+    width: usize,
+    height: usize,
+}
 
 impl PhobosShader {
     pub fn new() -> Self {
-        Self
+        let bytes = include_bytes!("../../assets/mars_moons_data.bin");
+        assert_eq!(&bytes[0..8], b"ASTRO_MN", "Invalid mars_moons_data.bin header format");
+        let width = u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]) as usize;
+        let height = u32::from_le_bytes([bytes[12], bytes[13], bytes[14], bytes[15]]) as usize;
+        let pixels = width * height;
+
+        let phobos_albedo = &bytes[16..16 + pixels];
+        let phobos_elevation = &bytes[16 + pixels..16 + 2 * pixels];
+
+        Self {
+            albedo_map: phobos_albedo,
+            elevation_map: phobos_elevation,
+            width,
+            height,
+        }
     }
 
-    /// Lommel-Seeliger non-Lambertian scattering law for porous regolith:
-    /// R_LS = mu_0 / (mu_0 + mu).
-    /// Returns 0.0 on the night side (mu_0 <= 0.0).
     #[inline(always)]
     pub fn lommel_seeliger(mu_0: f64, mu: f64) -> f64 {
         if mu_0 <= 0.0 {
@@ -69,16 +55,11 @@ impl PhobosShader {
         }
     }
 
-    /// Compute great-circle angular distance in radians between two spherical coordinates.
-    #[inline(always)]
-    fn angular_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
-        let cos_d = (lat1.sin() * lat2.sin() + lat1.cos() * lat2.cos() * (lon1 - lon2).cos()).clamp(-1.0, 1.0);
-        cos_d.acos()
-    }
-
-    /// Stickney crater elevation contribution (bowl depression + elevated rim) in km.
     pub fn stickney_elevation(&self, lat_rad: f64, lon_rad: f64) -> f64 {
-        let dist = Self::angular_distance(lat_rad, lon_rad, STICKNEY_LAT_RAD, STICKNEY_LON_RAD);
+        let cos_d = (lat_rad.sin() * STICKNEY_LAT_RAD.sin()
+            + lat_rad.cos() * STICKNEY_LAT_RAD.cos() * (lon_rad - STICKNEY_LON_RAD).cos())
+            .clamp(-1.0, 1.0);
+        let dist = cos_d.acos();
         let rho = dist / STICKNEY_RADIUS_RAD;
 
         let bowl = if rho < 1.0 {
@@ -87,176 +68,98 @@ impl PhobosShader {
             0.0
         };
 
-        let rim = STICKNEY_RIM_HEIGHT_KM * (-((rho - 1.0) / 0.18).powi(2)).exp();
+        let rim = 0.35 * (-((rho - 1.0) / 0.18).powi(2)).exp();
         bowl + rim
     }
 
-    /// Procedural topographic elevation offset in km relative to the reference ellipsoid.
-    pub fn elevation_offset(&self, lat_rad: f64, lon_rad: f64) -> f64 {
-        // 1. Stickney Crater (dominant ~9 km impact basin)
-        let stickney = self.stickney_elevation(lat_rad, lon_rad);
+    #[inline(always)]
+    fn sample_bilinear(&self, data: &[u8], u: f64, v: f64) -> f64 {
+        let u_wrap = u.rem_euclid(1.0) * (self.width as f64 - 1.0);
+        let v_clamp = v.clamp(0.0, 1.0) * (self.height as f64 - 1.0);
 
-        // 2. Secondary Crater: Hall (-33° lat)
-        let dist_hall = Self::angular_distance(lat_rad, lon_rad, HALL_LAT_RAD, HALL_LON_RAD);
-        let rho_hall = dist_hall / HALL_RADIUS_RAD;
-        let bowl_hall = if rho_hall < 1.0 {
-            -HALL_DEPTH_KM * (1.0 - rho_hall * rho_hall)
-        } else {
-            0.0
-        };
-        let rim_hall = 0.12 * (-((rho_hall - 1.0) / 0.18).powi(2)).exp();
-        let hall = bowl_hall + rim_hall;
+        let x0 = u_wrap.floor() as usize;
+        let y0 = v_clamp.floor() as usize;
+        let x1 = (x0 + 1).min(self.width - 1);
+        let y1 = (y0 + 1).min(self.height - 1);
 
-        // 3. Secondary Crater: Roche (+53° lat)
-        let dist_roche = Self::angular_distance(lat_rad, lon_rad, ROCHE_LAT_RAD, ROCHE_LON_RAD);
-        let rho_roche = dist_roche / ROCHE_RADIUS_RAD;
-        let bowl_roche = if rho_roche < 1.0 {
-            -ROCHE_DEPTH_KM * (1.0 - rho_roche * rho_roche)
-        } else {
-            0.0
-        };
-        let rim_roche = 0.10 * (-((rho_roche - 1.0) / 0.18).powi(2)).exp();
-        let roche = bowl_roche + rim_roche;
+        let fx = u_wrap - u_wrap.floor();
+        let fy = v_clamp - v_clamp.floor();
 
-        // 4. Linear fracture grooves radiating from Stickney across equator and sub-Mars point
-        let d_stickney = Self::angular_distance(lat_rad, lon_rad, STICKNEY_LAT_RAD, STICKNEY_LON_RAD);
+        let p00 = data[y0 * self.width + x0] as f64;
+        let p10 = data[y0 * self.width + x1] as f64;
+        let p01 = data[y1 * self.width + x0] as f64;
+        let p11 = data[y1 * self.width + x1] as f64;
 
-        // Azimuth from Stickney center in local tangent space
-        let u_x = lat_rad.cos() * lon_rad.cos();
-        let u_y = lat_rad.sin();
-        let u_z = lat_rad.cos() * lon_rad.sin();
-
-        let s_x = STICKNEY_LON_RAD.cos();
-        let s_z = STICKNEY_LON_RAD.sin();
-        let cos_s = (u_x * s_x + u_z * s_z).clamp(-1.0, 1.0);
-
-        let v_x = u_x - s_x * cos_s;
-        let v_y = u_y;
-        let v_z = u_z - s_z * cos_s;
-        let phi = v_y.atan2(v_x * s_z - v_z * s_x);
-
-        let w_rad = (36.0 * phi).cos().max(0.0).powi(4);
-        let env_rad = ((d_stickney - 0.45) / 0.30).clamp(0.0, 1.0)
-            * (-((d_stickney - 1.1) / 1.1).max(0.0).powi(2)).exp();
-        let dh_rad = -0.025 * w_rad * env_rad;
-
-        // Parallel groove fracture family across sub-Mars equatorial region
-        let p_sub = lon_rad * 0.95 + lat_rad * 0.35;
-        let w_sub = (45.0 * p_sub).cos().max(0.0).powi(4);
-        let env_sub = (-(lat_rad / 0.65).powi(2)).exp() * (-((lon_rad - 0.05) / 1.3).powi(2)).exp();
-        let dh_sub = -0.020 * w_sub * env_sub;
-
-        // 5. 3D Cartesian regolith roughness (free of polar singularities)
-        let h_rough = 0.025 * (5.0 * u_x + 6.0 * u_y + 7.0 * u_z).sin()
-            + 0.015 * (11.0 * u_x - 9.0 * u_y + 13.0 * u_z).sin();
-
-        stickney + hall + roche + dh_rad + dh_sub + h_rough
+        let top = p00 * (1.0 - fx) + p10 * fx;
+        let bot = p01 * (1.0 - fx) + p11 * fx;
+        top * (1.0 - fy) + bot * fy
     }
 
-    /// Sample intrinsic spectral albedo [R, G, B] in [0.0, 1.0].
-    /// Dark carbonaceous chondrite baseline (~0.071) with brighter bluish-gray ejecta on Stickney rim.
     pub fn sample_albedo(&self, lat_rad: f64, lon_rad: f64) -> [f64; 3] {
-        // Base dark charcoal carbonaceous chondrite
-        let mut r = BASE_ALBEDO * 1.02;
-        let mut g = BASE_ALBEDO * 1.00;
-        let mut b = BASE_ALBEDO * 0.98;
+        let u = (lon_rad + PI) / (2.0 * PI);
+        let v = (PI * 0.5 - lat_rad) / PI;
+        let raw = self.sample_bilinear(self.albedo_map, u, v);
 
-        // Stickney rim ejecta: elevated albedo with distinctive bluish-gray tint (MRO HiRISE blue unit)
-        let d_stickney = Self::angular_distance(lat_rad, lon_rad, STICKNEY_LAT_RAD, STICKNEY_LON_RAD);
-        let rho_s = d_stickney / STICKNEY_RADIUS_RAD;
-        let w_stickney_rim = (-((rho_s - 1.05) / 0.20).powi(2)).exp();
+        // Calibrate raw USGS photomosaic brightness to geometric albedo ~0.071
+        let lum = (raw / 95.0) * BASE_ALBEDO;
 
-        let rim_mult = 1.0 + 0.75 * w_stickney_rim;
-        r *= rim_mult * (1.0 - 0.12 * w_stickney_rim);
-        g *= rim_mult * (1.0 + 0.02 * w_stickney_rim);
-        b *= rim_mult * (1.0 + 0.30 * w_stickney_rim);
+        // Stickney blue unit: subtle bluish ejecta around Stickney crater (-50° lon, 0° lat)
+        let cos_s = (lat_rad.cos() * (lon_rad - STICKNEY_LON_RAD).cos()).clamp(-1.0, 1.0);
+        let dist_s = cos_s.acos();
+        let stickney_mask = (-((dist_s - 0.70) / 0.35).powi(2)).exp();
 
-        // Secondary crater rim brightening
-        let d_hall = Self::angular_distance(lat_rad, lon_rad, HALL_LAT_RAD, HALL_LON_RAD);
-        let rho_hall = d_hall / HALL_RADIUS_RAD;
-        let w_hall = (-((rho_hall - 1.05) / 0.18).powi(2)).exp();
-
-        let d_roche = Self::angular_distance(lat_rad, lon_rad, ROCHE_LAT_RAD, ROCHE_LON_RAD);
-        let rho_roche = d_roche / ROCHE_RADIUS_RAD;
-        let w_roche = (-((rho_roche - 1.05) / 0.18).powi(2)).exp();
-
-        let sec_mult = 1.0 + 0.25 * (w_hall + w_roche);
-        r *= sec_mult;
-        g *= sec_mult;
-        b *= sec_mult;
-
-        // Subtle groove floor shadowing
-        let p_sub = lon_rad * 0.95 + lat_rad * 0.35;
-        let w_sub = (45.0 * p_sub).cos().max(0.0).powi(4);
-        let env_sub = (-(lat_rad / 0.65).powi(2)).exp() * (-((lon_rad - 0.05) / 1.3).powi(2)).exp();
-        let groove_dark = 1.0 - 0.12 * (w_sub * env_sub);
-        r *= groove_dark;
-        g *= groove_dark;
-        b *= groove_dark;
+        let r = lum * (1.02 - 0.08 * stickney_mask);
+        let g = lum * 1.00;
+        let b = lum * (0.98 + 0.16 * stickney_mask);
 
         [r, g, b]
     }
 
-    /// Compute surface normal on Phobos perturbed by procedural topography.
     pub fn surface_normal(&self, local_hit: Vec3) -> Vec3 {
-        let len = local_hit.length();
-        if len < 1e-12 {
-            return Vec3::Y;
-        }
-
-        let dir = local_hit / len;
-
-        // Triaxial ellipsoid outward normal: gradient of (x/a)^2 + (y/c)^2 + (z/b)^2
         let inv_a = 1.0 / SEMI_AXIS_A;
-        let inv_b = 1.0 / SEMI_AXIS_B;
         let inv_c = 1.0 / SEMI_AXIS_C;
-
-        let scale = 1.0 / ((dir.x * inv_a).powi(2) + (dir.y * inv_c).powi(2) + (dir.z * inv_b).powi(2)).sqrt();
-        let p_ellip = dir * scale;
+        let inv_b = 1.0 / SEMI_AXIS_B;
 
         let base_norm = Vec3::new(
-            p_ellip.x * (inv_a * inv_a),
-            p_ellip.y * (inv_c * inv_c),
-            p_ellip.z * (inv_b * inv_b),
+            local_hit.x * (inv_a * inv_a),
+            local_hit.y * (inv_c * inv_c),
+            local_hit.z * (inv_b * inv_b),
         )
         .normalize();
 
-        // Orthonormal tangent basis without polar singularities
-        let (t1, t2) = if dir.y.abs() < 0.999 {
-            let t1 = Vec3::new(-dir.z, 0.0, dir.x).normalize();
-            let t2 = dir.cross(t1).normalize();
-            (t1, t2)
-        } else {
-            (Vec3::X, Vec3::Z)
-        };
+        let lat_rad = base_norm.y.clamp(-1.0, 1.0).asin();
+        let lon_rad = base_norm.z.atan2(base_norm.x);
+        let cos_lat = lat_rad.cos().max(1e-4);
 
-        // Sample elevation offset for a direction vector
-        let sample_h = |v: Vec3| -> f64 {
-            let u = v.normalize();
-            let lat = u.y.clamp(-1.0, 1.0).asin();
-            let lon = u.z.atan2(u.x);
-            self.elevation_offset(lat, lon)
-        };
+        let t_lon = Vec3::new(-base_norm.z, 0.0, base_norm.x).normalize();
+        let t_lat = Vec3::new(
+            -base_norm.y * lon_rad.cos(),
+            cos_lat,
+            -base_norm.y * lon_rad.sin(),
+        ).normalize();
 
-        let eps = 0.005; // rad
-        let h_t1_pos = sample_h(dir + t1 * eps);
-        let h_t1_neg = sample_h(dir - t1 * eps);
-        let h_t2_pos = sample_h(dir + t2 * eps);
-        let h_t2_neg = sample_h(dir - t2 * eps);
+        let d_lon = 2.0 * PI / self.width as f64;
+        let d_lat = PI / self.height as f64;
 
-        let dh_dt1 = (h_t1_pos - h_t1_neg) / (2.0 * eps);
-        let dh_dt2 = (h_t2_pos - h_t2_neg) / (2.0 * eps);
+        let u_center = (lon_rad + PI) / (2.0 * PI);
+        let u_east = ((lon_rad + d_lon) + PI) / (2.0 * PI);
+        let u_west = ((lon_rad - d_lon) + PI) / (2.0 * PI);
+        let v_center = (PI * 0.5 - lat_rad) / PI;
+        let v_north = (PI * 0.5 - (lat_rad + d_lat)) / PI;
+        let v_south = (PI * 0.5 - (lat_rad - d_lat)) / PI;
 
-        let bump_scale = 0.15;
-        let perturbed = base_norm - (t1 * dh_dt1 + t2 * dh_dt2) * bump_scale;
-        if perturbed.length_squared() > 1e-6 {
-            perturbed.normalize()
-        } else {
-            base_norm
-        }
+        let h_east = self.sample_bilinear(self.elevation_map, u_east, v_center);
+        let h_west = self.sample_bilinear(self.elevation_map, u_west, v_center);
+        let h_north = self.sample_bilinear(self.elevation_map, u_center, v_north);
+        let h_south = self.sample_bilinear(self.elevation_map, u_center, v_south);
+
+        let bump_scale = 0.0035;
+        let grad_lon = (h_east - h_west) * bump_scale;
+        let grad_lat = (h_north - h_south) * bump_scale;
+
+        (base_norm - t_lon * grad_lon - t_lat * grad_lat).normalize()
     }
 
-    /// Shade a surface point on Phobos with Lommel-Seeliger scattering and absolute pitch-black nightside.
     pub fn shade(&self, local_hit: Vec3, local_sun: Vec3, local_view: Vec3) -> [u8; 3] {
         if local_hit.length_squared() < 1e-12 {
             return [0, 0, 0];
@@ -271,7 +174,6 @@ impl PhobosShader {
         let norm = self.surface_normal(local_hit);
         let mu_0 = norm.dot(sun_norm);
 
-        // Absolute zero light on the night side (mu_0 <= 0.0)
         if mu_0 <= 0.0 {
             return [0, 0, 0];
         }
@@ -279,19 +181,17 @@ impl PhobosShader {
         let mu = norm.dot(view_norm).max(0.0);
         let ls = Self::lommel_seeliger(mu_0, mu);
 
-        // Opposition surge for airless regolith (retroreflective backscattering)
         let cos_alpha = sun_norm.dot(view_norm).clamp(-1.0, 1.0);
         let alpha = cos_alpha.acos();
         let half_alpha = (alpha * 0.5).tan();
         let opposition_surge = 1.0 + 0.35 / (1.0 + 9.0 * half_alpha);
 
-        // Solar constant scaling at Mars orbit (~1.524 AU)
         let solar_irradiance = (1.0_f64 / 1.524).powi(2);
-        let intensity_scale = 1800.0;
+        let intensity_scale = 2200.0;
 
-        let dir = local_hit.normalize();
-        let lat_rad = dir.y.clamp(-1.0, 1.0).asin();
-        let lon_rad = dir.z.atan2(dir.x);
+        let base_norm = local_hit.normalize();
+        let lat_rad = base_norm.y.clamp(-1.0, 1.0).asin();
+        let lon_rad = base_norm.z.atan2(base_norm.x);
         let albedo = self.sample_albedo(lat_rad, lon_rad);
 
         let diffuse = ls * opposition_surge * solar_irradiance * intensity_scale;

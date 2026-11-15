@@ -92,12 +92,12 @@ impl Raycaster {
         let local_oc = rot_t.mul_vec(oc);
         let local_dir = rot_t.mul_vec(ray.dir);
 
-        let inv_a = 1.0 / a;
-        let inv_b = 1.0 / b;
-        let inv_c = 1.0 / c;
+        let inv_x = 1.0 / a; // X (sub-Mars axis)
+        let inv_y = 1.0 / c; // Y (polar axis)
+        let inv_z = 1.0 / b; // Z (along-orbit axis)
 
-        let u_oc = Vec3::new(local_oc.x * inv_a, local_oc.y * inv_b, local_oc.z * inv_c);
-        let u_dir = Vec3::new(local_dir.x * inv_a, local_dir.y * inv_b, local_dir.z * inv_c);
+        let u_oc = Vec3::new(local_oc.x * inv_x, local_oc.y * inv_y, local_oc.z * inv_z);
+        let u_dir = Vec3::new(local_dir.x * inv_x, local_dir.y * inv_y, local_dir.z * inv_z);
 
         let quad_a = u_dir.dot(u_dir);
         let quad_b = u_oc.dot(u_dir);
@@ -122,9 +122,9 @@ impl Raycaster {
 
         let local_hit = local_oc + local_dir * t;
         let local_norm = Vec3::new(
-            local_hit.x * (inv_a * inv_a),
-            local_hit.y * (inv_b * inv_b),
-            local_hit.z * (inv_c * inv_c),
+            local_hit.x * (inv_x * inv_x),
+            local_hit.y * (inv_y * inv_y),
+            local_hit.z * (inv_z * inv_z),
         ).normalize();
 
         let world_norm = rot_mat.mul_vec(local_norm).normalize();
