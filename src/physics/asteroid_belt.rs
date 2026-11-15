@@ -132,8 +132,8 @@ impl AsteroidField {
         let (sin_i, cos_i) = p.inc.sin_cos();
 
         let x = r * (cos_node * cos_nu_w - sin_node * sin_nu_w * cos_i);
-        let z = r * (sin_node * cos_nu_w + cos_node * sin_nu_w * cos_i);
-        let y = r * (sin_i * sin_nu_w);
+        let y = r * (sin_node * cos_nu_w + cos_node * sin_nu_w * cos_i);
+        let z = r * (sin_i * sin_nu_w);
 
         Vec3::new(x, y, z)
     }

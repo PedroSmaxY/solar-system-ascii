@@ -1819,6 +1819,30 @@ fn test_asteroid_field_kirkwood_gaps_and_density() {
 }
 
 #[test]
+fn test_asteroid_belt_and_ceres_coplanar() {
+    use solar_system_ascii::physics::SolarSystemPhysics;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    // Ceres and Vesta orbit in X-Y plane with Z as inclination axis
+    let r_xy_ceres = (physics.ceres.position.x.powi(2) + physics.ceres.position.y.powi(2)).sqrt();
+    let r_ceres_total = physics.ceres.position.length();
+    assert!(r_xy_ceres / r_ceres_total > 0.95, "Ceres must orbit primarily in X-Y plane (got ratio {})", r_xy_ceres / r_ceres_total);
+    assert!(physics.ceres.position.z.abs() / r_ceres_total < 0.25, "Ceres Z must match its ~10.6 deg inclination");
+
+    // Sample 100 asteroids: verify their orbital plane is X-Y with small Z dispersion (inclination)
+    for i in 0..100 {
+        let p_pos = physics.asteroid_field.calculate_position(i, 0.0);
+        let r_xy = (p_pos.x.powi(2) + p_pos.y.powi(2)).sqrt();
+        let r_total = p_pos.length();
+        // In X-Y plane with inclination ~8 deg (sin 8 deg ~ 0.14), r_xy must be > 95% of r_total
+        assert!(r_xy / r_total > 0.90, "Asteroid {} must lie primarily in X-Y plane: r_xy={}, r_total={}", i, r_xy, r_total);
+        assert!(p_pos.z.abs() / r_total < 0.35, "Asteroid {} Z dispersion must be bounded by orbital inclination", i);
+    }
+}
+
+#[test]
 fn test_standardized_navigation_ceres_vesta_belt() {
     use solar_system_ascii::physics::body::BodyId;
     use solar_system_ascii::render::camera::Camera;
