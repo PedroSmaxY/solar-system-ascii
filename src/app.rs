@@ -44,13 +44,7 @@ impl App {
     }
 
     pub fn set_target(&mut self, body: BodyId) {
-        let pos = match body {
-            BodyId::Sun => self.physics.sun.position,
-            BodyId::Mercury => self.physics.mercury.position,
-            BodyId::Venus => self.physics.venus.position,
-            BodyId::Earth => self.physics.earth.position,
-            BodyId::Moon => self.physics.moon.position,
-        };
+        let pos = self.physics.get_body(body).position;
         self.camera.set_target(body, pos);
     }
 
@@ -117,6 +111,11 @@ impl App {
                         let to_pos = self.physics.earth.position;
                         self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.2);
                     }
+                    KeyCode::Char('5') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.mars.position;
+                        self.camera.start_transition(BodyId::Mars, from_pos, to_pos, 1.3);
+                    }
                     KeyCode::Char('m') | KeyCode::Char('M') => {
                         if self.camera.target_body == BodyId::Earth {
                             let from_pos = self.physics.earth.position;
@@ -126,6 +125,25 @@ impl App {
                             let from_pos = self.physics.moon.position;
                             let to_pos = self.physics.earth.position;
                             self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Mars {
+                            let from_pos = self.physics.mars.position;
+                            let to_pos = self.physics.phobos.position;
+                            self.camera.start_transition(BodyId::Phobos, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Phobos || self.camera.target_body == BodyId::Deimos {
+                            let from_pos = self.physics.get_body(self.camera.target_body).position;
+                            let to_pos = self.physics.mars.position;
+                            self.camera.start_transition(BodyId::Mars, from_pos, to_pos, 1.0);
+                        }
+                    }
+                    KeyCode::Char('n') | KeyCode::Char('N') => {
+                        if self.camera.target_body == BodyId::Mars || self.camera.target_body == BodyId::Phobos {
+                            let from_pos = self.physics.get_body(self.camera.target_body).position;
+                            let to_pos = self.physics.deimos.position;
+                            self.camera.start_transition(BodyId::Deimos, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Deimos {
+                            let from_pos = self.physics.deimos.position;
+                            let to_pos = self.physics.phobos.position;
+                            self.camera.start_transition(BodyId::Phobos, from_pos, to_pos, 1.0);
                         }
                     }
                     KeyCode::Char('v') | KeyCode::Char('V') => {

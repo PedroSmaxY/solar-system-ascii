@@ -2,12 +2,16 @@
 
 use crate::math::{Ray, Vec3};
 use crate::physics::body::BodyId;
+use crate::physics::ephemeris::{DEIMOS_SEMI_AXES_KM, PHOBOS_SEMI_AXES_KM};
 use crate::physics::SolarSystemPhysics;
 use crate::render::buffer::{FrameBuffer, Pixel};
 use crate::render::camera::Camera;
+use crate::render::deimos_shader::DeimosShader;
 use crate::render::earth_shader::EarthShader;
+use crate::render::mars_shader::MarsShader;
 use crate::render::mercury_shader::MercuryShader;
 use crate::render::moon_shader::MoonShader;
+use crate::render::phobos_shader::PhobosShader;
 use crate::render::stars::Starfield;
 use crate::render::sun_shader::SunShader;
 use crate::render::venus_shader::VenusShader;
@@ -21,6 +25,9 @@ pub struct Raycaster {
     pub moon_shader: MoonShader,
     pub sun_shader: SunShader,
     pub venus_shader: VenusShader,
+    pub mars_shader: MarsShader,
+    pub phobos_shader: PhobosShader,
+    pub deimos_shader: DeimosShader,
 }
 
 struct SphereHit {
@@ -38,6 +45,9 @@ impl Raycaster {
             moon_shader: MoonShader::new(),
             sun_shader: SunShader::new(),
             venus_shader: VenusShader::new(),
+            mars_shader: MarsShader::new(),
+            phobos_shader: PhobosShader::new(),
+            deimos_shader: DeimosShader::new(),
         }
     }
 
@@ -62,6 +72,63 @@ impl Raycaster {
         } else {
             None
         }
+    }
+
+    /// Analytical ray-ellipsoid intersection for triaxial bodies (Phobos, Deimos).
+    /// semi_axes is (a, b, c) along local axes.
+    /// Returns (hit_distance t, world_normal) if hit.
+    #[inline(always)]
+    pub fn intersect_ellipsoid(
+        ray: &Ray,
+        center: Vec3,
+        rot_mat: crate::math::Mat3,
+        semi_axes: (f64, f64, f64),
+    ) -> Option<(f64, Vec3)> {
+        let (a, b, c) = semi_axes;
+        let oc = ray.origin - center;
+
+        // rot_mat maps local -> world. Transpose maps world -> local.
+        let rot_t = rot_mat.transpose();
+        let local_oc = rot_t.mul_vec(oc);
+        let local_dir = rot_t.mul_vec(ray.dir);
+
+        let inv_a = 1.0 / a;
+        let inv_b = 1.0 / b;
+        let inv_c = 1.0 / c;
+
+        let u_oc = Vec3::new(local_oc.x * inv_a, local_oc.y * inv_b, local_oc.z * inv_c);
+        let u_dir = Vec3::new(local_dir.x * inv_a, local_dir.y * inv_b, local_dir.z * inv_c);
+
+        let quad_a = u_dir.dot(u_dir);
+        let quad_b = u_oc.dot(u_dir);
+        let quad_c = u_oc.dot(u_oc) - 1.0;
+
+        let disc = quad_b * quad_b - quad_a * quad_c;
+        if disc < 0.0 {
+            return None;
+        }
+
+        let sqrt_disc = disc.sqrt();
+        let t1 = (-quad_b - sqrt_disc) / quad_a;
+        let t2 = (-quad_b + sqrt_disc) / quad_a;
+
+        let t = if t1 > 0.0 {
+            t1
+        } else if t2 > 0.0 {
+            t2
+        } else {
+            return None;
+        };
+
+        let local_hit = local_oc + local_dir * t;
+        let local_norm = Vec3::new(
+            local_hit.x * (inv_a * inv_a),
+            local_hit.y * (inv_b * inv_b),
+            local_hit.z * (inv_c * inv_c),
+        ).normalize();
+
+        let world_norm = rot_mat.mul_vec(local_norm).normalize();
+        Some((t, world_norm))
     }
 
     /// Render a full frame into the target FrameBuffer.
@@ -96,6 +163,19 @@ impl Raycaster {
         let sun_pos = physics.sun.position;
         let sun_rad = physics.sun.radius_km;
         let sun_mat_inv = physics.sun.orientation_matrix().transpose();
+
+        let mars_pos = physics.mars.position;
+        let mars_rad = physics.mars.radius_km;
+        let mars_mat = physics.mars.orientation_matrix();
+        let mars_mat_inv = mars_mat.transpose();
+
+        let phobos_pos = physics.phobos.position;
+        let phobos_mat = physics.phobos.orientation_matrix();
+        let phobos_mat_inv = phobos_mat.transpose();
+
+        let deimos_pos = physics.deimos.position;
+        let deimos_mat = physics.deimos.orientation_matrix();
+        let deimos_mat_inv = deimos_mat.transpose();
 
         // Render each scanline in parallel with Rayon
         buffer
@@ -193,6 +273,58 @@ impl Raycaster {
                         }
                     }
 
+                    // Mars hit
+                    if let Some(t_mars) = Self::intersect_sphere(&ray, mars_pos, mars_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_mars < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_mars);
+                            let norm = (hit_pos - mars_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_mars,
+                                body_id: BodyId::Mars,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Phobos hit (triaxial ellipsoid)
+                    if let Some((t_phobos, norm)) = Self::intersect_ellipsoid(&ray, phobos_pos, phobos_mat, PHOBOS_SEMI_AXES_KM) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_phobos < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_phobos);
+                            closest_hit = Some(SphereHit {
+                                t: t_phobos,
+                                body_id: BodyId::Phobos,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Deimos hit (triaxial ellipsoid)
+                    if let Some((t_deimos, norm)) = Self::intersect_ellipsoid(&ray, deimos_pos, deimos_mat, DEIMOS_SEMI_AXES_KM) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_deimos < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_deimos);
+                            closest_hit = Some(SphereHit {
+                                t: t_deimos,
+                                body_id: BodyId::Deimos,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
                     let (rgb, ch) = if let Some(hit) = closest_hit {
                         let sun_dir = if hit.body_id == BodyId::Sun {
                             Vec3::new(0.0, 1.0, 0.0)
@@ -240,6 +372,24 @@ impl Raycaster {
                                     let local_norm = sun_mat_inv.mul_vec(hit.world_norm);
                                     self.sun_shader.shade_photosphere(local_norm, view_dir, tick, elapsed)
                                 }
+                            }
+                            BodyId::Mars => {
+                                let local_norm = mars_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = mars_mat_inv.mul_vec(sun_dir);
+                                let local_view = mars_mat_inv.mul_vec(view_dir);
+                                self.mars_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Phobos => {
+                                let local_hit = phobos_mat_inv.mul_vec(hit.world_pos - phobos_pos);
+                                let local_sun = phobos_mat_inv.mul_vec(sun_dir);
+                                let local_view = phobos_mat_inv.mul_vec(view_dir);
+                                self.phobos_shader.shade(local_hit, local_sun, local_view)
+                            }
+                            BodyId::Deimos => {
+                                let local_hit = deimos_mat_inv.mul_vec(hit.world_pos - deimos_pos);
+                                let local_sun = deimos_mat_inv.mul_vec(sun_dir);
+                                let local_view = deimos_mat_inv.mul_vec(view_dir);
+                                self.deimos_shader.shade(local_hit, local_sun, local_view)
                             }
                         };
 
@@ -309,6 +459,30 @@ impl Raycaster {
                                         (245.0 * glow) as u8,
                                         (228.0 * glow) as u8,
                                         (170.0 * glow) as u8,
+                                    ]);
+                                }
+                            }
+                        }
+
+                        // Atmospheric limb scattering for Mars (60 km thin CO2 butterscotch glow)
+                        let oc_m = ray.origin - mars_pos;
+                        let proj_m = -oc_m.dot(ray.dir);
+                        if proj_m > 0.0 {
+                            let closest_p = ray.at(proj_m);
+                            let d_center = (closest_p - mars_pos).length();
+                            let atm_top = mars_rad + 60.0;
+                            if d_center > mars_rad && d_center < atm_top {
+                                let factor = (1.0 - (d_center - mars_rad) / 60.0).powf(1.6);
+                                let sun_dir = (sun_pos - closest_p).normalize();
+                                let limb_norm = (closest_p - mars_pos).normalize();
+                                let sun_facing = limb_norm.dot(sun_dir);
+                                if sun_facing > -0.15 {
+                                    let twilight = ((sun_facing + 0.15) / 1.15).clamp(0.0, 1.0);
+                                    let glow = factor * twilight;
+                                    atm_color = Some([
+                                        (190.0 * glow) as u8,
+                                        (135.0 * glow) as u8,
+                                        (105.0 * glow) as u8,
                                     ]);
                                 }
                             }

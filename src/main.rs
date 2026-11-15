@@ -31,6 +31,9 @@ fn main() {
                         "venus" => target_body = Some(solar_system_ascii::physics::body::BodyId::Venus),
                         "earth" | "terra" => target_body = Some(solar_system_ascii::physics::body::BodyId::Earth),
                         "moon" | "luna" | "lua" => target_body = Some(solar_system_ascii::physics::body::BodyId::Moon),
+                        "mars" | "marte" => target_body = Some(solar_system_ascii::physics::body::BodyId::Mars),
+                        "phobos" | "fobos" => target_body = Some(solar_system_ascii::physics::body::BodyId::Phobos),
+                        "deimos" => target_body = Some(solar_system_ascii::physics::body::BodyId::Deimos),
                         _ => {}
                     }
                     i += 1;
@@ -78,7 +81,9 @@ fn main() {
                 println!("  [2]            Focus camera on Mercury");
                 println!("  [3]            Focus camera on Venus");
                 println!("  [4]            Focus camera on Earth");
-                println!("  [M]            Contextual Moon/Earth toggle (when orbiting Earth or Moon)");
+                println!("  [5]            Focus camera on Mars");
+                println!("  [M]            Contextual Moon toggle (Earth <-> Moon, or Mars -> Phobos)");
+                println!("  [N]            Contextual Moon toggle (Mars/Phobos <-> Deimos)");
                 println!("  [V]            Toggle Venus Optical Cloud Tops <-> Magellan SAR Radar");
                 println!("  [H]            Toggle HUD astronomical overlay");
                 println!("  [L]            Toggle planet name labels");

@@ -34,7 +34,7 @@ pub struct Camera {
     pub elevation: f64, // Radians (-PI/2 .. PI/2)
     pub distance_km: f64,
     pub fov_y_rad: f64,
-    pub saved_views: [BodyViewState; 5], // [Sun, Mercury, Venus, Earth, Moon]
+    pub saved_views: [BodyViewState; 8], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos]
     pub transition: Option<CameraTransition>,
 
     // Free flight mode
@@ -51,6 +51,9 @@ impl Camera {
         let venus_view = Self::default_view(BodyId::Venus);
         let earth_view = Self::default_view(BodyId::Earth);
         let moon_view = Self::default_view(BodyId::Moon);
+        let mars_view = Self::default_view(BodyId::Mars);
+        let phobos_view = Self::default_view(BodyId::Phobos);
+        let deimos_view = Self::default_view(BodyId::Deimos);
 
         Self {
             target_body: BodyId::Earth,
@@ -59,7 +62,16 @@ impl Camera {
             elevation: earth_view.elevation,
             distance_km: earth_view.distance_km,
             fov_y_rad: 45.0 * PI / 180.0,
-            saved_views: [sun_view, mercury_view, venus_view, earth_view, moon_view],
+            saved_views: [
+                sun_view,
+                mercury_view,
+                venus_view,
+                earth_view,
+                moon_view,
+                mars_view,
+                phobos_view,
+                deimos_view,
+            ],
             transition: None,
             free_flight: false,
             free_pos: Vec3::ZERO,
@@ -95,6 +107,21 @@ impl Camera {
                 azimuth: 0.85,        // Framing illuminated Near Side maria, Tycho rays & terminator
                 elevation: 0.12,
                 distance_km: 8_000.0,  // Dedicated lunar view framing entire disk
+            },
+            BodyId::Mars => BodyViewState {
+                azimuth: 1.85,        // Framing sunlit Valles Marineris, Olympus Mons & polar cap
+                elevation: 0.22,
+                distance_km: 12_000.0, // Balanced orbital perspective of Mars
+            },
+            BodyId::Phobos => BodyViewState {
+                azimuth: 0.60,        // Framing Stickney crater excavation, raised rim & grooved terrain
+                elevation: 0.15,
+                distance_km: 55.0,     // Close perspective framing irregular 26 km triaxial asteroid
+            },
+            BodyId::Deimos => BodyViewState {
+                azimuth: 1.10,        // Framing smooth regolith blanket and crater faculae
+                elevation: 0.12,
+                distance_km: 35.0,     // Close perspective framing 15 km irregular pebble
             },
         }
     }
@@ -206,6 +233,9 @@ impl Camera {
             BodyId::Venus => 6_300.0, // ~250 km above cloud deck
             BodyId::Moon => 1_900.0,
             BodyId::Sun => 750_000.0,
+            BodyId::Mars => 3_550.0,  // ~160 km above surface
+            BodyId::Phobos => 16.0,   // ~3 km above surface
+            BodyId::Deimos => 9.0,    // ~2.5 km above surface
         };
         self.distance_km = (self.distance_km * 0.88).max(min_dist);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;

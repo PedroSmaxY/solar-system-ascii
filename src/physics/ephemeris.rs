@@ -9,13 +9,20 @@ pub const EARTH_RADIUS_KM: f64 = 6_371.0;
 pub const MOON_RADIUS_KM: f64 = 1_737.4;
 pub const MERCURY_RADIUS_KM: f64 = 2_439.7;
 pub const VENUS_RADIUS_KM: f64 = 6_051.8;
+pub const MARS_RADIUS_KM: f64 = 3_389.5;
+pub const PHOBOS_MEAN_RADIUS_KM: f64 = 11.26;
+pub const DEIMOS_MEAN_RADIUS_KM: f64 = 6.2;
+pub const PHOBOS_SEMI_AXES_KM: (f64, f64, f64) = (13.0, 11.4, 9.1);
+pub const DEIMOS_SEMI_AXES_KM: (f64, f64, f64) = (7.5, 6.1, 5.5);
 pub const SUN_RADIUS_KM: f64 = 696_340.0;
 pub const EARTH_AXIAL_TILT_RAD: f64 = 23.439281 * PI / 180.0;
 pub const MERCURY_AXIAL_TILT_RAD: f64 = 0.034 * PI / 180.0;
 pub const VENUS_AXIAL_TILT_RAD: f64 = 177.36 * PI / 180.0;
+pub const MARS_AXIAL_TILT_RAD: f64 = 25.19 * PI / 180.0;
 pub const SIDEREAL_DAY_SECS: f64 = 86_164.0905;
 pub const MERCURY_SIDEREAL_DAY_SECS: f64 = 58.6462 * 86_400.0;
 pub const VENUS_SIDEREAL_DAY_SECS: f64 = 243.025 * 86_400.0;
+pub const MARS_SIDEREAL_DAY_SECS: f64 = 88_642.68; // 24h 37m 22.7s (Martian Sol)
 
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]
@@ -86,6 +93,45 @@ impl KeplerOrbit {
             peri: 318.15 * PI / 180.0,
             m0: 135.0 * PI / 180.0,
             period: 27.321582 * 86_400.0,
+        }
+    }
+
+    /// Mars's orbit around the Sun (J2000 Keplerian elements)
+    pub fn mars_around_sun() -> Self {
+        Self {
+            a: 227_939_200.0, // 1.52368 AU in km
+            e: 0.0934,        // Distinctly eccentric orbit (perihelion 206.6M km, aphelion 249.2M km)
+            i: 1.850 * PI / 180.0,
+            node: 49.5785 * PI / 180.0,
+            peri: 286.502 * PI / 180.0,
+            m0: 19.373 * PI / 180.0,
+            period: 686.98 * 86_400.0,
+        }
+    }
+
+    /// Phobos's orbit around Mars (ultra-close, fast 7.65h inner moon)
+    pub fn phobos_around_mars() -> Self {
+        Self {
+            a: 9_376.0,
+            e: 0.0151,
+            i: 1.093 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 7.65384 * 3_600.0, // 27,553.8 s (faster than Mars's rotation!)
+        }
+    }
+
+    /// Deimos's orbit around Mars (outer moon, 30.3h period)
+    pub fn deimos_around_mars() -> Self {
+        Self {
+            a: 23_463.0,
+            e: 0.0002,
+            i: 0.93 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 1.20,
+            period: 30.298 * 3_600.0, // 109,072.8 s
         }
     }
 

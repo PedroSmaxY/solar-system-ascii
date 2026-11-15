@@ -1185,16 +1185,25 @@ fn test_all_celestial_orbits_100_percent_precision() {
     assert!((max_z_moon - (5.145f64.to_radians().sin())).abs() < 0.005, "Moon orbital inclination");
 
     // 5. Hierarchy and Relative Distances over Time
-    for day in 0..365 {
+    for day in 0..687 {
         let t = day as f64 * 86_400.0;
         physics.update(t);
 
         let r_merc = physics.mercury.position.length();
+        let r_venus = physics.venus.position.length();
         let r_earth = physics.earth.position.length();
+        let r_mars = physics.mars.position.length();
         let d_moon_earth = (physics.moon.position - physics.earth.position).length();
+        let d_phobos_mars = (physics.phobos.position - physics.mars.position).length();
+        let d_deimos_mars = (physics.deimos.position - physics.mars.position).length();
 
         assert!(r_merc < r_earth, "Mercury must strictly orbit inside Earth orbit at day {}", day);
+        assert!(r_venus < r_earth, "Venus must strictly orbit inside Earth orbit at day {}", day);
+        assert!(r_earth < r_mars, "Earth must strictly orbit inside Mars orbit at day {}", day);
         assert!(d_moon_earth >= 363_200.0 && d_moon_earth <= 405_600.0, "Moon must remain in valid geocentric range");
+        assert!(d_phobos_mars >= 9_200.0 && d_phobos_mars <= 9_600.0, "Phobos must remain in valid areocentric range");
+        assert!(d_deimos_mars >= 23_400.0 && d_deimos_mars <= 23_600.0, "Deimos must remain in valid areocentric range");
+        assert!(d_phobos_mars < d_deimos_mars, "Phobos is inner moon, Deimos is outer moon");
     }
 }
 
@@ -1416,5 +1425,266 @@ fn test_render_venus_demo() {
         &cam_user,
         &raycaster,
         "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/venus_user_view.ppm",
+    );
+}
+
+#[test]
+fn test_mars_keplerian_orbit_and_eccentricity() {
+    use solar_system_ascii::physics::ephemeris::{
+        MARS_AXIAL_TILT_RAD, MARS_RADIUS_KM, MARS_SIDEREAL_DAY_SECS,
+    };
+
+    let orbit = KeplerOrbit::mars_around_sun();
+    assert!((orbit.e - 0.0934).abs() < 1e-4, "Mars eccentricity must be 0.0934");
+    assert!((orbit.a - 227_939_200.0).abs() < 1.0, "Mars semi-major axis must be 227,939,200 km");
+
+    let p0 = orbit.calculate_position(0.0);
+    let p_period = orbit.calculate_position(orbit.period);
+    let diff = (p0 - p_period).length();
+    assert!(diff < 1e-4, "Mars orbit must close after 1 orbital period: diff = {} km", diff);
+
+    let period_days = orbit.period / 86400.0;
+    assert!((period_days - 686.98).abs() < 0.1, "Mars orbital period must be ~686.98 days");
+
+    let perihelion = orbit.a * (1.0 - orbit.e);
+    let aphelion = orbit.a * (1.0 + orbit.e);
+    assert!((perihelion - 206_649_679.0).abs() < 1000.0, "Perihelion ~206.6M km");
+    assert!((aphelion - 249_228_721.0).abs() < 1000.0, "Aphelion ~249.2M km");
+
+    assert!((MARS_RADIUS_KM - 3389.5).abs() < 1e-4);
+    assert!((MARS_AXIAL_TILT_RAD - 0.4396).abs() < 1e-3);
+    assert!((MARS_SIDEREAL_DAY_SECS - 88642.68).abs() < 1e-2);
+}
+
+#[test]
+fn test_phobos_orbit_and_triaxial_shape() {
+    use solar_system_ascii::physics::ephemeris::PHOBOS_SEMI_AXES_KM;
+    use solar_system_ascii::render::phobos_shader::PhobosShader;
+
+    let orbit = KeplerOrbit::phobos_around_mars();
+    assert!((orbit.a - 9376.0).abs() < 1.0, "Phobos semi-major axis = 9376 km");
+    let period_hours = orbit.period / 3600.0;
+    assert!((period_hours - 7.654).abs() < 0.01, "Phobos period = 7.654 hours");
+
+    // Phobos orbits in 7.65h, faster than Mars rotates (24.62h)
+    assert!(orbit.period < 88642.68, "Phobos orbits faster than Mars rotation!");
+
+    let p0 = orbit.calculate_position(0.0);
+    let p_period = orbit.calculate_position(orbit.period);
+    assert!((p0 - p_period).length() < 1e-4);
+
+    // Verify triaxial semi-axes
+    let (a, b, c) = PHOBOS_SEMI_AXES_KM;
+    assert_eq!(a, 13.0);
+    assert_eq!(b, 11.4);
+    assert_eq!(c, 9.1);
+
+    // Test Stickney crater displacement and shading
+    let shader = PhobosShader::new();
+    let elev_stickney = shader.stickney_elevation(0.0, solar_system_ascii::render::phobos_shader::STICKNEY_LON_RAD);
+    assert!(elev_stickney < -0.15, "Stickney center must have deep depression: {}", elev_stickney);
+    let norm_stickney = shader.surface_normal(Vec3::new(13.0, 0.0, 0.0));
+    assert!(norm_stickney.length() > 0.99);
+
+    let sun_dir = Vec3::new(1.0, 0.2, 0.0).normalize();
+    let view_dir = Vec3::new(1.0, 0.0, 0.0).normalize();
+    let color = shader.shade(Vec3::new(13.0, 0.0, 0.0), sun_dir, view_dir);
+    // Phobos is dark carbonaceous chondrite with albedo ~0.07, blue ejecta
+    assert!(color[0] > 0 && color[2] > 0);
+    assert!(color[2] as f64 >= color[0] as f64 * 0.9, "Stickney ejecta has blue hue");
+}
+
+#[test]
+fn test_deimos_orbit_and_triaxial_shape() {
+    use solar_system_ascii::physics::ephemeris::DEIMOS_SEMI_AXES_KM;
+    use solar_system_ascii::render::deimos_shader::DeimosShader;
+
+    let orbit = KeplerOrbit::deimos_around_mars();
+    assert!((orbit.a - 23463.0).abs() < 1.0, "Deimos semi-major axis = 23,463 km");
+    let period_hours = orbit.period / 3600.0;
+    assert!((period_hours - 30.298).abs() < 0.01, "Deimos period = 30.298 hours");
+
+    let p0 = orbit.calculate_position(0.0);
+    let p_period = orbit.calculate_position(orbit.period);
+    assert!((p0 - p_period).length() < 1e-4);
+
+    let (a, b, c) = DEIMOS_SEMI_AXES_KM;
+    assert_eq!(a, 7.5);
+    assert_eq!(b, 6.1);
+    assert_eq!(c, 5.5);
+
+    let shader = DeimosShader::new();
+    let sun_dir = Vec3::new(1.0, 0.0, 0.0);
+    let view_dir = Vec3::new(1.0, 0.0, 0.0);
+    let color = shader.shade(Vec3::new(7.5, 0.0, 0.0), sun_dir, view_dir);
+    assert!(color[0] > 0 && color[1] > 0 && color[2] > 0);
+}
+
+#[test]
+fn test_ray_ellipsoid_intersection_precision() {
+    use solar_system_ascii::math::Ray;
+    use solar_system_ascii::physics::ephemeris::PHOBOS_SEMI_AXES_KM;
+
+    // Ray directed along X-axis at center (a = 13.0)
+    let ray_x = Ray::new(Vec3::new(100.0, 0.0, 0.0), Vec3::new(-1.0, 0.0, 0.0));
+    let hit_x = solar_system_ascii::render::raycaster::Raycaster::intersect_ellipsoid(
+        &ray_x,
+        Vec3::ZERO,
+        Mat3::IDENTITY,
+        PHOBOS_SEMI_AXES_KM,
+    );
+    assert!(hit_x.is_some());
+    let (t_x, norm_x) = hit_x.unwrap();
+    assert!((t_x - (100.0 - 13.0)).abs() < 1e-4, "Distance along X should hit a = 13.0 km");
+    assert!((norm_x - Vec3::new(1.0, 0.0, 0.0)).length() < 1e-4);
+
+    // Ray directed along Y-axis at center (b = 11.4)
+    let ray_y = Ray::new(Vec3::new(0.0, 100.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+    let hit_y = solar_system_ascii::render::raycaster::Raycaster::intersect_ellipsoid(
+        &ray_y,
+        Vec3::ZERO,
+        Mat3::IDENTITY,
+        PHOBOS_SEMI_AXES_KM,
+    );
+    assert!(hit_y.is_some());
+    let (t_y, norm_y) = hit_y.unwrap();
+    assert!((t_y - (100.0 - 11.4)).abs() < 1e-4, "Distance along Y should hit b = 11.4 km");
+    assert!((norm_y - Vec3::new(0.0, 1.0, 0.0)).length() < 1e-4);
+
+    // Ray directed along Z-axis at center (c = 9.1)
+    let ray_z = Ray::new(Vec3::new(0.0, 0.0, 100.0), Vec3::new(0.0, 0.0, -1.0));
+    let hit_z = solar_system_ascii::render::raycaster::Raycaster::intersect_ellipsoid(
+        &ray_z,
+        Vec3::ZERO,
+        Mat3::IDENTITY,
+        PHOBOS_SEMI_AXES_KM,
+    );
+    assert!(hit_z.is_some());
+    let (t_z, norm_z) = hit_z.unwrap();
+    assert!((t_z - (100.0 - 9.1)).abs() < 1e-4, "Distance along Z should hit c = 9.1 km");
+    assert!((norm_z - Vec3::new(0.0, 0.0, 1.0)).length() < 1e-4);
+
+    // Ray missing the ellipsoid entirely
+    let ray_miss = Ray::new(Vec3::new(100.0, 20.0, 20.0), Vec3::new(-1.0, 0.0, 0.0));
+    let hit_miss = solar_system_ascii::render::raycaster::Raycaster::intersect_ellipsoid(
+        &ray_miss,
+        Vec3::ZERO,
+        Mat3::IDENTITY,
+        PHOBOS_SEMI_AXES_KM,
+    );
+    assert!(hit_miss.is_none());
+}
+
+#[test]
+fn test_standardized_keys_and_mars_moons_navigation() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::camera::Camera;
+
+    assert_eq!(BodyId::Mars as usize, 5);
+    assert_eq!(BodyId::Phobos as usize, 6);
+    assert_eq!(BodyId::Deimos as usize, 7);
+
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+
+    // Direct key navigation [5] -> Mars
+    cam.set_target(BodyId::Mars, physics.mars.position);
+    assert_eq!(cam.target_body, BodyId::Mars);
+    assert!((cam.distance_km - 12_000.0).abs() < 1e-4);
+
+    // Contextual [M] at Mars -> Phobos
+    cam.set_target(BodyId::Phobos, physics.phobos.position);
+    assert_eq!(cam.target_body, BodyId::Phobos);
+    assert!((cam.distance_km - 55.0).abs() < 1e-4);
+
+    // Contextual [N] at Phobos -> Deimos
+    cam.set_target(BodyId::Deimos, physics.deimos.position);
+    assert_eq!(cam.target_body, BodyId::Deimos);
+    assert!((cam.distance_km - 35.0).abs() < 1e-4);
+
+    // Contextual [M] at Deimos -> Mars
+    cam.set_target(BodyId::Mars, physics.mars.position);
+    assert_eq!(cam.target_body, BodyId::Mars);
+
+    // Contextual [N] at Mars -> Deimos
+    cam.set_target(BodyId::Deimos, physics.deimos.position);
+    assert_eq!(cam.target_body, BodyId::Deimos);
+
+    // Contextual [N] at Deimos -> Phobos
+    cam.set_target(BodyId::Phobos, physics.phobos.position);
+    assert_eq!(cam.target_body, BodyId::Phobos);
+}
+
+#[test]
+fn test_render_mars_system_demo() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 160;
+    let rows = 80;
+    let mut buffer = FrameBuffer::new(cols, rows, RenderMode::HalfBlock);
+    let mut cam = Camera::new();
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+    let raycaster = Raycaster::new();
+
+    let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, rc: &Raycaster, path: &str| {
+        buf.pixels.fill(Pixel::BLACK);
+        rc.render_frame(buf, camera, &physics, 1, 0.0);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+
+        let v_h = buf.virtual_height();
+        let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
+        for p in &buf.pixels {
+            ppm.push(p.r);
+            ppm.push(p.g);
+            ppm.push(p.b);
+        }
+        std::fs::write(path, ppm).unwrap();
+    };
+
+    // 1. Mars Full Disk (Olympus Mons, Valles Marineris, polar ice cap, butterscotch sky)
+    cam.set_target(BodyId::Mars, physics.mars.position);
+    let sun_dir_mars = (physics.sun.position - physics.mars.position).normalize();
+    let sun_az_mars = sun_dir_mars.x.atan2(sun_dir_mars.z);
+    cam.azimuth = sun_az_mars + 0.40;
+    cam.elevation = 0.22;
+    cam.distance_km = 9_500.0;
+    render_ppm(
+        &mut buffer,
+        &cam,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/mars_full_disk.ppm",
+    );
+
+    // 2. Phobos Close-up (Stickney crater, grooved terrain, potato silhouette)
+    cam.set_target(BodyId::Phobos, physics.phobos.position);
+    let sun_dir_phobos = (physics.sun.position - physics.phobos.position).normalize();
+    let sun_az_phobos = sun_dir_phobos.x.atan2(sun_dir_phobos.z);
+    cam.azimuth = sun_az_phobos + 0.35;
+    cam.elevation = 0.18;
+    cam.distance_km = 38.0;
+    render_ppm(
+        &mut buffer,
+        &cam,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/phobos_stickney_close_up.ppm",
+    );
+
+    // 3. Deimos Close-up (Swift & Voltaire faculae, smooth dusty regolith, triaxial shape)
+    cam.set_target(BodyId::Deimos, physics.deimos.position);
+    let sun_dir_deimos = (physics.sun.position - physics.deimos.position).normalize();
+    let sun_az_deimos = sun_dir_deimos.x.atan2(sun_dir_deimos.z);
+    cam.azimuth = sun_az_deimos + 0.30;
+    cam.elevation = 0.15;
+    cam.distance_km = 26.0;
+    render_ppm(
+        &mut buffer,
+        &cam,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/deimos_dusty_close_up.ppm",
     );
 }

@@ -2,9 +2,11 @@
 
 use crate::math::{Mat3, Vec3};
 use crate::physics::ephemeris::{
-    KeplerOrbit, EARTH_AXIAL_TILT_RAD, EARTH_RADIUS_KM, MERCURY_AXIAL_TILT_RAD, MERCURY_RADIUS_KM,
-    MERCURY_SIDEREAL_DAY_SECS, MOON_RADIUS_KM, SIDEREAL_DAY_SECS, SUN_RADIUS_KM,
-    VENUS_AXIAL_TILT_RAD, VENUS_RADIUS_KM, VENUS_SIDEREAL_DAY_SECS,
+    KeplerOrbit, DEIMOS_MEAN_RADIUS_KM, EARTH_AXIAL_TILT_RAD, EARTH_RADIUS_KM,
+    MARS_AXIAL_TILT_RAD, MARS_RADIUS_KM, MARS_SIDEREAL_DAY_SECS, MERCURY_AXIAL_TILT_RAD,
+    MERCURY_RADIUS_KM, MERCURY_SIDEREAL_DAY_SECS, MOON_RADIUS_KM, PHOBOS_MEAN_RADIUS_KM,
+    SIDEREAL_DAY_SECS, SUN_RADIUS_KM, VENUS_AXIAL_TILT_RAD, VENUS_RADIUS_KM,
+    VENUS_SIDEREAL_DAY_SECS,
 };
 use std::f64::consts::PI;
 
@@ -15,6 +17,9 @@ pub enum BodyId {
     Venus,
     Earth,
     Moon,
+    Mars,
+    Phobos,
+    Deimos,
 }
 
 impl BodyId {
@@ -25,6 +30,9 @@ impl BodyId {
             BodyId::Venus => 2,
             BodyId::Earth => 3,
             BodyId::Moon => 4,
+            BodyId::Mars => 5,
+            BodyId::Phobos => 6,
+            BodyId::Deimos => 7,
         }
     }
 }
@@ -119,6 +127,53 @@ impl CelestialBody {
             parent: Some(BodyId::Earth),
             position: Vec3::new(149_597_870.7 + 384_400.0, 0.0, 0.0),
             rotation_angle: PI,
+        }
+    }
+
+    pub fn new_mars() -> Self {
+        Self {
+            id: BodyId::Mars,
+            name: "Mars",
+            radius_km: MARS_RADIUS_KM,
+            mass_kg: 6.4171e23,
+            axial_tilt: MARS_AXIAL_TILT_RAD,
+            rotation_period_secs: MARS_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::mars_around_sun()),
+            parent: Some(BodyId::Sun),
+            position: Vec3::new(227_939_200.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_phobos() -> Self {
+        Self {
+            id: BodyId::Phobos,
+            name: "Phobos",
+            radius_km: PHOBOS_MEAN_RADIUS_KM,
+            mass_kg: 1.0659e16,
+            axial_tilt: 0.0,
+            // Tidally locked to Mars
+            rotation_period_secs: 7.65384 * 3_600.0,
+            orbit: Some(KeplerOrbit::phobos_around_mars()),
+            parent: Some(BodyId::Mars),
+            position: Vec3::new(227_939_200.0 + 9_376.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_deimos() -> Self {
+        Self {
+            id: BodyId::Deimos,
+            name: "Deimos",
+            radius_km: DEIMOS_MEAN_RADIUS_KM,
+            mass_kg: 1.4762e15,
+            axial_tilt: 0.0,
+            // Tidally locked to Mars
+            rotation_period_secs: 30.298 * 3_600.0,
+            orbit: Some(KeplerOrbit::deimos_around_mars()),
+            parent: Some(BodyId::Mars),
+            position: Vec3::new(227_939_200.0 + 23_463.0, 0.0, 0.0),
+            rotation_angle: 0.0,
         }
     }
 

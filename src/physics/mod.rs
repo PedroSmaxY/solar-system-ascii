@@ -11,6 +11,9 @@ pub struct SolarSystemPhysics {
     pub venus: CelestialBody,
     pub earth: CelestialBody,
     pub moon: CelestialBody,
+    pub mars: CelestialBody,
+    pub phobos: CelestialBody,
+    pub deimos: CelestialBody,
 }
 
 impl SolarSystemPhysics {
@@ -21,6 +24,9 @@ impl SolarSystemPhysics {
             venus: CelestialBody::new_venus(),
             earth: CelestialBody::new_earth(),
             moon: CelestialBody::new_moon(),
+            mars: CelestialBody::new_mars(),
+            phobos: CelestialBody::new_phobos(),
+            deimos: CelestialBody::new_deimos(),
         }
     }
 
@@ -52,8 +58,30 @@ impl SolarSystemPhysics {
         if let Some(ref orb) = self.moon.orbit {
             let rel_pos = orb.calculate_position(t);
             self.moon.position = self.earth.position + rel_pos;
-            // Synchronous tidal locking: Prime meridian (0° lon, Sinus Medii) permanently faces Earth
+            // Synchronous tidal locking: Prime meridian permanently faces Earth
             self.moon.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 6. Mars orbits Sun (eccentric orbit e=0.0934, Martian Sol 24.62h)
+        if let Some(ref orb) = self.mars.orbit {
+            self.mars.position = orb.calculate_position(t);
+        }
+        self.mars.rotation_angle = (t * (TWO_PI / self.mars.rotation_period_secs)).rem_euclid(TWO_PI);
+
+        // 7. Phobos orbits Mars (ultra-fast 7.65h inner moon, tidal locking to Mars)
+        if let Some(ref orb) = self.phobos.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.phobos.position = self.mars.position + rel_pos;
+            // Synchronous tidal locking: Longest axis permanently faces Mars
+            self.phobos.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 8. Deimos orbits Mars (30.3h outer moon, tidal locking to Mars)
+        if let Some(ref orb) = self.deimos.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.deimos.position = self.mars.position + rel_pos;
+            // Synchronous tidal locking: Longest axis permanently faces Mars
+            self.deimos.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
         }
     }
 
@@ -64,6 +92,9 @@ impl SolarSystemPhysics {
             BodyId::Venus => &self.venus,
             BodyId::Earth => &self.earth,
             BodyId::Moon => &self.moon,
+            BodyId::Mars => &self.mars,
+            BodyId::Phobos => &self.phobos,
+            BodyId::Deimos => &self.deimos,
         }
     }
 
@@ -74,6 +105,9 @@ impl SolarSystemPhysics {
             BodyId::Venus => &mut self.venus,
             BodyId::Earth => &mut self.earth,
             BodyId::Moon => &mut self.moon,
+            BodyId::Mars => &mut self.mars,
+            BodyId::Phobos => &mut self.phobos,
+            BodyId::Deimos => &mut self.deimos,
         }
     }
 }
