@@ -116,6 +116,11 @@ impl App {
                         let to_pos = self.physics.mars.position;
                         self.camera.start_transition(BodyId::Mars, from_pos, to_pos, 1.3);
                     }
+                    KeyCode::Char('6') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.ceres.position;
+                        self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.4);
+                    }
                     KeyCode::Char('m') | KeyCode::Char('M') => {
                         if self.camera.target_body == BodyId::Earth {
                             let from_pos = self.physics.earth.position;
@@ -133,6 +138,14 @@ impl App {
                             let from_pos = self.physics.get_body(self.camera.target_body).position;
                             let to_pos = self.physics.mars.position;
                             self.camera.start_transition(BodyId::Mars, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Ceres {
+                            let from_pos = self.physics.ceres.position;
+                            let to_pos = self.physics.vesta.position;
+                            self.camera.start_transition(BodyId::Vesta, from_pos, to_pos, 1.2);
+                        } else if self.camera.target_body == BodyId::Vesta {
+                            let from_pos = self.physics.vesta.position;
+                            let to_pos = self.physics.ceres.position;
+                            self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.2);
                         }
                     }
                     KeyCode::Char('n') | KeyCode::Char('N') => {
@@ -144,6 +157,9 @@ impl App {
                             let from_pos = self.physics.deimos.position;
                             let to_pos = self.physics.phobos.position;
                             self.camera.start_transition(BodyId::Phobos, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Ceres || self.camera.target_body == BodyId::Vesta {
+                            self.camera.distance_km = 650_000_000.0;
+                            self.camera.elevation = 0.55;
                         }
                     }
                     KeyCode::Char('v') | KeyCode::Char('V') => {

@@ -34,7 +34,7 @@ pub struct Camera {
     pub elevation: f64, // Radians (-PI/2 .. PI/2)
     pub distance_km: f64,
     pub fov_y_rad: f64,
-    pub saved_views: [BodyViewState; 8], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos]
+    pub saved_views: [BodyViewState; 10], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta]
     pub transition: Option<CameraTransition>,
 
     // Free flight mode
@@ -54,6 +54,8 @@ impl Camera {
         let mars_view = Self::default_view(BodyId::Mars);
         let phobos_view = Self::default_view(BodyId::Phobos);
         let deimos_view = Self::default_view(BodyId::Deimos);
+        let ceres_view = Self::default_view(BodyId::Ceres);
+        let vesta_view = Self::default_view(BodyId::Vesta);
 
         Self {
             target_body: BodyId::Earth,
@@ -71,6 +73,8 @@ impl Camera {
                 mars_view,
                 phobos_view,
                 deimos_view,
+                ceres_view,
+                vesta_view,
             ],
             transition: None,
             free_flight: false,
@@ -122,6 +126,16 @@ impl Camera {
                 azimuth: 2.10,        // Framing smooth regolith blanket and crater faculae
                 elevation: 0.15,
                 distance_km: 26.0,     // Close perspective framing 15 km moon filling 70% of screen
+            },
+            BodyId::Ceres => BodyViewState {
+                azimuth: -2.61,       // Framing sunlit Occator Crater & bright salt faculae
+                elevation: 0.28,
+                distance_km: 1_400.0, // Dedicated perspective framing Ceres' 482 km disk (~65% of screen)
+            },
+            BodyId::Vesta => BodyViewState {
+                azimuth: -1.25,       // Framing Rheasilvia basin, central peak & Divalia Fossae
+                elevation: -0.55,
+                distance_km: 850.0,   // Dedicated perspective framing Vesta's 286 km triaxial disk
             },
         }
     }
@@ -236,6 +250,8 @@ impl Camera {
             BodyId::Mars => 3_550.0,  // ~160 km above surface
             BodyId::Phobos => 13.5,   // ~500 m above Stickney rim
             BodyId::Deimos => 7.8,    // ~300 m above Swift crater
+            BodyId::Ceres => 490.0,   // ~8 km above Occator rim / Ahuna Mons
+            BodyId::Vesta => 240.0,   // ~17 km above Rheasilvia rim
         };
         self.distance_km = (self.distance_km * 0.88).max(min_dist);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;

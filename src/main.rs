@@ -34,6 +34,8 @@ fn main() {
                         "mars" | "marte" => target_body = Some(solar_system_ascii::physics::body::BodyId::Mars),
                         "phobos" | "fobos" => target_body = Some(solar_system_ascii::physics::body::BodyId::Phobos),
                         "deimos" => target_body = Some(solar_system_ascii::physics::body::BodyId::Deimos),
+                        "ceres" => target_body = Some(solar_system_ascii::physics::body::BodyId::Ceres),
+                        "vesta" => target_body = Some(solar_system_ascii::physics::body::BodyId::Vesta),
                         _ => {}
                     }
                     i += 1;

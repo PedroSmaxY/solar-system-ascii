@@ -2,10 +2,14 @@
 
 use crate::math::{Ray, Vec3};
 use crate::physics::body::BodyId;
-use crate::physics::ephemeris::{DEIMOS_SEMI_AXES_KM, PHOBOS_SEMI_AXES_KM};
+use crate::physics::ephemeris::{
+    CERES_RADIUS_EQ_KM, CERES_RADIUS_POL_KM, DEIMOS_SEMI_AXES_KM, PHOBOS_SEMI_AXES_KM,
+    VESTA_SEMI_AXES_KM,
+};
 use crate::physics::SolarSystemPhysics;
-use crate::render::buffer::{FrameBuffer, Pixel};
+use crate::render::buffer::{FrameBuffer, Pixel, RenderMode};
 use crate::render::camera::Camera;
+use crate::render::ceres_shader::CeresShader;
 use crate::render::deimos_shader::DeimosShader;
 use crate::render::earth_shader::EarthShader;
 use crate::render::mars_shader::MarsShader;
@@ -15,6 +19,7 @@ use crate::render::phobos_shader::PhobosShader;
 use crate::render::stars::Starfield;
 use crate::render::sun_shader::SunShader;
 use crate::render::venus_shader::VenusShader;
+use crate::render::vesta_shader::VestaShader;
 use rayon::prelude::*;
 
 const ASCII_RAMP: &[u8] = b" .:-=+*x%#@";
@@ -28,6 +33,8 @@ pub struct Raycaster {
     pub mars_shader: MarsShader,
     pub phobos_shader: PhobosShader,
     pub deimos_shader: DeimosShader,
+    pub ceres_shader: CeresShader,
+    pub vesta_shader: VestaShader,
 }
 
 struct SphereHit {
@@ -48,6 +55,8 @@ impl Raycaster {
             mars_shader: MarsShader::new(),
             phobos_shader: PhobosShader::new(),
             deimos_shader: DeimosShader::new(),
+            ceres_shader: CeresShader::new(),
+            vesta_shader: VestaShader::new(),
         }
     }
 
@@ -177,12 +186,23 @@ impl Raycaster {
         let deimos_mat = physics.deimos.orientation_matrix();
         let deimos_mat_inv = deimos_mat.transpose();
 
+        let ceres_pos = physics.ceres.position;
+        let ceres_mat = physics.ceres.orientation_matrix();
+        let ceres_mat_inv = ceres_mat.transpose();
+
+        let vesta_pos = physics.vesta.position;
+        let vesta_mat = physics.vesta.orientation_matrix();
+        let vesta_mat_inv = vesta_mat.transpose();
+
+        let mut hit_mask: Vec<bool> = vec![false; cols * v_height];
+
         // Render each scanline in parallel with Rayon
         buffer
             .pixels
             .par_chunks_mut(cols)
+            .zip(hit_mask.par_chunks_mut(cols))
             .enumerate()
-            .for_each(|(v, row)| {
+            .for_each(|(v, (row, hit_row))| {
                 for u in 0..cols {
                     let ray = camera.generate_ray(u, v, cols, v_height, mode);
 
@@ -325,6 +345,49 @@ impl Raycaster {
                         }
                     }
 
+                    // Ceres hit (oblate spheroid)
+                    if let Some((t_ceres, norm)) = Self::intersect_ellipsoid(
+                        &ray,
+                        ceres_pos,
+                        ceres_mat,
+                        (CERES_RADIUS_EQ_KM, CERES_RADIUS_EQ_KM, CERES_RADIUS_POL_KM),
+                    ) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_ceres < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_ceres);
+                            closest_hit = Some(SphereHit {
+                                t: t_ceres,
+                                body_id: BodyId::Ceres,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Vesta hit (triaxial ellipsoid)
+                    if let Some((t_vesta, norm)) = Self::intersect_ellipsoid(&ray, vesta_pos, vesta_mat, VESTA_SEMI_AXES_KM) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_vesta < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_vesta);
+                            closest_hit = Some(SphereHit {
+                                t: t_vesta,
+                                body_id: BodyId::Vesta,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    if closest_hit.is_some() {
+                        hit_row[u] = true;
+                    }
+
                     let (rgb, ch) = if let Some(hit) = closest_hit {
                         let sun_dir = if hit.body_id == BodyId::Sun {
                             Vec3::new(0.0, 1.0, 0.0)
@@ -390,6 +453,18 @@ impl Raycaster {
                                 let local_sun = deimos_mat_inv.mul_vec(sun_dir);
                                 let local_view = deimos_mat_inv.mul_vec(view_dir);
                                 self.deimos_shader.shade(local_hit, local_sun, local_view)
+                            }
+                            BodyId::Ceres => {
+                                let local_hit = ceres_mat_inv.mul_vec(hit.world_pos - ceres_pos);
+                                let local_sun = ceres_mat_inv.mul_vec(sun_dir);
+                                let local_view = ceres_mat_inv.mul_vec(view_dir);
+                                self.ceres_shader.shade(local_hit, local_sun, local_view)
+                            }
+                            BodyId::Vesta => {
+                                let local_hit = vesta_mat_inv.mul_vec(hit.world_pos - vesta_pos);
+                                let local_sun = vesta_mat_inv.mul_vec(sun_dir);
+                                let local_view = vesta_mat_inv.mul_vec(view_dir);
+                                self.vesta_shader.shade(local_hit, local_sun, local_view)
                             }
                         };
 
@@ -551,5 +626,65 @@ impl Raycaster {
                     row[u] = Pixel::new(rgb[0], rgb[1], rgb[2], ch);
                 }
             });
+
+        // 6. Keplerian Asteroid Belt field rendering pass
+        let cam_pos = camera.position();
+        let (sin_az, cos_az) = camera.azimuth.sin_cos();
+        let (sin_el, cos_el) = camera.elevation.sin_cos();
+        let f = Vec3::new(-cos_el * sin_az, -sin_el, -cos_el * cos_az);
+        let r = Vec3::new(cos_az, 0.0, -sin_az);
+        let u_vec = Vec3::new(-sin_el * sin_az, cos_el, -sin_el * cos_az);
+
+        let pixel_aspect = match mode {
+            RenderMode::Ascii => 2.15,
+            RenderMode::HalfBlock => 1.05,
+        };
+        let screen_aspect = (cols as f64) / (v_height as f64) / pixel_aspect;
+        let tan_half_fov_y = (camera.fov_y_rad * 0.5).tan();
+        let tan_half_fov_x = tan_half_fov_y * screen_aspect;
+
+        for i in 0..physics.asteroid_field.particles.len() {
+            let p_pos = physics.asteroid_field.calculate_position(i, elapsed);
+            let to_p = p_pos - cam_pos;
+            let dist = to_p.length();
+            if dist < 1.0 {
+                continue;
+            }
+            let dir = to_p / dist;
+            let f_dot = dir.dot(f);
+            if f_dot <= 0.05 {
+                continue;
+            }
+
+            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+
+            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+
+                if px < cols && py < v_height {
+                    let pixel_idx = py * cols + px;
+                    // Only draw over background space/starfield (never occlude illuminated planets or nightside)
+                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                        let particle = &physics.asteroid_field.particles[i];
+                        let brightness = (particle.radius_km / 12.0).clamp(0.65, 1.35);
+                        let base_gray = (165.0 * brightness) as u8;
+                        let ast_r = base_gray.saturating_add(15);
+                        let ast_g = base_gray.saturating_add(10);
+                        let ast_b = base_gray;
+
+                        let ch = if particle.radius_km > 10.0 {
+                            '*'
+                        } else if particle.radius_km > 4.0 {
+                            '+'
+                        } else {
+                            '.'
+                        };
+                        buffer.pixels[pixel_idx] = Pixel::new(ast_r, ast_g, ast_b, ch);
+                    }
+                }
+            }
+        }
     }
 }

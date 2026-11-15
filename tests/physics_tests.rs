@@ -1688,3 +1688,233 @@ fn test_render_mars_system_demo() {
         "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/deimos_dusty_close_up.ppm",
     );
 }
+
+#[test]
+fn test_ceres_keplerian_orbit_and_oblate_shape() {
+    use solar_system_ascii::physics::ephemeris::{
+        CERES_AXIAL_TILT_RAD, CERES_MEAN_RADIUS_KM, CERES_RADIUS_EQ_KM, CERES_RADIUS_POL_KM,
+        CERES_SIDEREAL_DAY_SECS, KeplerOrbit,
+    };
+    use solar_system_ascii::render::ceres_shader::{
+        CeresShader, CEREALIA_FACULA_LAT_DEG, CEREALIA_FACULA_LON_DEG,
+    };
+
+    let orbit = KeplerOrbit::ceres_around_sun();
+    assert!((orbit.e - 0.0758).abs() < 1e-4, "Ceres eccentricity must be 0.0758");
+    assert!((orbit.a - 413_970_000.0).abs() < 1.0, "Ceres semi-major axis must be 413,970,000 km");
+
+    let p0 = orbit.calculate_position(0.0);
+    let p_period = orbit.calculate_position(orbit.period);
+    assert!((p0 - p_period).length() < 1e-4, "Ceres orbit must close smoothly in 1 period");
+
+    let period_days = orbit.period / 86_400.0;
+    assert!((period_days - 1681.63).abs() < 0.5, "Ceres orbital period must be ~1,681.6 days: got {}", period_days);
+
+    // Oblate spheroid semi-axes: 482.6 km equatorial, 445.6 km polar
+    assert_eq!(CERES_RADIUS_EQ_KM, 482.6);
+    assert_eq!(CERES_RADIUS_POL_KM, 445.6);
+    assert_eq!(CERES_MEAN_RADIUS_KM, 473.0);
+
+    let tilt_deg = CERES_AXIAL_TILT_RAD.to_degrees();
+    assert!((tilt_deg - 4.0).abs() < 1e-2, "Ceres axial tilt is 4 degrees");
+
+    let day_hours = CERES_SIDEREAL_DAY_SECS / 3600.0;
+    assert!((day_hours - 9.074).abs() < 0.01, "Ceres sidereal day is 9.074 hours");
+
+    // Test Occator Cerealia Facula high albedo
+    let shader = CeresShader::new();
+    let facula_lon = CEREALIA_FACULA_LON_DEG.to_radians();
+    let facula_lat = CEREALIA_FACULA_LAT_DEG.to_radians();
+    let alb = shader.sample_albedo(facula_lat, facula_lon);
+    assert!(alb[0] > 150.0 && alb[2] > 160.0, "Cerealia Facula sodium carbonate salt must gleam brightly");
+}
+
+#[test]
+fn test_vesta_keplerian_orbit_and_rheasilvia_basin() {
+    use solar_system_ascii::physics::ephemeris::{
+        VESTA_AXIAL_TILT_RAD, VESTA_MEAN_RADIUS_KM, VESTA_SEMI_AXES_KM, VESTA_SIDEREAL_DAY_SECS,
+        KeplerOrbit,
+    };
+    use solar_system_ascii::render::vesta_shader::VestaShader;
+
+    let orbit = KeplerOrbit::vesta_around_sun();
+    assert!((orbit.e - 0.0887).abs() < 1e-4, "Vesta eccentricity must be 0.0887");
+    assert!((orbit.a - 353_370_000.0).abs() < 1.0, "Vesta semi-major axis must be 353,370,000 km");
+
+    let p0 = orbit.calculate_position(0.0);
+    let p_period = orbit.calculate_position(orbit.period);
+    assert!((p0 - p_period).length() < 1e-4, "Vesta orbit must close smoothly in 1 period");
+
+    let period_days = orbit.period / 86_400.0;
+    assert!((period_days - 1325.7).abs() < 0.5, "Vesta orbital period must be ~1,325.7 days: got {}", period_days);
+
+    // Triaxial semi-axes: (286.3, 278.6, 223.2)
+    let (a, b, c) = VESTA_SEMI_AXES_KM;
+    assert_eq!(a, 286.3);
+    assert_eq!(b, 278.6);
+    assert_eq!(c, 223.2);
+    assert_eq!(VESTA_MEAN_RADIUS_KM, 262.7);
+
+    let tilt_deg = VESTA_AXIAL_TILT_RAD.to_degrees();
+    assert!((tilt_deg - 27.2).abs() < 1e-2, "Vesta axial tilt is 27.2 degrees");
+
+    let day_hours = VESTA_SIDEREAL_DAY_SECS / 3600.0;
+    assert!((day_hours - 5.342).abs() < 0.01, "Vesta sidereal day is 5.342 hours");
+
+    // Test basaltic eucrite albedo
+    let shader = VestaShader::new();
+    let alb = shader.sample_albedo(0.0, 0.0);
+    assert!(alb[0] > alb[1] && alb[1] > alb[2], "Vesta basaltic crust has warm tint R > G > B");
+    assert!(alb[1] > 0.35, "Vesta has high geometric albedo ~0.42");
+}
+
+#[test]
+fn test_asteroid_field_kirkwood_gaps_and_density() {
+    use solar_system_ascii::physics::asteroid_belt::ASTEROID_COUNT;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+
+    let physics = SolarSystemPhysics::new();
+    assert_eq!(physics.asteroid_field.particles.len(), ASTEROID_COUNT);
+    assert_eq!(ASTEROID_COUNT, 3500);
+
+    let au_km = 149_597_870.7;
+
+    // Check Kirkwood gaps: 3:1 at 2.50 AU, 2:1 at 3.28 AU
+    let count_in_range = |min_au: f64, max_au: f64| -> usize {
+        physics
+            .asteroid_field
+            .particles
+            .iter()
+            .filter(|p| {
+                let a_au = p.a / au_km;
+                a_au >= min_au && a_au < max_au
+            })
+            .count()
+    };
+
+    // 3:1 Kirkwood Gap at 2.50 AU (+/- 0.02 AU)
+    let in_gap_3_1 = count_in_range(2.48, 2.52);
+    // Adjacent regular belt bins
+    let adjacent_left = count_in_range(2.40, 2.44);
+    let adjacent_right = count_in_range(2.56, 2.60);
+
+    assert!(in_gap_3_1 < adjacent_left / 3 && in_gap_3_1 < adjacent_right / 3,
+        "3:1 Kirkwood gap must be depleted: gap count {}, left {}, right {}",
+        in_gap_3_1, adjacent_left, adjacent_right
+    );
+
+    // 2:1 Kirkwood Gap at 3.28 AU (+/- 0.02 AU)
+    let in_gap_2_1 = count_in_range(3.26, 3.30);
+    let adjacent_inner = count_in_range(3.18, 3.22);
+    assert!(in_gap_2_1 < adjacent_inner / 2,
+        "2:1 Kirkwood gap must be depleted: gap count {}, inner {}",
+        in_gap_2_1, adjacent_inner
+    );
+
+    // Verify Keplerian analytical solver stability
+    let pos_0 = physics.asteroid_field.calculate_position(42, 0.0);
+    let p = &physics.asteroid_field.particles[42];
+    let pos_period = physics.asteroid_field.calculate_position(42, p.period);
+    assert!((pos_0 - pos_period).length() < 1e-4, "Particle 42 must close orbit exactly");
+}
+
+#[test]
+fn test_standardized_navigation_ceres_vesta_belt() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::camera::Camera;
+
+    let mut cam = Camera::new();
+    assert_eq!(cam.target_body, BodyId::Earth);
+
+    // Set to Ceres
+    let ceres_def = Camera::default_view(BodyId::Ceres);
+    assert_eq!(ceres_def.distance_km, 1400.0);
+    cam.set_target(BodyId::Ceres, Vec3::new(413_970_000.0, 0.0, 0.0));
+    assert_eq!(cam.target_body, BodyId::Ceres);
+
+    // Zoom in limit
+    for _ in 0..50 {
+        cam.zoom_in();
+    }
+    assert_eq!(cam.distance_km, 490.0, "Ceres min zoom distance must be 490 km");
+
+    // Set to Vesta
+    let vesta_def = Camera::default_view(BodyId::Vesta);
+    assert_eq!(vesta_def.distance_km, 850.0);
+    cam.set_target(BodyId::Vesta, Vec3::new(353_370_000.0, 0.0, 0.0));
+    assert_eq!(cam.target_body, BodyId::Vesta);
+
+    // Zoom in limit
+    for _ in 0..50 {
+        cam.zoom_in();
+    }
+    assert_eq!(cam.distance_km, 240.0, "Vesta min zoom distance must be 240 km");
+}
+
+#[test]
+fn test_render_asteroid_belt_demo() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 160;
+    let rows = 80;
+    let mut buffer = FrameBuffer::new(cols, rows, RenderMode::HalfBlock);
+    let mut cam = Camera::new();
+    let physics = SolarSystemPhysics::new();
+    let raycaster = Raycaster::new();
+
+    let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, rc: &Raycaster, path: &str| {
+        buf.pixels.fill(Pixel::BLACK);
+        rc.render_frame(buf, camera, &physics, 1, 0.0);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+
+        let v_h = buf.virtual_height();
+        let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
+        for p in &buf.pixels {
+            ppm.push(p.r);
+            ppm.push(p.g);
+            ppm.push(p.b);
+        }
+        std::fs::write(path, ppm).unwrap();
+    };
+
+    // 1. Ceres Close-up (Occator crater, Cerealia Facula bright salt, Ahuna Mons cryovolcano)
+    cam.set_target(BodyId::Ceres, physics.ceres.position);
+    cam.azimuth = -2.61;
+    cam.elevation = 0.28;
+    cam.distance_km = 1_400.0;
+    render_ppm(
+        &mut buffer,
+        &cam,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/ceres_occator_faculae.ppm",
+    );
+
+    // 2. Vesta Close-up (Rheasilvia impact basin, central peak, Divalia Fossae grooves)
+    cam.set_target(BodyId::Vesta, physics.vesta.position);
+    cam.azimuth = -1.25;
+    cam.elevation = -0.55;
+    cam.distance_km = 850.0;
+    render_ppm(
+        &mut buffer,
+        &cam,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/vesta_rheasilvia_crater.ppm",
+    );
+
+    // 3. Asteroid Belt Field Overview (3,500 particles showing Kirkwood gaps and circular swarm)
+    cam.set_target(BodyId::Ceres, physics.ceres.position);
+    cam.distance_km = 650_000_000.0;
+    cam.elevation = 0.60;
+    cam.azimuth = 0.50;
+    render_ppm(
+        &mut buffer,
+        &cam,
+        &raycaster,
+        "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/asteroid_belt_overview.ppm",
+    );
+}

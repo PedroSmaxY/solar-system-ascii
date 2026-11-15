@@ -1,5 +1,6 @@
 pub mod buffer;
 pub mod camera;
+pub mod ceres_shader;
 pub mod deimos_shader;
 pub mod earth_shader;
 pub mod fluid;
@@ -12,3 +13,4 @@ pub mod raycaster;
 pub mod stars;
 pub mod sun_shader;
 pub mod venus_shader;
+pub mod vesta_shader;

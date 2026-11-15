@@ -33,6 +33,8 @@ impl Hud {
                 BodyId::Mars => "Mars",
                 BodyId::Phobos => "Phobos",
                 BodyId::Deimos => "Deimos",
+                BodyId::Ceres => "Ceres",
+                BodyId::Vesta => "Vesta",
             };
             let to = match trans.to_body {
                 BodyId::Sun => "Sun",
@@ -43,6 +45,8 @@ impl Hud {
                 BodyId::Mars => "Mars",
                 BodyId::Phobos => "Phobos",
                 BodyId::Deimos => "Deimos",
+                BodyId::Ceres => "Ceres",
+                BodyId::Vesta => "Vesta",
             };
             format!("Transit: {} -> {}", from, to)
         } else {
@@ -55,6 +59,8 @@ impl Hud {
                 BodyId::Mars => "Mars (Marte)".to_string(),
                 BodyId::Phobos => "Phobos (Fobos)".to_string(),
                 BodyId::Deimos => "Deimos".to_string(),
+                BodyId::Ceres => "Ceres (Dwarf Planet)".to_string(),
+                BodyId::Vesta => "Vesta (Protoplanet)".to_string(),
             }
         };
 
@@ -118,6 +124,8 @@ impl Hud {
             (BodyId::Mars, physics.mars.position, physics.mars.radius_km, "[Marte]", [225, 115, 65]),
             (BodyId::Phobos, physics.phobos.position, physics.phobos.radius_km, "[Fobos]", [160, 155, 150]),
             (BodyId::Deimos, physics.deimos.position, physics.deimos.radius_km, "[Deimos]", [175, 160, 145]),
+            (BodyId::Ceres, physics.ceres.position, physics.ceres.radius_km, "[Ceres]", [200, 205, 215]),
+            (BodyId::Vesta, physics.vesta.position, physics.vesta.radius_km, "[Vesta]", [220, 210, 190]),
         ];
 
         let mut sun_in_fov = false;
@@ -201,7 +209,7 @@ impl Hud {
         }
 
         // Bottom Controls Guide (Bottom Line)
-        let mut controls = String::from("[1] Sun  [2] Mercury  [3] Venus  [4] Earth  [5] Mars");
+        let mut controls = String::from("[1] Sun  [2] Mercury  [3] Venus  [4] Earth  [5] Mars  [6] Ceres");
         if camera.target_body == BodyId::Earth {
             controls.push_str("  [M] Moon");
         } else if camera.target_body == BodyId::Moon {
@@ -214,6 +222,10 @@ impl Hud {
             controls.push_str("  [M] Mars  [N] Deimos");
         } else if camera.target_body == BodyId::Deimos {
             controls.push_str("  [M] Mars  [N] Phobos");
+        } else if camera.target_body == BodyId::Ceres {
+            controls.push_str("  [M] Vesta  [N] Asteroids");
+        } else if camera.target_body == BodyId::Vesta {
+            controls.push_str("  [M] Ceres  [N] Asteroids");
         }
         controls.push_str("  [+/-] Zoom  [WASD] Orbit  [R] Reset  [F] Find Sun  [H] Labels  [B] Mode  [Space] Pause  [Q] Quit");
         if lines > 1 && cols >= controls.len() + 2 {
