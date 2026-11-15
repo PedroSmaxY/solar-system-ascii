@@ -34,7 +34,7 @@ pub struct Camera {
     pub elevation: f64, // Radians (-PI/2 .. PI/2)
     pub distance_km: f64,
     pub fov_y_rad: f64,
-    pub saved_views: [BodyViewState; 21], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta, Jupiter, Io, Europa, Ganymede, Callisto, Saturn, Titan, Enceladus, Mimas, Iapetus, Rhea]
+    pub saved_views: [BodyViewState; 30], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta, Jupiter, Io, Europa, Ganymede, Callisto, Saturn, Titan, Enceladus, Mimas, Iapetus, Rhea, Uranus, Miranda, Ariel, Umbriel, Titania, Oberon, Neptune, Triton, Proteus]
     pub transition: Option<CameraTransition>,
 
     // Free flight mode
@@ -67,6 +67,15 @@ impl Camera {
         let mimas_view = Self::default_view(BodyId::Mimas);
         let iapetus_view = Self::default_view(BodyId::Iapetus);
         let rhea_view = Self::default_view(BodyId::Rhea);
+        let uranus_view = Self::default_view(BodyId::Uranus);
+        let miranda_view = Self::default_view(BodyId::Miranda);
+        let ariel_view = Self::default_view(BodyId::Ariel);
+        let umbriel_view = Self::default_view(BodyId::Umbriel);
+        let titania_view = Self::default_view(BodyId::Titania);
+        let oberon_view = Self::default_view(BodyId::Oberon);
+        let neptune_view = Self::default_view(BodyId::Neptune);
+        let triton_view = Self::default_view(BodyId::Triton);
+        let proteus_view = Self::default_view(BodyId::Proteus);
 
         Self {
             target_body: BodyId::Earth,
@@ -97,6 +106,15 @@ impl Camera {
                 mimas_view,
                 iapetus_view,
                 rhea_view,
+                uranus_view,
+                miranda_view,
+                ariel_view,
+                umbriel_view,
+                titania_view,
+                oberon_view,
+                neptune_view,
+                triton_view,
+                proteus_view,
             ],
             transition: None,
             free_flight: false,
@@ -213,6 +231,51 @@ impl Camera {
                 azimuth: -1.35,       // Framing heavily cratered ice/rock crust and wispy streaks
                 elevation: 0.15,
                 distance_km: 2_300.0, // Framing 1,528 km disk
+            },
+            BodyId::Uranus => BodyViewState {
+                azimuth: 1.85,        // Framing 97.77° tilted sunlit cyan disk and vertical ring system
+                elevation: 0.25,
+                distance_km: 140_000.0,// Framing 51,118 km disk
+            },
+            BodyId::Miranda => BodyViewState {
+                azimuth: 1.85,        // Framing sunlit Verona Rupes 20 km fault scarp & coronae
+                elevation: 0.12,
+                distance_km: 1_000.0, // Framing 472 km disk
+            },
+            BodyId::Ariel => BodyViewState {
+                azimuth: 1.85,        // Framing sunlit brilliant bright rift valleys and grabens
+                elevation: 0.12,
+                distance_km: 1_900.0, // Framing 1,158 km disk
+            },
+            BodyId::Umbriel => BodyViewState {
+                azimuth: 1.85,        // Framing sunlit dark coal-gray crust and Wunda bright ring crater
+                elevation: 0.12,
+                distance_km: 1_900.0, // Framing 1,170 km disk
+            },
+            BodyId::Titania => BodyViewState {
+                azimuth: 1.85,        // Framing sunlit largest moon and Messina Chasma canyon network
+                elevation: 0.12,
+                distance_km: 2_400.0, // Framing 1,577 km disk
+            },
+            BodyId::Oberon => BodyViewState {
+                azimuth: 1.85,        // Framing sunlit carbon-rich crater floors and limb mountain peak
+                elevation: 0.12,
+                distance_km: 2_400.0, // Framing 1,523 km disk
+            },
+            BodyId::Neptune => BodyViewState {
+                azimuth: -1.25,       // Framing azure cobalt gas giant, Great Dark Spot and Scooter
+                elevation: 0.25,
+                distance_km: 140_000.0,// Framing 49,528 km disk
+            },
+            BodyId::Triton => BodyViewState {
+                azimuth: -1.35,       // Framing retrograde moon, cantaloupe terrain and cryogeysers
+                elevation: 0.15,
+                distance_km: 4_200.0, // Framing 2,707 km disk
+            },
+            BodyId::Proteus => BodyViewState {
+                azimuth: -1.35,       // Framing non-spherical boxy facets and Pharos crater
+                elevation: 0.10,
+                distance_km: 900.0,   // Framing 420 km irregular disk
             },
         }
     }
@@ -340,6 +403,15 @@ impl Camera {
             BodyId::Mimas => 210.0,     // ~12 km above Herschel crater floor
             BodyId::Iapetus => 750.0,   // ~14 km above equatorial ridge
             BodyId::Rhea => 780.0,      // ~16 km above crater rim
+            BodyId::Uranus => 26_000.0, // ~440 km above cloud deck
+            BodyId::Miranda => 245.0,   // ~9 km above Verona Rupes cliff edge
+            BodyId::Ariel => 595.0,     // ~16 km above rift canyon floor
+            BodyId::Umbriel => 600.0,   // ~15 km above Wunda rim
+            BodyId::Titania => 810.0,   // ~21 km above Messina Chasma floor
+            BodyId::Oberon => 780.0,    // ~18 km above crater floor
+            BodyId::Neptune => 25_000.0,// ~230 km above cloud deck
+            BodyId::Triton => 1_380.0,  // ~26 km above cantaloupe terrain
+            BodyId::Proteus => 220.0,   // ~10 km above Pharos crater rim
         };
         self.distance_km = (self.distance_km * 0.88).max(min_dist);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;

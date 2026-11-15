@@ -2,18 +2,23 @@
 
 use crate::math::{Mat3, Vec3};
 use crate::physics::ephemeris::{
-    KeplerOrbit, CALLISTO_RADIUS_KM, CALLISTO_SIDEREAL_DAY_SECS, CERES_AXIAL_TILT_RAD,
-    CERES_MEAN_RADIUS_KM, CERES_SIDEREAL_DAY_SECS, DEIMOS_MEAN_RADIUS_KM, EARTH_AXIAL_TILT_RAD,
-    EARTH_RADIUS_KM, ENCELADUS_RADIUS_KM, ENCELADUS_SIDEREAL_DAY_SECS, EUROPA_RADIUS_KM,
-    EUROPA_SIDEREAL_DAY_SECS, GANYMEDE_RADIUS_KM, GANYMEDE_SIDEREAL_DAY_SECS, IAPETUS_RADIUS_KM,
-    IAPETUS_SIDEREAL_DAY_SECS, IO_RADIUS_KM, IO_SIDEREAL_DAY_SECS, JUPITER_AXIAL_TILT_RAD,
-    JUPITER_MEAN_RADIUS_KM, JUPITER_SIDEREAL_DAY_SECS, MARS_AXIAL_TILT_RAD, MARS_RADIUS_KM,
-    MARS_SIDEREAL_DAY_SECS, MERCURY_AXIAL_TILT_RAD, MERCURY_RADIUS_KM, MERCURY_SIDEREAL_DAY_SECS,
-    MIMAS_RADIUS_KM, MIMAS_SIDEREAL_DAY_SECS, MOON_RADIUS_KM, PHOBOS_MEAN_RADIUS_KM,
+    KeplerOrbit, ARIEL_RADIUS_KM, ARIEL_SIDEREAL_DAY_SECS, CALLISTO_RADIUS_KM,
+    CALLISTO_SIDEREAL_DAY_SECS, CERES_AXIAL_TILT_RAD, CERES_MEAN_RADIUS_KM,
+    CERES_SIDEREAL_DAY_SECS, DEIMOS_MEAN_RADIUS_KM, EARTH_AXIAL_TILT_RAD, EARTH_RADIUS_KM,
+    ENCELADUS_RADIUS_KM, ENCELADUS_SIDEREAL_DAY_SECS, EUROPA_RADIUS_KM, EUROPA_SIDEREAL_DAY_SECS,
+    GANYMEDE_RADIUS_KM, GANYMEDE_SIDEREAL_DAY_SECS, IAPETUS_RADIUS_KM, IAPETUS_SIDEREAL_DAY_SECS,
+    IO_RADIUS_KM, IO_SIDEREAL_DAY_SECS, JUPITER_AXIAL_TILT_RAD, JUPITER_MEAN_RADIUS_KM,
+    JUPITER_SIDEREAL_DAY_SECS, MARS_AXIAL_TILT_RAD, MARS_RADIUS_KM, MARS_SIDEREAL_DAY_SECS,
+    MERCURY_AXIAL_TILT_RAD, MERCURY_RADIUS_KM, MERCURY_SIDEREAL_DAY_SECS, MIMAS_RADIUS_KM,
+    MIMAS_SIDEREAL_DAY_SECS, MIRANDA_RADIUS_KM, MIRANDA_SIDEREAL_DAY_SECS, MOON_RADIUS_KM,
+    NEPTUNE_AXIAL_TILT_RAD, NEPTUNE_MEAN_RADIUS_KM, NEPTUNE_SIDEREAL_DAY_SECS, OBERON_RADIUS_KM,
+    OBERON_SIDEREAL_DAY_SECS, PHOBOS_MEAN_RADIUS_KM, PROTEUS_RADIUS_KM, PROTEUS_SIDEREAL_DAY_SECS,
     RHEA_RADIUS_KM, RHEA_SIDEREAL_DAY_SECS, SATURN_AXIAL_TILT_RAD, SATURN_MEAN_RADIUS_KM,
     SATURN_SIDEREAL_DAY_SECS, SIDEREAL_DAY_SECS, SUN_RADIUS_KM, TITAN_RADIUS_KM,
-    TITAN_SIDEREAL_DAY_SECS, VENUS_AXIAL_TILT_RAD, VENUS_RADIUS_KM, VENUS_SIDEREAL_DAY_SECS,
-    VESTA_AXIAL_TILT_RAD, VESTA_MEAN_RADIUS_KM, VESTA_SIDEREAL_DAY_SECS,
+    TITAN_SIDEREAL_DAY_SECS, TITANIA_RADIUS_KM, TITANIA_SIDEREAL_DAY_SECS, TRITON_RADIUS_KM,
+    TRITON_SIDEREAL_DAY_SECS, UMBRIEL_RADIUS_KM, UMBRIEL_SIDEREAL_DAY_SECS, URANUS_AXIAL_TILT_RAD,
+    URANUS_MEAN_RADIUS_KM, URANUS_SIDEREAL_DAY_SECS, VENUS_AXIAL_TILT_RAD, VENUS_RADIUS_KM,
+    VENUS_SIDEREAL_DAY_SECS, VESTA_AXIAL_TILT_RAD, VESTA_MEAN_RADIUS_KM, VESTA_SIDEREAL_DAY_SECS,
 };
 use std::f64::consts::PI;
 
@@ -40,6 +45,15 @@ pub enum BodyId {
     Mimas,
     Iapetus,
     Rhea,
+    Uranus,
+    Miranda,
+    Ariel,
+    Umbriel,
+    Titania,
+    Oberon,
+    Neptune,
+    Triton,
+    Proteus,
 }
 
 impl BodyId {
@@ -66,6 +80,15 @@ impl BodyId {
             BodyId::Mimas => 18,
             BodyId::Iapetus => 19,
             BodyId::Rhea => 20,
+            BodyId::Uranus => 21,
+            BodyId::Miranda => 22,
+            BodyId::Ariel => 23,
+            BodyId::Umbriel => 24,
+            BodyId::Titania => 25,
+            BodyId::Oberon => 26,
+            BodyId::Neptune => 27,
+            BodyId::Triton => 28,
+            BodyId::Proteus => 29,
         }
     }
 }
@@ -401,6 +424,141 @@ impl CelestialBody {
             orbit: Some(KeplerOrbit::iapetus_around_saturn()),
             parent: Some(BodyId::Saturn),
             position: Vec3::new(1_433_530_000.0 + 3_561_300.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_uranus() -> Self {
+        Self {
+            id: BodyId::Uranus,
+            name: "Uranus",
+            radius_km: URANUS_MEAN_RADIUS_KM,
+            mass_kg: 8.6810e25,
+            axial_tilt: URANUS_AXIAL_TILT_RAD,
+            rotation_period_secs: URANUS_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::uranus_around_sun()),
+            parent: Some(BodyId::Sun),
+            position: Vec3::new(2_870_972_000.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_miranda() -> Self {
+        Self {
+            id: BodyId::Miranda,
+            name: "Miranda",
+            radius_km: MIRANDA_RADIUS_KM,
+            mass_kg: 6.4e19,
+            axial_tilt: 0.0,
+            rotation_period_secs: MIRANDA_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::miranda_around_uranus()),
+            parent: Some(BodyId::Uranus),
+            position: Vec3::new(2_870_972_000.0 + 129_900.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_ariel() -> Self {
+        Self {
+            id: BodyId::Ariel,
+            name: "Ariel",
+            radius_km: ARIEL_RADIUS_KM,
+            mass_kg: 1.25e21,
+            axial_tilt: 0.0,
+            rotation_period_secs: ARIEL_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::ariel_around_uranus()),
+            parent: Some(BodyId::Uranus),
+            position: Vec3::new(2_870_972_000.0 + 190_900.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_umbriel() -> Self {
+        Self {
+            id: BodyId::Umbriel,
+            name: "Umbriel",
+            radius_km: UMBRIEL_RADIUS_KM,
+            mass_kg: 1.28e21,
+            axial_tilt: 0.0,
+            rotation_period_secs: UMBRIEL_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::umbriel_around_uranus()),
+            parent: Some(BodyId::Uranus),
+            position: Vec3::new(2_870_972_000.0 + 266_000.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_titania() -> Self {
+        Self {
+            id: BodyId::Titania,
+            name: "Titania",
+            radius_km: TITANIA_RADIUS_KM,
+            mass_kg: 3.40e21,
+            axial_tilt: 0.0,
+            rotation_period_secs: TITANIA_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::titania_around_uranus()),
+            parent: Some(BodyId::Uranus),
+            position: Vec3::new(2_870_972_000.0 + 436_300.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_oberon() -> Self {
+        Self {
+            id: BodyId::Oberon,
+            name: "Oberon",
+            radius_km: OBERON_RADIUS_KM,
+            mass_kg: 3.08e21,
+            axial_tilt: 0.0,
+            rotation_period_secs: OBERON_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::oberon_around_uranus()),
+            parent: Some(BodyId::Uranus),
+            position: Vec3::new(2_870_972_000.0 + 583_500.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_neptune() -> Self {
+        Self {
+            id: BodyId::Neptune,
+            name: "Neptune",
+            radius_km: NEPTUNE_MEAN_RADIUS_KM,
+            mass_kg: 1.0241e26,
+            axial_tilt: NEPTUNE_AXIAL_TILT_RAD,
+            rotation_period_secs: NEPTUNE_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::neptune_around_sun()),
+            parent: Some(BodyId::Sun),
+            position: Vec3::new(4_498_253_000.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_triton() -> Self {
+        Self {
+            id: BodyId::Triton,
+            name: "Triton",
+            radius_km: TRITON_RADIUS_KM,
+            mass_kg: 2.14e22,
+            axial_tilt: 0.0,
+            rotation_period_secs: TRITON_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::triton_around_neptune()),
+            parent: Some(BodyId::Neptune),
+            position: Vec3::new(4_498_253_000.0 + 354_759.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_proteus() -> Self {
+        Self {
+            id: BodyId::Proteus,
+            name: "Proteus",
+            radius_km: PROTEUS_RADIUS_KM,
+            mass_kg: 4.4e19,
+            axial_tilt: 0.0,
+            rotation_period_secs: PROTEUS_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::proteus_around_neptune()),
+            parent: Some(BodyId::Neptune),
+            position: Vec3::new(4_498_253_000.0 + 117_646.0, 0.0, 0.0),
             rotation_angle: 0.0,
         }
     }

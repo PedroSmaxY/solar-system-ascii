@@ -131,6 +131,16 @@ impl App {
                         let to_pos = self.physics.saturn.position;
                         self.camera.start_transition(BodyId::Saturn, from_pos, to_pos, 1.6);
                     }
+                    KeyCode::Char('9') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.uranus.position;
+                        self.camera.start_transition(BodyId::Uranus, from_pos, to_pos, 1.7);
+                    }
+                    KeyCode::Char('0') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.neptune.position;
+                        self.camera.start_transition(BodyId::Neptune, from_pos, to_pos, 1.8);
+                    }
                     KeyCode::Char('m') | KeyCode::Char('M') => {
                         if self.camera.target_body == BodyId::Earth {
                             let from_pos = self.physics.earth.position;
@@ -200,6 +210,42 @@ impl App {
                             let from_pos = self.physics.rhea.position;
                             let to_pos = self.physics.titan.position;
                             self.camera.start_transition(BodyId::Titan, from_pos, to_pos, 1.2);
+                        } else if self.camera.target_body == BodyId::Uranus {
+                            let from_pos = self.physics.uranus.position;
+                            let to_pos = self.physics.miranda.position;
+                            self.camera.start_transition(BodyId::Miranda, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Miranda {
+                            let from_pos = self.physics.miranda.position;
+                            let to_pos = self.physics.ariel.position;
+                            self.camera.start_transition(BodyId::Ariel, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Ariel {
+                            let from_pos = self.physics.ariel.position;
+                            let to_pos = self.physics.umbriel.position;
+                            self.camera.start_transition(BodyId::Umbriel, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Umbriel {
+                            let from_pos = self.physics.umbriel.position;
+                            let to_pos = self.physics.titania.position;
+                            self.camera.start_transition(BodyId::Titania, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Titania {
+                            let from_pos = self.physics.titania.position;
+                            let to_pos = self.physics.oberon.position;
+                            self.camera.start_transition(BodyId::Oberon, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Oberon {
+                            let from_pos = self.physics.oberon.position;
+                            let to_pos = self.physics.miranda.position;
+                            self.camera.start_transition(BodyId::Miranda, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Neptune {
+                            let from_pos = self.physics.neptune.position;
+                            let to_pos = self.physics.triton.position;
+                            self.camera.start_transition(BodyId::Triton, from_pos, to_pos, 1.2);
+                        } else if self.camera.target_body == BodyId::Triton {
+                            let from_pos = self.physics.triton.position;
+                            let to_pos = self.physics.proteus.position;
+                            self.camera.start_transition(BodyId::Proteus, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Proteus {
+                            let from_pos = self.physics.proteus.position;
+                            let to_pos = self.physics.triton.position;
+                            self.camera.start_transition(BodyId::Triton, from_pos, to_pos, 1.2);
                         }
                     }
                     KeyCode::Char('n') | KeyCode::Char('N') => {
@@ -228,6 +274,20 @@ impl App {
                             let from_pos = self.physics.get_body(self.camera.target_body).position;
                             let to_pos = self.physics.saturn.position;
                             self.camera.start_transition(BodyId::Saturn, from_pos, to_pos, 1.3);
+                        } else if self.camera.target_body == BodyId::Uranus {
+                            self.camera.distance_km = 1_200_000.0;
+                            self.camera.elevation = 0.55;
+                        } else if matches!(self.camera.target_body, BodyId::Miranda | BodyId::Ariel | BodyId::Umbriel | BodyId::Titania | BodyId::Oberon) {
+                            let from_pos = self.physics.get_body(self.camera.target_body).position;
+                            let to_pos = self.physics.uranus.position;
+                            self.camera.start_transition(BodyId::Uranus, from_pos, to_pos, 1.3);
+                        } else if self.camera.target_body == BodyId::Neptune {
+                            self.camera.distance_km = 1_500_000.0;
+                            self.camera.elevation = 0.40;
+                        } else if matches!(self.camera.target_body, BodyId::Triton | BodyId::Proteus) {
+                            let from_pos = self.physics.get_body(self.camera.target_body).position;
+                            let to_pos = self.physics.neptune.position;
+                            self.camera.start_transition(BodyId::Neptune, from_pos, to_pos, 1.3);
                         }
                     }
                     KeyCode::Char('v') | KeyCode::Char('V') => {

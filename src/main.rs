@@ -47,6 +47,15 @@ fn main() {
                         "mimas" => target_body = Some(solar_system_ascii::physics::body::BodyId::Mimas),
                         "iapetus" | "japeto" => target_body = Some(solar_system_ascii::physics::body::BodyId::Iapetus),
                         "rhea" | "reia" => target_body = Some(solar_system_ascii::physics::body::BodyId::Rhea),
+                        "uranus" | "urano" => target_body = Some(solar_system_ascii::physics::body::BodyId::Uranus),
+                        "miranda" => target_body = Some(solar_system_ascii::physics::body::BodyId::Miranda),
+                        "ariel" => target_body = Some(solar_system_ascii::physics::body::BodyId::Ariel),
+                        "umbriel" => target_body = Some(solar_system_ascii::physics::body::BodyId::Umbriel),
+                        "titania" => target_body = Some(solar_system_ascii::physics::body::BodyId::Titania),
+                        "oberon" => target_body = Some(solar_system_ascii::physics::body::BodyId::Oberon),
+                        "neptune" | "netuno" => target_body = Some(solar_system_ascii::physics::body::BodyId::Neptune),
+                        "triton" | "tritao" => target_body = Some(solar_system_ascii::physics::body::BodyId::Triton),
+                        "proteus" | "proteu" => target_body = Some(solar_system_ascii::physics::body::BodyId::Proteus),
                         _ => {}
                     }
                     i += 1;

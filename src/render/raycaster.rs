@@ -27,6 +27,21 @@ use crate::render::saturn_shader::{
     SaturnShader, SATURN_RADIUS_EQ_KM, SATURN_RADIUS_POL_KM, SATURN_RING_INNER_RADIUS_KM,
     SATURN_RING_OUTER_RADIUS_KM,
 };
+use crate::render::uranus_shader::{
+    UranusShader, URANUS_RADIUS_EQ_KM, URANUS_RADIUS_POL_KM, URANUS_RING_INNER_RADIUS_KM,
+    URANUS_RING_OUTER_RADIUS_KM,
+};
+use crate::render::neptune_shader::{
+    NeptuneShader, NEPTUNE_RADIUS_EQ_KM, NEPTUNE_RADIUS_POL_KM, NEPTUNE_RING_INNER_RADIUS_KM,
+    NEPTUNE_RING_OUTER_RADIUS_KM,
+};
+use crate::render::miranda_shader::MirandaShader;
+use crate::render::ariel_shader::ArielShader;
+use crate::render::umbriel_shader::UmbrielShader;
+use crate::render::titania_shader::TitaniaShader;
+use crate::render::oberon_shader::OberonShader;
+use crate::render::triton_shader::TritonShader;
+use crate::render::proteus_shader::ProteusShader;
 use crate::render::stars::Starfield;
 use crate::render::sun_shader::SunShader;
 use crate::render::titan_shader::TitanShader;
@@ -60,6 +75,15 @@ pub struct Raycaster {
     pub mimas_shader: MimasShader,
     pub iapetus_shader: IapetusShader,
     pub rhea_shader: RheaShader,
+    pub uranus_shader: UranusShader,
+    pub miranda_shader: MirandaShader,
+    pub ariel_shader: ArielShader,
+    pub umbriel_shader: UmbrielShader,
+    pub titania_shader: TitaniaShader,
+    pub oberon_shader: OberonShader,
+    pub neptune_shader: NeptuneShader,
+    pub triton_shader: TritonShader,
+    pub proteus_shader: ProteusShader,
 }
 
 struct SphereHit {
@@ -93,6 +117,15 @@ impl Raycaster {
             mimas_shader: MimasShader::new(),
             iapetus_shader: IapetusShader::new(),
             rhea_shader: RheaShader::new(),
+            uranus_shader: UranusShader::new(),
+            miranda_shader: MirandaShader::new(),
+            ariel_shader: ArielShader::new(),
+            umbriel_shader: UmbrielShader::new(),
+            titania_shader: TitaniaShader::new(),
+            oberon_shader: OberonShader::new(),
+            neptune_shader: NeptuneShader::new(),
+            triton_shader: TritonShader::new(),
+            proteus_shader: ProteusShader::new(),
         }
     }
 
@@ -282,6 +315,49 @@ impl Raycaster {
         let rhea_rad = physics.rhea.radius_km;
         let rhea_mat = physics.rhea.orientation_matrix();
         let rhea_mat_inv = rhea_mat.transpose();
+
+        let uranus_pos = physics.uranus.position;
+        let uranus_mat = physics.uranus.orientation_matrix();
+        let uranus_mat_inv = uranus_mat.transpose();
+
+        let miranda_pos = physics.miranda.position;
+        let miranda_rad = physics.miranda.radius_km;
+        let miranda_mat = physics.miranda.orientation_matrix();
+        let miranda_mat_inv = miranda_mat.transpose();
+
+        let ariel_pos = physics.ariel.position;
+        let ariel_rad = physics.ariel.radius_km;
+        let ariel_mat = physics.ariel.orientation_matrix();
+        let ariel_mat_inv = ariel_mat.transpose();
+
+        let umbriel_pos = physics.umbriel.position;
+        let umbriel_rad = physics.umbriel.radius_km;
+        let umbriel_mat = physics.umbriel.orientation_matrix();
+        let umbriel_mat_inv = umbriel_mat.transpose();
+
+        let titania_pos = physics.titania.position;
+        let titania_rad = physics.titania.radius_km;
+        let titania_mat = physics.titania.orientation_matrix();
+        let titania_mat_inv = titania_mat.transpose();
+
+        let oberon_pos = physics.oberon.position;
+        let oberon_rad = physics.oberon.radius_km;
+        let oberon_mat = physics.oberon.orientation_matrix();
+        let oberon_mat_inv = oberon_mat.transpose();
+
+        let neptune_pos = physics.neptune.position;
+        let neptune_mat = physics.neptune.orientation_matrix();
+        let neptune_mat_inv = neptune_mat.transpose();
+
+        let triton_pos = physics.triton.position;
+        let triton_rad = physics.triton.radius_km;
+        let triton_mat = physics.triton.orientation_matrix();
+        let triton_mat_inv = triton_mat.transpose();
+
+        let proteus_pos = physics.proteus.position;
+        let proteus_rad = physics.proteus.radius_km;
+        let proteus_mat = physics.proteus.orientation_matrix();
+        let proteus_mat_inv = proteus_mat.transpose();
 
         let mut hit_mask: Vec<bool> = vec![false; cols * v_height];
 
@@ -679,6 +755,176 @@ impl Raycaster {
                         }
                     }
 
+                    // Uranus hit (oblate spheroid: 25,559 km eq, 24,973 km pol)
+                    if let Some((t_ura, norm)) = Self::intersect_ellipsoid(
+                        &ray,
+                        uranus_pos,
+                        uranus_mat,
+                        (URANUS_RADIUS_EQ_KM, URANUS_RADIUS_EQ_KM, URANUS_RADIUS_POL_KM),
+                    ) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_ura < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_ura);
+                            closest_hit = Some(SphereHit {
+                                t: t_ura,
+                                body_id: BodyId::Uranus,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Miranda hit (sphere)
+                    if let Some(t_mir) = Self::intersect_sphere(&ray, miranda_pos, miranda_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_mir < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_mir);
+                            let norm = (hit_pos - miranda_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_mir,
+                                body_id: BodyId::Miranda,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Ariel hit (sphere)
+                    if let Some(t_ari) = Self::intersect_sphere(&ray, ariel_pos, ariel_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_ari < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_ari);
+                            let norm = (hit_pos - ariel_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_ari,
+                                body_id: BodyId::Ariel,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Umbriel hit (sphere)
+                    if let Some(t_umb) = Self::intersect_sphere(&ray, umbriel_pos, umbriel_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_umb < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_umb);
+                            let norm = (hit_pos - umbriel_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_umb,
+                                body_id: BodyId::Umbriel,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Titania hit (sphere)
+                    if let Some(t_tit_u) = Self::intersect_sphere(&ray, titania_pos, titania_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_tit_u < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_tit_u);
+                            let norm = (hit_pos - titania_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_tit_u,
+                                body_id: BodyId::Titania,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Oberon hit (sphere)
+                    if let Some(t_obe) = Self::intersect_sphere(&ray, oberon_pos, oberon_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_obe < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_obe);
+                            let norm = (hit_pos - oberon_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_obe,
+                                body_id: BodyId::Oberon,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Neptune hit (oblate spheroid: 24,764 km eq, 24,341 km pol)
+                    if let Some((t_nep, norm)) = Self::intersect_ellipsoid(
+                        &ray,
+                        neptune_pos,
+                        neptune_mat,
+                        (NEPTUNE_RADIUS_EQ_KM, NEPTUNE_RADIUS_EQ_KM, NEPTUNE_RADIUS_POL_KM),
+                    ) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_nep < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_nep);
+                            closest_hit = Some(SphereHit {
+                                t: t_nep,
+                                body_id: BodyId::Neptune,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Triton hit (sphere)
+                    if let Some(t_tri) = Self::intersect_sphere(&ray, triton_pos, triton_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_tri < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_tri);
+                            let norm = (hit_pos - triton_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_tri,
+                                body_id: BodyId::Triton,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Proteus hit (sphere)
+                    if let Some(t_pro) = Self::intersect_sphere(&ray, proteus_pos, proteus_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_pro < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_pro);
+                            let norm = (hit_pos - proteus_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_pro,
+                                body_id: BodyId::Proteus,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
                     // Saturn Ring Plane intersection (in Saturn's equatorial coordinate frame)
                     let sat_local_o = saturn_mat_inv.mul_vec(ray.origin - saturn_pos);
                     let sat_local_d = saturn_mat_inv.mul_vec(ray.dir);
@@ -697,6 +943,54 @@ impl Raycaster {
                                 let local_view = -sat_local_d;
                                 if let Some(rgba) = self.saturn_shader.shade_ring(p_ring, local_sun, local_view) {
                                     ring_hit = Some((t_ring, rgba));
+                                }
+                            }
+                        }
+                    }
+
+                    // Uranus Ring Plane intersection (in Uranus's tilted equatorial frame)
+                    let ur_local_o = uranus_mat_inv.mul_vec(ray.origin - uranus_pos);
+                    let ur_local_d = uranus_mat_inv.mul_vec(ray.dir);
+                    if ur_local_d.y.abs() > 1e-6 {
+                        let t_ring = -ur_local_o.y / ur_local_d.y;
+                        if t_ring > 0.0 {
+                            let p_ring = ur_local_o + ur_local_d * t_ring;
+                            let r_ring_sq = p_ring.x * p_ring.x + p_ring.z * p_ring.z;
+                            if r_ring_sq >= URANUS_RING_INNER_RADIUS_KM * URANUS_RING_INNER_RADIUS_KM
+                                && r_ring_sq <= URANUS_RING_OUTER_RADIUS_KM * URANUS_RING_OUTER_RADIUS_KM
+                            {
+                                let ring_world_hit = ray.at(t_ring);
+                                let sun_to_ring = (sun_pos - ring_world_hit).normalize();
+                                let local_sun = uranus_mat_inv.mul_vec(sun_to_ring);
+                                let local_view = -ur_local_d;
+                                if let Some(rgba) = self.uranus_shader.shade_ring(p_ring, local_sun, local_view) {
+                                    if ring_hit.map_or(true, |h| t_ring < h.0) {
+                                        ring_hit = Some((t_ring, rgba));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Neptune Ring Plane intersection (in Neptune's equatorial frame)
+                    let nep_local_o = neptune_mat_inv.mul_vec(ray.origin - neptune_pos);
+                    let nep_local_d = neptune_mat_inv.mul_vec(ray.dir);
+                    if nep_local_d.y.abs() > 1e-6 {
+                        let t_ring = -nep_local_o.y / nep_local_d.y;
+                        if t_ring > 0.0 {
+                            let p_ring = nep_local_o + nep_local_d * t_ring;
+                            let r_ring_sq = p_ring.x * p_ring.x + p_ring.z * p_ring.z;
+                            if r_ring_sq >= NEPTUNE_RING_INNER_RADIUS_KM * NEPTUNE_RING_INNER_RADIUS_KM
+                                && r_ring_sq <= NEPTUNE_RING_OUTER_RADIUS_KM * NEPTUNE_RING_OUTER_RADIUS_KM
+                            {
+                                let ring_world_hit = ray.at(t_ring);
+                                let sun_to_ring = (sun_pos - ring_world_hit).normalize();
+                                let local_sun = neptune_mat_inv.mul_vec(sun_to_ring);
+                                let local_view = -nep_local_d;
+                                if let Some(rgba) = self.neptune_shader.shade_ring(p_ring, local_sun, local_view) {
+                                    if ring_hit.map_or(true, |h| t_ring < h.0) {
+                                        ring_hit = Some((t_ring, rgba));
+                                    }
                                 }
                             }
                         }
@@ -850,6 +1144,62 @@ impl Raycaster {
                                 let local_sun = rhea_mat_inv.mul_vec(sun_dir);
                                 let local_view = rhea_mat_inv.mul_vec(view_dir);
                                 self.rhea_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Uranus => {
+                                let local_norm = uranus_mat_inv.mul_vec(hit.world_norm);
+                                let local_hit = uranus_mat_inv.mul_vec(hit.world_pos - uranus_pos);
+                                let local_sun = uranus_mat_inv.mul_vec(sun_dir);
+                                let local_view = uranus_mat_inv.mul_vec(view_dir);
+                                self.uranus_shader.shade(local_norm, local_hit, local_sun, local_view)
+                            }
+                            BodyId::Miranda => {
+                                let local_norm = miranda_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = miranda_mat_inv.mul_vec(sun_dir);
+                                let local_view = miranda_mat_inv.mul_vec(view_dir);
+                                self.miranda_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Ariel => {
+                                let local_norm = ariel_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = ariel_mat_inv.mul_vec(sun_dir);
+                                let local_view = ariel_mat_inv.mul_vec(view_dir);
+                                self.ariel_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Umbriel => {
+                                let local_norm = umbriel_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = umbriel_mat_inv.mul_vec(sun_dir);
+                                let local_view = umbriel_mat_inv.mul_vec(view_dir);
+                                self.umbriel_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Titania => {
+                                let local_norm = titania_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = titania_mat_inv.mul_vec(sun_dir);
+                                let local_view = titania_mat_inv.mul_vec(view_dir);
+                                self.titania_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Oberon => {
+                                let local_norm = oberon_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = oberon_mat_inv.mul_vec(sun_dir);
+                                let local_view = oberon_mat_inv.mul_vec(view_dir);
+                                self.oberon_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Neptune => {
+                                let local_norm = neptune_mat_inv.mul_vec(hit.world_norm);
+                                let local_hit = neptune_mat_inv.mul_vec(hit.world_pos - neptune_pos);
+                                let local_sun = neptune_mat_inv.mul_vec(sun_dir);
+                                let local_view = neptune_mat_inv.mul_vec(view_dir);
+                                self.neptune_shader.shade(local_norm, local_hit, local_sun, local_view)
+                            }
+                            BodyId::Triton => {
+                                let local_norm = triton_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = triton_mat_inv.mul_vec(sun_dir);
+                                let local_view = triton_mat_inv.mul_vec(view_dir);
+                                self.triton_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Proteus => {
+                                let local_norm = proteus_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = proteus_mat_inv.mul_vec(sun_dir);
+                                let local_view = proteus_mat_inv.mul_vec(view_dir);
+                                self.proteus_shader.shade(local_norm, local_sun, local_view)
                             }
                         };
 
@@ -1163,6 +1513,78 @@ impl Raycaster {
                             crate::physics::saturnian_swarm::SaturnianMoonGroup::RingShepherd => (245, 225, 185, '*'),
                             crate::physics::saturnian_swarm::SaturnianMoonGroup::TrojanIntermediate => (215, 225, 245, '+'),
                             _ => (160, 160, 170, '.'),
+                        };
+                        buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                    }
+                }
+            }
+        }
+
+        // 9. Analytical Uranian Minor Moons swarm pass (23 minor moons)
+        for i in 0..physics.uranian_swarm.count() {
+            let p_pos = physics.uranian_swarm.calculate_position(i, uranus_pos, elapsed);
+            let to_p = p_pos - cam_pos;
+            let dist = to_p.length();
+            if dist < 1.0 {
+                continue;
+            }
+            let dir = to_p / dist;
+            let f_dot = dir.dot(f);
+            if f_dot <= 0.05 {
+                continue;
+            }
+
+            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+
+            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+
+                if px < cols && py < v_height {
+                    let pixel_idx = py * cols + px;
+                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                        let moon = &physics.uranian_swarm.moons[i];
+                        let (r_col, g_col, b_col, ch) = match moon.group {
+                            crate::physics::uranian_swarm::UranianMoonGroup::InnerShepherd => (200, 240, 245, '*'),
+                            crate::physics::uranian_swarm::UranianMoonGroup::InnerPortia => (180, 225, 235, '+'),
+                            _ => (150, 160, 170, '.'),
+                        };
+                        buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                    }
+                }
+            }
+        }
+
+        // 10. Analytical Neptunian Minor Moons swarm pass (14 minor moons)
+        for i in 0..physics.neptunian_swarm.count() {
+            let p_pos = physics.neptunian_swarm.calculate_position(i, neptune_pos, elapsed);
+            let to_p = p_pos - cam_pos;
+            let dist = to_p.length();
+            if dist < 1.0 {
+                continue;
+            }
+            let dir = to_p / dist;
+            let f_dot = dir.dot(f);
+            if f_dot <= 0.05 {
+                continue;
+            }
+
+            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+
+            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+
+                if px < cols && py < v_height {
+                    let pixel_idx = py * cols + px;
+                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                        let moon = &physics.neptunian_swarm.moons[i];
+                        let (r_col, g_col, b_col, ch) = match moon.group {
+                            crate::physics::neptunian_swarm::NeptunianMoonGroup::InnerRegular => (160, 195, 255, '*'),
+                            crate::physics::neptunian_swarm::NeptunianMoonGroup::Nereid => (210, 225, 255, '+'),
+                            _ => (155, 160, 175, '.'),
                         };
                         buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
                     }

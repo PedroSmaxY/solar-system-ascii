@@ -2,14 +2,18 @@ pub mod asteroid_belt;
 pub mod body;
 pub mod ephemeris;
 pub mod jovian_swarm;
+pub mod neptunian_swarm;
 pub mod saturnian_swarm;
+pub mod uranian_swarm;
 
 use self::asteroid_belt::AsteroidField;
 use self::body::{BodyId, CelestialBody};
 use self::jovian_swarm::JovianMoonSwarm;
+use self::neptunian_swarm::NeptunianMoonSwarm;
 use self::saturnian_swarm::SaturnianMoonSwarm;
-use crate::math::Vec3;
-use ephemeris::TWO_PI;
+use self::uranian_swarm::UranianMoonSwarm;
+use crate::math::{Mat3, Vec3};
+use ephemeris::{NEPTUNE_AXIAL_TILT_RAD, TWO_PI, URANUS_AXIAL_TILT_RAD};
 
 pub struct SolarSystemPhysics {
     pub sun: CelestialBody,
@@ -36,6 +40,17 @@ pub struct SolarSystemPhysics {
     pub iapetus: CelestialBody,
     pub rhea: CelestialBody,
     pub saturnian_swarm: SaturnianMoonSwarm,
+    pub uranus: CelestialBody,
+    pub miranda: CelestialBody,
+    pub ariel: CelestialBody,
+    pub umbriel: CelestialBody,
+    pub titania: CelestialBody,
+    pub oberon: CelestialBody,
+    pub uranian_swarm: UranianMoonSwarm,
+    pub neptune: CelestialBody,
+    pub triton: CelestialBody,
+    pub proteus: CelestialBody,
+    pub neptunian_swarm: NeptunianMoonSwarm,
 }
 
 impl SolarSystemPhysics {
@@ -65,6 +80,17 @@ impl SolarSystemPhysics {
             iapetus: CelestialBody::new_iapetus(),
             rhea: CelestialBody::new_rhea(),
             saturnian_swarm: SaturnianMoonSwarm::new(),
+            uranus: CelestialBody::new_uranus(),
+            miranda: CelestialBody::new_miranda(),
+            ariel: CelestialBody::new_ariel(),
+            umbriel: CelestialBody::new_umbriel(),
+            titania: CelestialBody::new_titania(),
+            oberon: CelestialBody::new_oberon(),
+            uranian_swarm: UranianMoonSwarm::new(),
+            neptune: CelestialBody::new_neptune(),
+            triton: CelestialBody::new_triton(),
+            proteus: CelestialBody::new_proteus(),
+            neptunian_swarm: NeptunianMoonSwarm::new(),
         }
     }
 
@@ -208,6 +234,71 @@ impl SolarSystemPhysics {
             self.iapetus.position = self.saturn.position + rel_pos;
             self.iapetus.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
         }
+
+        // 22. Uranus orbits Sun (ice giant, 97.77° axial tilt, -17.24h retrograde spin)
+        if let Some(ref orb) = self.uranus.orbit {
+            self.uranus.position = orb.calculate_position(t);
+        }
+        self.uranus.rotation_angle = (t * (TWO_PI / self.uranus.rotation_period_secs)).rem_euclid(TWO_PI);
+
+        // Uranus major moons orbit in Uranus's 97.77° tilted equatorial plane
+        let u_tilt = Mat3::rotation_x(URANUS_AXIAL_TILT_RAD);
+
+        // 23. Miranda orbits Uranus (Verona Rupes, 1.41d period, tidally locked)
+        if let Some(ref orb) = self.miranda.orbit {
+            let rel_pos = u_tilt.mul_vec(orb.calculate_position(t));
+            self.miranda.position = self.uranus.position + rel_pos;
+            self.miranda.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 24. Ariel orbits Uranus (rifts & grabens, 2.52d period, tidally locked)
+        if let Some(ref orb) = self.ariel.orbit {
+            let rel_pos = u_tilt.mul_vec(orb.calculate_position(t));
+            self.ariel.position = self.uranus.position + rel_pos;
+            self.ariel.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 25. Umbriel orbits Uranus (dark cratered crust, 4.14d period, tidally locked)
+        if let Some(ref orb) = self.umbriel.orbit {
+            let rel_pos = u_tilt.mul_vec(orb.calculate_position(t));
+            self.umbriel.position = self.uranus.position + rel_pos;
+            self.umbriel.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 26. Titania orbits Uranus (largest moon, Messina Chasma, 8.71d period, tidally locked)
+        if let Some(ref orb) = self.titania.orbit {
+            let rel_pos = u_tilt.mul_vec(orb.calculate_position(t));
+            self.titania.position = self.uranus.position + rel_pos;
+            self.titania.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 27. Oberon orbits Uranus (outermost major moon, 13.46d period, tidally locked)
+        if let Some(ref orb) = self.oberon.orbit {
+            let rel_pos = u_tilt.mul_vec(orb.calculate_position(t));
+            self.oberon.position = self.uranus.position + rel_pos;
+            self.oberon.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 28. Neptune orbits Sun (ice giant, 28.32° axial tilt, 16.11h spin)
+        if let Some(ref orb) = self.neptune.orbit {
+            self.neptune.position = orb.calculate_position(t);
+        }
+        self.neptune.rotation_angle = (t * (TWO_PI / self.neptune.rotation_period_secs)).rem_euclid(TWO_PI);
+
+        // 29. Triton orbits Neptune (retrograde captured KBO, 156.885° inc, -5.88d period)
+        if let Some(ref orb) = self.triton.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.triton.position = self.neptune.position + rel_pos;
+            self.triton.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 30. Proteus orbits Neptune in equatorial plane (28.32° tilt, 1.12d period)
+        let n_tilt = Mat3::rotation_x(NEPTUNE_AXIAL_TILT_RAD);
+        if let Some(ref orb) = self.proteus.orbit {
+            let rel_pos = n_tilt.mul_vec(orb.calculate_position(t));
+            self.proteus.position = self.neptune.position + rel_pos;
+            self.proteus.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
     }
 
     pub fn get_body(&self, id: BodyId) -> &CelestialBody {
@@ -233,6 +324,15 @@ impl SolarSystemPhysics {
             BodyId::Mimas => &self.mimas,
             BodyId::Iapetus => &self.iapetus,
             BodyId::Rhea => &self.rhea,
+            BodyId::Uranus => &self.uranus,
+            BodyId::Miranda => &self.miranda,
+            BodyId::Ariel => &self.ariel,
+            BodyId::Umbriel => &self.umbriel,
+            BodyId::Titania => &self.titania,
+            BodyId::Oberon => &self.oberon,
+            BodyId::Neptune => &self.neptune,
+            BodyId::Triton => &self.triton,
+            BodyId::Proteus => &self.proteus,
         }
     }
 
@@ -259,6 +359,15 @@ impl SolarSystemPhysics {
             BodyId::Mimas => &mut self.mimas,
             BodyId::Iapetus => &mut self.iapetus,
             BodyId::Rhea => &mut self.rhea,
+            BodyId::Uranus => &mut self.uranus,
+            BodyId::Miranda => &mut self.miranda,
+            BodyId::Ariel => &mut self.ariel,
+            BodyId::Umbriel => &mut self.umbriel,
+            BodyId::Titania => &mut self.titania,
+            BodyId::Oberon => &mut self.oberon,
+            BodyId::Neptune => &mut self.neptune,
+            BodyId::Triton => &mut self.triton,
+            BodyId::Proteus => &mut self.proteus,
         }
     }
 }

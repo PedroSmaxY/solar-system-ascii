@@ -46,6 +46,15 @@ impl Hud {
                 BodyId::Mimas => "Mimas",
                 BodyId::Iapetus => "Iapetus",
                 BodyId::Rhea => "Rhea",
+                BodyId::Uranus => "Uranus",
+                BodyId::Miranda => "Miranda",
+                BodyId::Ariel => "Ariel",
+                BodyId::Umbriel => "Umbriel",
+                BodyId::Titania => "Titania",
+                BodyId::Oberon => "Oberon",
+                BodyId::Neptune => "Neptune",
+                BodyId::Triton => "Triton",
+                BodyId::Proteus => "Proteus",
             };
             let to = match trans.to_body {
                 BodyId::Sun => "Sun",
@@ -69,6 +78,15 @@ impl Hud {
                 BodyId::Mimas => "Mimas",
                 BodyId::Iapetus => "Iapetus",
                 BodyId::Rhea => "Rhea",
+                BodyId::Uranus => "Uranus",
+                BodyId::Miranda => "Miranda",
+                BodyId::Ariel => "Ariel",
+                BodyId::Umbriel => "Umbriel",
+                BodyId::Titania => "Titania",
+                BodyId::Oberon => "Oberon",
+                BodyId::Neptune => "Neptune",
+                BodyId::Triton => "Triton",
+                BodyId::Proteus => "Proteus",
             };
             format!("Transit: {} -> {}", from, to)
         } else {
@@ -94,6 +112,15 @@ impl Hud {
                 BodyId::Mimas => "Mimas (Herschel Crater Moon)".to_string(),
                 BodyId::Iapetus => "Iapetus (Yin-Yang Moon)".to_string(),
                 BodyId::Rhea => "Rhea (Cratered Ice Moon)".to_string(),
+                BodyId::Uranus => "Uranus (Ice Giant, 97.8° Tilt)".to_string(),
+                BodyId::Miranda => "Miranda (Verona Rupes Scarp)".to_string(),
+                BodyId::Ariel => "Ariel (Bright Rift Moon)".to_string(),
+                BodyId::Umbriel => "Umbriel (Wunda Crater Moon)".to_string(),
+                BodyId::Titania => "Titania (Largest Uranian Moon)".to_string(),
+                BodyId::Oberon => "Oberon (Cratered Mountain Moon)".to_string(),
+                BodyId::Neptune => "Neptune (Great Dark Spot)".to_string(),
+                BodyId::Triton => "Triton (Retrograde Cryo Moon)".to_string(),
+                BodyId::Proteus => "Proteus (Polyhedral Moon)".to_string(),
             }
         };
 
@@ -170,6 +197,15 @@ impl Hud {
             (BodyId::Mimas, physics.mimas.position, physics.mimas.radius_km, "[Mimas]", [200, 200, 205]),
             (BodyId::Iapetus, physics.iapetus.position, physics.iapetus.radius_km, "[Jápeto]", [170, 160, 150]),
             (BodyId::Rhea, physics.rhea.position, physics.rhea.radius_km, "[Reia]", [210, 215, 220]),
+            (BodyId::Uranus, physics.uranus.position, physics.uranus.radius_km, "[Urano]", [160, 215, 225]),
+            (BodyId::Miranda, physics.miranda.position, physics.miranda.radius_km, "[Miranda]", [190, 195, 200]),
+            (BodyId::Ariel, physics.ariel.position, physics.ariel.radius_km, "[Ariel]", [215, 220, 225]),
+            (BodyId::Umbriel, physics.umbriel.position, physics.umbriel.radius_km, "[Umbriel]", [140, 140, 145]),
+            (BodyId::Titania, physics.titania.position, physics.titania.radius_km, "[Titânia]", [185, 185, 190]),
+            (BodyId::Oberon, physics.oberon.position, physics.oberon.radius_km, "[Oberon]", [175, 175, 180]),
+            (BodyId::Neptune, physics.neptune.position, physics.neptune.radius_km, "[Netuno]", [90, 145, 245]),
+            (BodyId::Triton, physics.triton.position, physics.triton.radius_km, "[Tritão]", [215, 225, 235]),
+            (BodyId::Proteus, physics.proteus.position, physics.proteus.radius_km, "[Proteu]", [130, 130, 135]),
         ];
 
         let mut sun_in_fov = false;
@@ -253,7 +289,7 @@ impl Hud {
         }
 
         // Bottom Controls Guide (Bottom Line)
-        let mut controls = String::from("[1] Sun  [2] Mercury  [3] Venus  [4] Earth  [5] Mars  [6] Ceres  [7] Jupiter");
+        let mut controls = String::from("[1-8] Sun-Saturn  [9] Uranus  [0] Neptune");
         if camera.target_body == BodyId::Earth {
             controls.push_str("  [M] Moon");
         } else if camera.target_body == BodyId::Moon {
@@ -278,6 +314,14 @@ impl Hud {
             controls.push_str("  [M] Moons  [N] Ring Overview");
         } else if matches!(camera.target_body, BodyId::Titan | BodyId::Enceladus | BodyId::Mimas | BodyId::Iapetus | BodyId::Rhea) {
             controls.push_str("  [M] Cycle Moons  [N] Saturn");
+        } else if camera.target_body == BodyId::Uranus {
+            controls.push_str("  [M] Moons  [N] Uranian Overview");
+        } else if matches!(camera.target_body, BodyId::Miranda | BodyId::Ariel | BodyId::Umbriel | BodyId::Titania | BodyId::Oberon) {
+            controls.push_str("  [M] Cycle Moons  [N] Uranus");
+        } else if camera.target_body == BodyId::Neptune {
+            controls.push_str("  [M] Moons  [N] Neptunian Overview");
+        } else if matches!(camera.target_body, BodyId::Triton | BodyId::Proteus) {
+            controls.push_str("  [M] Cycle Moons  [N] Neptune");
         }
         controls.push_str("  [+/-] Zoom  [WASD] Orbit  [R] Reset  [F] Find Sun  [H] Labels  [B] Mode  [Space] Pause  [Q] Quit");
         if lines > 1 && cols >= controls.len() + 2 {

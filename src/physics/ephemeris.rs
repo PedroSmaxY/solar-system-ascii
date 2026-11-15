@@ -75,6 +75,45 @@ pub const TITAN_SIDEREAL_DAY_SECS: f64 = 1_377_648.0; // 15.945 days
 pub const IAPETUS_RADIUS_KM: f64 = 735.6;
 pub const IAPETUS_SIDEREAL_DAY_SECS: f64 = 6_854_112.0; // 79.33 days
 
+// Uranus and Major Moons
+pub const URANUS_RADIUS_EQ_KM: f64 = 25_559.0;
+pub const URANUS_RADIUS_POL_KM: f64 = 24_973.0;
+pub const URANUS_MEAN_RADIUS_KM: f64 = 25_362.0;
+pub const URANUS_AXIAL_TILT_RAD: f64 = 97.77 * PI / 180.0;
+pub const URANUS_SIDEREAL_DAY_SECS: f64 = -62_064.0; // -17.24h (retrograde)
+pub const URANUS_RING_INNER_RADIUS_KM: f64 = 38_000.0;
+pub const URANUS_RING_OUTER_RADIUS_KM: f64 = 51_500.0;
+
+pub const MIRANDA_RADIUS_KM: f64 = 235.8;
+pub const MIRANDA_SIDEREAL_DAY_SECS: f64 = 122_083.0; // 1.413d
+
+pub const ARIEL_RADIUS_KM: f64 = 578.9;
+pub const ARIEL_SIDEREAL_DAY_SECS: f64 = 217_728.0; // 2.520d
+
+pub const UMBRIEL_RADIUS_KM: f64 = 584.7;
+pub const UMBRIEL_SIDEREAL_DAY_SECS: f64 = 358_042.0; // 4.144d
+
+pub const TITANIA_RADIUS_KM: f64 = 788.4;
+pub const TITANIA_SIDEREAL_DAY_SECS: f64 = 752_198.0; // 8.706d
+
+pub const OBERON_RADIUS_KM: f64 = 761.4;
+pub const OBERON_SIDEREAL_DAY_SECS: f64 = 1_163_203.0; // 13.463d
+
+// Neptune and Major Moons
+pub const NEPTUNE_RADIUS_EQ_KM: f64 = 24_764.0;
+pub const NEPTUNE_RADIUS_POL_KM: f64 = 24_341.0;
+pub const NEPTUNE_MEAN_RADIUS_KM: f64 = 24_622.0;
+pub const NEPTUNE_AXIAL_TILT_RAD: f64 = 28.32 * PI / 180.0;
+pub const NEPTUNE_SIDEREAL_DAY_SECS: f64 = 57_996.0; // 16.11h
+pub const NEPTUNE_RING_INNER_RADIUS_KM: f64 = 40_000.0;
+pub const NEPTUNE_RING_OUTER_RADIUS_KM: f64 = 63_500.0;
+
+pub const TRITON_RADIUS_KM: f64 = 1_353.4;
+pub const TRITON_SIDEREAL_DAY_SECS: f64 = -507_773.0; // -5.877d (retrograde synchronous)
+
+pub const PROTEUS_RADIUS_KM: f64 = 210.0;
+pub const PROTEUS_SIDEREAL_DAY_SECS: f64 = 96_941.0; // 1.122d
+
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]
 pub struct KeplerOrbit {
@@ -352,6 +391,123 @@ impl KeplerOrbit {
             peri: 0.0,
             m0: 0.0,
             period: 6_854_112.0, // 79.33 days
+        }
+    }
+
+    /// Uranus's orbit around the Sun (J2000 Keplerian elements)
+    pub fn uranus_around_sun() -> Self {
+        Self {
+            a: 2_870_972_000.0, // 19.2184 AU
+            e: 0.0463,
+            i: 0.773 * PI / 180.0,
+            node: 74.006 * PI / 180.0,
+            peri: 96.999 * PI / 180.0,
+            m0: 0.0,
+            period: 2_651_486_400.0, // 84.02 years
+        }
+    }
+
+    /// Miranda's orbit around Uranus
+    pub fn miranda_around_uranus() -> Self {
+        Self {
+            a: 129_900.0,
+            e: 0.0013,
+            i: 4.338 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 122_083.0,
+        }
+    }
+
+    /// Ariel's orbit around Uranus
+    pub fn ariel_around_uranus() -> Self {
+        Self {
+            a: 190_900.0,
+            e: 0.0012,
+            i: 0.041 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 217_728.0,
+        }
+    }
+
+    /// Umbriel's orbit around Uranus
+    pub fn umbriel_around_uranus() -> Self {
+        Self {
+            a: 266_000.0,
+            e: 0.0039,
+            i: 0.128 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 358_042.0,
+        }
+    }
+
+    /// Titania's orbit around Uranus
+    pub fn titania_around_uranus() -> Self {
+        Self {
+            a: 436_300.0,
+            e: 0.0011,
+            i: 0.079 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 752_198.0,
+        }
+    }
+
+    /// Oberon's orbit around Uranus
+    pub fn oberon_around_uranus() -> Self {
+        Self {
+            a: 583_500.0,
+            e: 0.0014,
+            i: 0.058 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 1_163_203.0,
+        }
+    }
+
+    /// Neptune's orbit around the Sun (J2000 Keplerian elements)
+    pub fn neptune_around_sun() -> Self {
+        Self {
+            a: 4_498_253_000.0, // 30.1104 AU
+            e: 0.0095,
+            i: 1.770 * PI / 180.0,
+            node: 131.784 * PI / 180.0,
+            peri: 273.187 * PI / 180.0,
+            m0: 0.0,
+            period: 5_200_418_560.0, // 164.79 years
+        }
+    }
+
+    /// Triton's orbit around Neptune (Retrograde orbit at 156.885° inclination)
+    pub fn triton_around_neptune() -> Self {
+        Self {
+            a: 354_759.0,
+            e: 0.000016,
+            i: 156.885 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 507_773.0,
+        }
+    }
+
+    /// Proteus's orbit around Neptune
+    pub fn proteus_around_neptune() -> Self {
+        Self {
+            a: 117_646.0,
+            e: 0.0005,
+            i: 0.075 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 96_941.0,
         }
     }
 
