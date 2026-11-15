@@ -200,103 +200,136 @@ impl Hud {
         let tan_half_fov_y = (camera.fov_y_rad * 0.5).tan();
         let tan_half_fov_x = tan_half_fov_y * screen_aspect;
 
-        let bodies = [
+        // Major celestial bodies (Sun, Planets, Asteroid Belt Dwarfs) - always prioritized
+        let major_bodies = [
             (BodyId::Sun, physics.sun.position, physics.sun.radius_km, "[Sol]", [255, 220, 90]),
             (BodyId::Mercury, physics.mercury.position, physics.mercury.radius_km, "[Mercúrio]", [225, 185, 140]),
             (BodyId::Venus, physics.venus.position, physics.venus.radius_km, "[Vênus]", [240, 225, 175]),
             (BodyId::Earth, physics.earth.position, physics.earth.radius_km, "[Terra]", [120, 205, 255]),
-            (BodyId::Moon, physics.moon.position, physics.moon.radius_km, "[Lua]", [210, 215, 225]),
             (BodyId::Mars, physics.mars.position, physics.mars.radius_km, "[Marte]", [225, 115, 65]),
-            (BodyId::Phobos, physics.phobos.position, physics.phobos.radius_km, "[Fobos]", [160, 155, 150]),
-            (BodyId::Deimos, physics.deimos.position, physics.deimos.radius_km, "[Deimos]", [175, 160, 145]),
             (BodyId::Ceres, physics.ceres.position, physics.ceres.radius_km, "[Ceres]", [200, 205, 215]),
             (BodyId::Vesta, physics.vesta.position, physics.vesta.radius_km, "[Vesta]", [220, 210, 190]),
             (BodyId::Jupiter, physics.jupiter.position, physics.jupiter.radius_km, "[Júpiter]", [235, 195, 150]),
-            (BodyId::Io, physics.io.position, physics.io.radius_km, "[Io]", [240, 215, 80]),
-            (BodyId::Europa, physics.europa.position, physics.europa.radius_km, "[Europa]", [215, 225, 235]),
-            (BodyId::Ganymede, physics.ganymede.position, physics.ganymede.radius_km, "[Ganímedes]", [185, 175, 165]),
-            (BodyId::Callisto, physics.callisto.position, physics.callisto.radius_km, "[Calisto]", [150, 145, 140]),
             (BodyId::Saturn, physics.saturn.position, physics.saturn.radius_km, "[Saturno]", [235, 205, 140]),
-            (BodyId::Titan, physics.titan.position, physics.titan.radius_km, "[Titã]", [230, 160, 60]),
-            (BodyId::Enceladus, physics.enceladus.position, physics.enceladus.radius_km, "[Encélado]", [245, 250, 255]),
-            (BodyId::Mimas, physics.mimas.position, physics.mimas.radius_km, "[Mimas]", [200, 200, 205]),
-            (BodyId::Iapetus, physics.iapetus.position, physics.iapetus.radius_km, "[Jápeto]", [170, 160, 150]),
-            (BodyId::Rhea, physics.rhea.position, physics.rhea.radius_km, "[Reia]", [210, 215, 220]),
             (BodyId::Uranus, physics.uranus.position, physics.uranus.radius_km, "[Urano]", [160, 215, 225]),
-            (BodyId::Miranda, physics.miranda.position, physics.miranda.radius_km, "[Miranda]", [190, 195, 200]),
-            (BodyId::Ariel, physics.ariel.position, physics.ariel.radius_km, "[Ariel]", [215, 220, 225]),
-            (BodyId::Umbriel, physics.umbriel.position, physics.umbriel.radius_km, "[Umbriel]", [140, 140, 145]),
-            (BodyId::Titania, physics.titania.position, physics.titania.radius_km, "[Titânia]", [185, 185, 190]),
-            (BodyId::Oberon, physics.oberon.position, physics.oberon.radius_km, "[Oberon]", [175, 175, 180]),
             (BodyId::Neptune, physics.neptune.position, physics.neptune.radius_km, "[Netuno]", [90, 145, 245]),
-            (BodyId::Triton, physics.triton.position, physics.triton.radius_km, "[Tritão]", [215, 225, 235]),
-            (BodyId::Proteus, physics.proteus.position, physics.proteus.radius_km, "[Proteu]", [130, 130, 135]),
             (BodyId::Pluto, physics.pluto.position, physics.pluto.radius_km, "[Plutão]", [220, 195, 175]),
-            (BodyId::Charon, physics.charon.position, physics.charon.radius_km, "[Caronte]", [185, 175, 170]),
         ];
 
-        for &(id, pos, rad, label, color) in &bodies {
+        // Natural Satellites / Moons - only rendered within their planetary system's proximity (LOD)
+        let moons = [
+            (BodyId::Moon, physics.moon.position, physics.moon.radius_km, "[Lua]", [210, 215, 225], physics.earth.position, 6_000_000.0),
+            (BodyId::Phobos, physics.phobos.position, physics.phobos.radius_km, "[Fobos]", [160, 155, 150], physics.mars.position, 1_500_000.0),
+            (BodyId::Deimos, physics.deimos.position, physics.deimos.radius_km, "[Deimos]", [175, 160, 145], physics.mars.position, 1_500_000.0),
+            (BodyId::Io, physics.io.position, physics.io.radius_km, "[Io]", [240, 215, 80], physics.jupiter.position, 40_000_000.0),
+            (BodyId::Europa, physics.europa.position, physics.europa.radius_km, "[Europa]", [215, 225, 235], physics.jupiter.position, 40_000_000.0),
+            (BodyId::Ganymede, physics.ganymede.position, physics.ganymede.radius_km, "[Ganímedes]", [185, 175, 165], physics.jupiter.position, 40_000_000.0),
+            (BodyId::Callisto, physics.callisto.position, physics.callisto.radius_km, "[Calisto]", [150, 145, 140], physics.jupiter.position, 40_000_000.0),
+            (BodyId::Titan, physics.titan.position, physics.titan.radius_km, "[Titã]", [230, 160, 60], physics.saturn.position, 55_000_000.0),
+            (BodyId::Enceladus, physics.enceladus.position, physics.enceladus.radius_km, "[Encélado]", [245, 250, 255], physics.saturn.position, 55_000_000.0),
+            (BodyId::Mimas, physics.mimas.position, physics.mimas.radius_km, "[Mimas]", [200, 200, 205], physics.saturn.position, 55_000_000.0),
+            (BodyId::Iapetus, physics.iapetus.position, physics.iapetus.radius_km, "[Jápeto]", [170, 160, 150], physics.saturn.position, 55_000_000.0),
+            (BodyId::Rhea, physics.rhea.position, physics.rhea.radius_km, "[Reia]", [210, 215, 220], physics.saturn.position, 55_000_000.0),
+            (BodyId::Miranda, physics.miranda.position, physics.miranda.radius_km, "[Miranda]", [190, 195, 200], physics.uranus.position, 25_000_000.0),
+            (BodyId::Ariel, physics.ariel.position, physics.ariel.radius_km, "[Ariel]", [215, 220, 225], physics.uranus.position, 25_000_000.0),
+            (BodyId::Umbriel, physics.umbriel.position, physics.umbriel.radius_km, "[Umbriel]", [140, 140, 145], physics.uranus.position, 25_000_000.0),
+            (BodyId::Titania, physics.titania.position, physics.titania.radius_km, "[Titânia]", [185, 185, 190], physics.uranus.position, 25_000_000.0),
+            (BodyId::Oberon, physics.oberon.position, physics.oberon.radius_km, "[Oberon]", [175, 175, 180], physics.uranus.position, 25_000_000.0),
+            (BodyId::Triton, physics.triton.position, physics.triton.radius_km, "[Tritão]", [215, 225, 235], physics.neptune.position, 25_000_000.0),
+            (BodyId::Proteus, physics.proteus.position, physics.proteus.radius_km, "[Proteu]", [130, 130, 135], physics.neptune.position, 25_000_000.0),
+            (BodyId::Charon, physics.charon.position, physics.charon.radius_km, "[Caronte]", [185, 175, 170], physics.pluto.position, 2_000_000.0),
+        ];
+
+        let mut occupied_regions: Vec<(usize, usize, usize)> = Vec::new(); // (row_y, x_start, x_end)
+
+        let mut place_label = |id: BodyId, pos: Vec3, rad: f64, label: &str, color: [u8; 3]| {
             let to_pos = pos - cam_pos;
             let dist_km = to_pos.length();
             if dist_km < 1.0 {
-                continue;
+                return;
             }
 
             // Target Proximity Culling: when closely orbiting and observing the target body,
             // hide its own label so it does not obstruct the surface features.
             // When zoomed out (dist >= 10.0 * radius), the label reappears as an orbital tag.
-            // Other bodies (e.g. Moon viewed from Earth) remain visible to help locate them in the sky.
             if id == camera.target_body && dist_km < rad * 10.0 {
-                continue;
+                return;
             }
 
             let dir = to_pos / dist_km;
             let f_dot = dir.dot(f);
+            if f_dot <= 0.05 {
+                return;
+            }
+
             let r_dot = dir.dot(r);
             let u_dot = dir.dot(u);
+            let ndc_x = r_dot / (f_dot * tan_half_fov_x);
+            let ndc_y = u_dot / (f_dot * tan_half_fov_y);
 
-            if f_dot > 0.05 {
-                let ndc_x = r_dot / (f_dot * tan_half_fov_x);
-                let ndc_y = u_dot / (f_dot * tan_half_fov_y);
-                if ndc_x.abs() < 0.90 && ndc_y.abs() < 0.85 {
-                    let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
-                    let py = ((1.0 - ndc_y) * 0.5 * lines as f64) as usize;
-                    // Position label with an elegant offset beside the celestial body:
-                    let label_x = px + 2;
-                    let label_y = if py > 2 { py - 1 } else { py + 1 };
-                    if label_x + label.len() < cols && label_y > 1 && label_y < lines - 2 {
-                        Self::draw_text(buffer, label_x, label_y, label, color);
-                    }
+            if ndc_x.abs() < 0.90 && ndc_y.abs() < 0.85 {
+                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                let py = ((1.0 - ndc_y) * 0.5 * lines as f64) as usize;
+                let label_chars = label.chars().count();
+                let label_x = px + 2;
+                let preferred_y = if py > 2 { py - 1 } else { py + 1 };
+
+                if label_x + label_chars < cols && preferred_y > 1 && preferred_y < lines - 2 {
+                    let x_start = label_x;
+                    let x_end = label_x + label_chars;
+
+                    // Collision prevention: avoid overwriting higher-priority labels
+                    let collides = occupied_regions.iter().any(|&(oy, ox1, ox2)| {
+                        oy == preferred_y && !(x_end + 1 < ox1 || x_start > ox2 + 1)
+                    });
+
+                    let final_y = if collides {
+                        let alt_y = if preferred_y == py - 1 {
+                            py + 1
+                        } else if py > 2 {
+                            py - 1
+                        } else {
+                            preferred_y
+                        };
+                        let alt_collides = occupied_regions.iter().any(|&(oy, ox1, ox2)| {
+                            oy == alt_y && !(x_end + 1 < ox1 || x_start > ox2 + 1)
+                        });
+                        if !alt_collides && alt_y > 1 && alt_y < lines - 2 {
+                            alt_y
+                        } else {
+                            return;
+                        }
+                    } else {
+                        preferred_y
+                    };
+
+                    occupied_regions.push((final_y, x_start, x_end));
+                    Self::draw_text(buffer, label_x, final_y, label, color);
                 }
+            }
+        };
+
+        // 1. First pass: Place all major celestial bodies (Planets, Asteroids, Sun)
+        for &(id, pos, rad, label, color) in &major_bodies {
+            place_label(id, pos, rad, label, color);
+        }
+
+        // 2. Second pass: Place moons only when camera is within their planetary system
+        for &(id, pos, rad, label, color, parent_pos, max_dist) in &moons {
+            let dist_to_parent = (parent_pos - cam_pos).length();
+            if dist_to_parent <= max_dist {
+                place_label(id, pos, rad, label, color);
             }
         }
 
         // Interstellar Probes Telemetry (Voyager 1 & Voyager 2 visible in deep space zoom)
         if camera.distance_km > 3.0e9 {
             let probes = [
-                (VOYAGER_1_VEC_KM, "[Voyager 1 (163.5 AU)]", [130, 215, 255]),
-                (VOYAGER_2_VEC_KM, "[Voyager 2 (136.8 AU)]", [110, 195, 240]),
+                (BodyId::Sun, VOYAGER_1_VEC_KM, 1.0, "[Voyager 1 (163.5 AU)]", [130, 215, 255]),
+                (BodyId::Sun, VOYAGER_2_VEC_KM, 1.0, "[Voyager 2 (136.8 AU)]", [110, 195, 240]),
             ];
-            for &(pos, label, color) in &probes {
-                let to_pos = pos - cam_pos;
-                let dist_km = to_pos.length();
-                let dir = to_pos / dist_km;
-                let f_dot = dir.dot(f);
-                if f_dot > 0.05 {
-                    let r_dot = dir.dot(r);
-                    let u_dot = dir.dot(u);
-                    let ndc_x = r_dot / (f_dot * tan_half_fov_x);
-                    let ndc_y = u_dot / (f_dot * tan_half_fov_y);
-                    if ndc_x.abs() < 0.90 && ndc_y.abs() < 0.85 {
-                        let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
-                        let py = ((1.0 - ndc_y) * 0.5 * lines as f64) as usize;
-                        let label_x = px + 2;
-                        let label_y = if py > 2 { py - 1 } else { py + 1 };
-                        if label_x + label.len() < cols && label_y > 1 && label_y < lines - 2 {
-                            Self::draw_text(buffer, label_x, label_y, label, color);
-                        }
-                    }
-                }
+            for &(id, pos, rad, label, color) in &probes {
+                place_label(id, pos, rad, label, color);
             }
         }
 

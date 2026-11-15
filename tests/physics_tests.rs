@@ -3045,3 +3045,70 @@ fn test_sun_zoom_toggle_and_extended_timewarp() {
     let one_year = 31_536_000.0;
     assert!(max_timewarp >= 10.0 * one_year);
 }
+
+#[test]
+fn test_hud_moon_labels_culling_at_solar_distance() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+
+    let cols = 160;
+    let rows = 60;
+    let mut buffer = FrameBuffer::new(cols, rows, RenderMode::HalfBlock);
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    // 1. Top-Down Solar System Orrery View (Camera looking at Sun from 1.1e10 km)
+    let cam = Camera::new();
+    buffer.pixels.fill(Pixel::BLACK);
+    Hud::render(&mut buffer, &cam, &physics, 60.0, 1.0, false);
+
+    let get_text = |buf: &FrameBuffer| -> String {
+        let mut out = String::new();
+        for y in 0..rows {
+            for x in 0..cols {
+                let p = &buf.pixels[(y * 2) * cols + x];
+                if p.is_text {
+                    out.push(p.ch);
+                } else {
+                    out.push(' ');
+                }
+            }
+            out.push('\n');
+        }
+        out
+    };
+
+    let text_solar = get_text(&buffer);
+
+    // Major planets must be visible and uncluttered
+    assert!(text_solar.contains("[Júpiter]"), "Jupiter label must be cleanly visible in top-down view");
+    assert!(text_solar.contains("[Saturno]"), "Saturn label must be cleanly visible in top-down view");
+    assert!(text_solar.contains("[Urano]"), "Uranus label must be cleanly visible in top-down view");
+    assert!(text_solar.contains("[Netuno]"), "Neptune label must be cleanly visible in top-down view");
+
+    // Moons must NOT be rendered at solar system distance (> millions of km)
+    assert!(!text_solar.contains("[Calisto]"), "Callisto label must be culled at solar distance");
+    assert!(!text_solar.contains("[Oberon]"), "Oberon label must be culled at solar distance");
+    assert!(!text_solar.contains("[Reia]"), "Rhea label must be culled at solar distance");
+    assert!(!text_solar.contains("[Proteu]"), "Proteus label must be culled at solar distance");
+    assert!(!text_solar.contains("[Lua]"), "Moon label must be culled at solar distance");
+    assert!(!text_solar.contains("[Fobos]"), "Phobos label must be culled at solar distance");
+
+    // 2. Focused on Jupiter at Planetary System distance (3,000,000 km)
+    let mut cam_jup = Camera::new();
+    cam_jup.set_target(BodyId::Jupiter, physics.jupiter.position);
+    cam_jup.distance_km = 3_000_000.0;
+    buffer.pixels.fill(Pixel::BLACK);
+    Hud::render(&mut buffer, &cam_jup, &physics, 60.0, 1.0, false);
+
+    let text_jup = get_text(&buffer);
+    let any_galilean = text_jup.contains("[Calisto]") || text_jup.contains("[Io]") || text_jup.contains("[Europa]") || text_jup.contains("[Ganímedes]");
+    assert!(any_galilean, "Galilean moons must be eligible for display when observing Jupiter system");
+
+    // Moons of other distant planets (e.g. Uranus Oberon, Neptune Proteus) must NOT be visible!
+    assert!(!text_jup.contains("[Oberon]"), "Oberon must NOT be visible when observing Jupiter");
+    assert!(!text_jup.contains("[Proteu]"), "Proteus must NOT be visible when observing Jupiter");
+}
