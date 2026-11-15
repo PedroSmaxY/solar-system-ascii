@@ -1621,9 +1621,15 @@ fn test_standardized_keys_and_mars_moons_navigation() {
     cam.set_target(BodyId::Deimos, physics.deimos.position);
     assert_eq!(cam.target_body, BodyId::Deimos);
 
-    // Contextual [N] at Deimos -> Phobos
+    // Contextual [M] at Deimos -> Phobos
     cam.set_target(BodyId::Phobos, physics.phobos.position);
     assert_eq!(cam.target_body, BodyId::Phobos);
+
+    // Verify Saturn's optimal beauty angle
+    let def_saturn = Camera::default_view(BodyId::Saturn);
+    assert!((def_saturn.distance_km - 200_000.0).abs() < 1e-4);
+    assert!((def_saturn.elevation - 0.16).abs() < 1e-4);
+    assert!((def_saturn.azimuth - (-1.45)).abs() < 1e-4);
 }
 
 #[test]
@@ -2950,4 +2956,9 @@ fn test_render_polish_and_pluto_demos() {
     let mut cam_venus = Camera::new();
     cam_venus.set_target(BodyId::Venus, physics.venus.position);
     render_ppm(&mut buffer, &cam_venus, &format!("{}/venus_contextual_hud.ppm", brain_dir));
+
+    // 8. Saturn User Matching Angle (Iconic oblique perspective with ring shadow)
+    let mut cam_saturn = Camera::new();
+    cam_saturn.set_target(BodyId::Saturn, physics.saturn.position);
+    render_ppm(&mut buffer, &cam_saturn, &format!("{}/saturn_beauty_angle.ppm", brain_dir));
 }

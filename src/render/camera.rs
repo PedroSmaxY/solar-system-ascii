@@ -211,9 +211,9 @@ impl Camera {
                 distance_km: 7_200.0,  // Framing 4,820 km disk
             },
             BodyId::Saturn => BodyViewState {
-                azimuth: -1.35,       // Framing sunlit golden disk, rings, shadow on disk, and Cassini division
-                elevation: 0.35,      // Slightly elevated to view ring plane structure
-                distance_km: 260_000.0, // Framing ~120,000 km disk and 280,000 km ring system
+                azimuth: -1.45,       // Framing sunlit gas giant, majestic rings and shadow cast on ring plane
+                elevation: 0.16,      // Iconic oblique perspective viewing ring system and shadow bands
+                distance_km: 200_000.0, // Framing ~120,000 km disk and 280,000 km ring system (~58% screen height)
             },
             BodyId::Titan => BodyViewState {
                 azimuth: -1.35,       // Framing hazy orange nitrogen/methane atmosphere and limb

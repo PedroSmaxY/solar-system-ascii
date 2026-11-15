@@ -190,10 +190,14 @@ impl App {
                             let from_pos = self.physics.mars.position;
                             let to_pos = self.physics.phobos.position;
                             self.camera.start_transition(BodyId::Phobos, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Phobos || self.camera.target_body == BodyId::Deimos {
-                            let from_pos = self.physics.get_body(self.camera.target_body).position;
-                            let to_pos = self.physics.mars.position;
-                            self.camera.start_transition(BodyId::Mars, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Phobos {
+                            let from_pos = self.physics.phobos.position;
+                            let to_pos = self.physics.deimos.position;
+                            self.camera.start_transition(BodyId::Deimos, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Deimos {
+                            let from_pos = self.physics.deimos.position;
+                            let to_pos = self.physics.phobos.position;
+                            self.camera.start_transition(BodyId::Phobos, from_pos, to_pos, 1.0);
                         } else if self.camera.target_body == BodyId::Ceres {
                             let from_pos = self.physics.ceres.position;
                             let to_pos = self.physics.vesta.position;

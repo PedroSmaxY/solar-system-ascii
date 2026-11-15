@@ -25,8 +25,15 @@ All notable changes to **AstroEngine ASCII** will be documented in this file.
 - **Orrery & Camera Navigation**:
   - Top-down Orrery Overview (`[Tab]`) as the default entry point with elliptical orbit traces (`[L]`).
   - Seamless cinematic zoom transition between planetary close-ups and solar system scale.
-  - Curated beauty viewing angles (`[R]`) for every celestial body.
+  - Curated beauty viewing angles (`[R]`) for every celestial body, including Saturn's iconic oblique ring shadow perspective.
   - Contextual HUD displaying Magellan synthetic aperture radar mode (`[V]`) on Venus and moon navigation (`[M]`).
+  - Seamless moon cycling on Mars: `[M]` switches between Phobos and Deimos (`Phobos <-> Deimos`).
+
+#### 🎨 Application Packaging & Icons
+- **Native Executable Icons**:
+  - Embedded Windows PE icon resource (`assets/icon.ico`) with multi-resolution 256x256 down to 16x16 PNG layers via `winres`.
+  - macOS multi-resolution icon bundle (`assets/icon.icns`) via `iconutil`.
+  - High-resolution 512x512 PNG icon (`assets/icon.png`).
 
 #### ⚡ Engine & Performance
 - **Dual Rendering Modes**: 24-bit TrueColor Half-Block mode (`▀`) for doubled vertical pixel density and Classic ASCII retro mode.
