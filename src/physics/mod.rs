@@ -1,9 +1,11 @@
 pub mod asteroid_belt;
 pub mod body;
 pub mod ephemeris;
+pub mod jovian_swarm;
 
 use self::asteroid_belt::AsteroidField;
 use self::body::{BodyId, CelestialBody};
+use self::jovian_swarm::JovianMoonSwarm;
 use crate::math::Vec3;
 use ephemeris::TWO_PI;
 
@@ -19,6 +21,12 @@ pub struct SolarSystemPhysics {
     pub ceres: CelestialBody,
     pub vesta: CelestialBody,
     pub asteroid_field: AsteroidField,
+    pub jupiter: CelestialBody,
+    pub io: CelestialBody,
+    pub europa: CelestialBody,
+    pub ganymede: CelestialBody,
+    pub callisto: CelestialBody,
+    pub jovian_swarm: JovianMoonSwarm,
 }
 
 impl SolarSystemPhysics {
@@ -35,6 +43,12 @@ impl SolarSystemPhysics {
             ceres: CelestialBody::new_ceres(),
             vesta: CelestialBody::new_vesta(),
             asteroid_field: AsteroidField::new(),
+            jupiter: CelestialBody::new_jupiter(),
+            io: CelestialBody::new_io(),
+            europa: CelestialBody::new_europa(),
+            ganymede: CelestialBody::new_ganymede(),
+            callisto: CelestialBody::new_callisto(),
+            jovian_swarm: JovianMoonSwarm::new(),
         }
     }
 
@@ -103,6 +117,40 @@ impl SolarSystemPhysics {
             self.vesta.position = orb.calculate_position(t);
         }
         self.vesta.rotation_angle = (t * (TWO_PI / self.vesta.rotation_period_secs)).rem_euclid(TWO_PI);
+
+        // 11. Jupiter orbits Sun (gas giant, e=0.0489, 9.93h fast rotation)
+        if let Some(ref orb) = self.jupiter.orbit {
+            self.jupiter.position = orb.calculate_position(t);
+        }
+        self.jupiter.rotation_angle = (t * (TWO_PI / self.jupiter.rotation_period_secs)).rem_euclid(TWO_PI);
+
+        // 12. Io orbits Jupiter (Laplace 4:2:1 resonance, 42.46h period, tidally locked)
+        if let Some(ref orb) = self.io.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.io.position = self.jupiter.position + rel_pos;
+            self.io.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 13. Europa orbits Jupiter (Laplace 2:1 resonance with Io, 84.92h period, tidally locked)
+        if let Some(ref orb) = self.europa.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.europa.position = self.jupiter.position + rel_pos;
+            self.europa.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 14. Ganymede orbits Jupiter (Laplace 4:1 resonance with Io, 169.84h period, tidally locked)
+        if let Some(ref orb) = self.ganymede.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.ganymede.position = self.jupiter.position + rel_pos;
+            self.ganymede.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 15. Callisto orbits Jupiter (outermost Galilean moon, 400.54h period, tidally locked)
+        if let Some(ref orb) = self.callisto.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.callisto.position = self.jupiter.position + rel_pos;
+            self.callisto.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
     }
 
     pub fn get_body(&self, id: BodyId) -> &CelestialBody {
@@ -117,6 +165,11 @@ impl SolarSystemPhysics {
             BodyId::Deimos => &self.deimos,
             BodyId::Ceres => &self.ceres,
             BodyId::Vesta => &self.vesta,
+            BodyId::Jupiter => &self.jupiter,
+            BodyId::Io => &self.io,
+            BodyId::Europa => &self.europa,
+            BodyId::Ganymede => &self.ganymede,
+            BodyId::Callisto => &self.callisto,
         }
     }
 
@@ -132,6 +185,11 @@ impl SolarSystemPhysics {
             BodyId::Deimos => &mut self.deimos,
             BodyId::Ceres => &mut self.ceres,
             BodyId::Vesta => &mut self.vesta,
+            BodyId::Jupiter => &mut self.jupiter,
+            BodyId::Io => &mut self.io,
+            BodyId::Europa => &mut self.europa,
+            BodyId::Ganymede => &mut self.ganymede,
+            BodyId::Callisto => &mut self.callisto,
         }
     }
 }

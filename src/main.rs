@@ -36,6 +36,11 @@ fn main() {
                         "deimos" => target_body = Some(solar_system_ascii::physics::body::BodyId::Deimos),
                         "ceres" => target_body = Some(solar_system_ascii::physics::body::BodyId::Ceres),
                         "vesta" => target_body = Some(solar_system_ascii::physics::body::BodyId::Vesta),
+                        "jupiter" | "jupiter_system" => target_body = Some(solar_system_ascii::physics::body::BodyId::Jupiter),
+                        "io" => target_body = Some(solar_system_ascii::physics::body::BodyId::Io),
+                        "europa" => target_body = Some(solar_system_ascii::physics::body::BodyId::Europa),
+                        "ganymede" | "ganimedes" => target_body = Some(solar_system_ascii::physics::body::BodyId::Ganymede),
+                        "callisto" | "calisto" => target_body = Some(solar_system_ascii::physics::body::BodyId::Callisto),
                         _ => {}
                     }
                     i += 1;

@@ -4,7 +4,8 @@ use crate::math::{Ray, Vec3};
 use crate::physics::body::BodyId;
 use crate::physics::ephemeris::{
     CERES_RADIUS_EQ_KM, CERES_RADIUS_POL_KM, DEIMOS_SEMI_AXES_KM, PHOBOS_SEMI_AXES_KM,
-    VESTA_SEMI_AXES_KM,
+    VESTA_SEMI_AXES_KM, JUPITER_RADIUS_EQ_KM, JUPITER_RADIUS_POL_KM, IO_RADIUS_KM,
+    EUROPA_RADIUS_KM, GANYMEDE_RADIUS_KM, CALLISTO_RADIUS_KM,
 };
 use crate::physics::SolarSystemPhysics;
 use crate::render::buffer::{FrameBuffer, Pixel, RenderMode};
@@ -12,6 +13,7 @@ use crate::render::camera::Camera;
 use crate::render::ceres_shader::CeresShader;
 use crate::render::deimos_shader::DeimosShader;
 use crate::render::earth_shader::EarthShader;
+use crate::render::jupiter_shader::JupiterShader;
 use crate::render::mars_shader::MarsShader;
 use crate::render::mercury_shader::MercuryShader;
 use crate::render::moon_shader::MoonShader;
@@ -35,6 +37,7 @@ pub struct Raycaster {
     pub deimos_shader: DeimosShader,
     pub ceres_shader: CeresShader,
     pub vesta_shader: VestaShader,
+    pub jupiter_shader: JupiterShader,
 }
 
 struct SphereHit {
@@ -57,6 +60,7 @@ impl Raycaster {
             deimos_shader: DeimosShader::new(),
             ceres_shader: CeresShader::new(),
             vesta_shader: VestaShader::new(),
+            jupiter_shader: JupiterShader::new(),
         }
     }
 
@@ -193,6 +197,30 @@ impl Raycaster {
         let vesta_pos = physics.vesta.position;
         let vesta_mat = physics.vesta.orientation_matrix();
         let vesta_mat_inv = vesta_mat.transpose();
+
+        let jupiter_pos = physics.jupiter.position;
+        let jupiter_mat = physics.jupiter.orientation_matrix();
+        let jupiter_mat_inv = jupiter_mat.transpose();
+
+        let io_pos = physics.io.position;
+        let io_rad = physics.io.radius_km;
+        let io_mat = physics.io.orientation_matrix();
+        let _io_mat_inv = io_mat.transpose();
+
+        let europa_pos = physics.europa.position;
+        let europa_rad = physics.europa.radius_km;
+        let europa_mat = physics.europa.orientation_matrix();
+        let _europa_mat_inv = europa_mat.transpose();
+
+        let ganymede_pos = physics.ganymede.position;
+        let ganymede_rad = physics.ganymede.radius_km;
+        let ganymede_mat = physics.ganymede.orientation_matrix();
+        let _ganymede_mat_inv = ganymede_mat.transpose();
+
+        let callisto_pos = physics.callisto.position;
+        let callisto_rad = physics.callisto.radius_km;
+        let callisto_mat = physics.callisto.orientation_matrix();
+        let _callisto_mat_inv = callisto_mat.transpose();
 
         let mut hit_mask: Vec<bool> = vec![false; cols * v_height];
 
@@ -384,6 +412,100 @@ impl Raycaster {
                         }
                     }
 
+                    // Jupiter hit (oblate spheroid: 71,492 km eq, 66,854 km pol)
+                    if let Some((t_jup, norm)) = Self::intersect_ellipsoid(
+                        &ray,
+                        jupiter_pos,
+                        jupiter_mat,
+                        (JUPITER_RADIUS_EQ_KM, JUPITER_RADIUS_EQ_KM, JUPITER_RADIUS_POL_KM),
+                    ) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_jup < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_jup);
+                            closest_hit = Some(SphereHit {
+                                t: t_jup,
+                                body_id: BodyId::Jupiter,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Io hit (sphere)
+                    if let Some(t_io) = Self::intersect_sphere(&ray, io_pos, io_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_io < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_io);
+                            let norm = (hit_pos - io_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_io,
+                                body_id: BodyId::Io,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Europa hit (sphere)
+                    if let Some(t_eur) = Self::intersect_sphere(&ray, europa_pos, europa_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_eur < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_eur);
+                            let norm = (hit_pos - europa_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_eur,
+                                body_id: BodyId::Europa,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Ganymede hit (sphere)
+                    if let Some(t_gan) = Self::intersect_sphere(&ray, ganymede_pos, ganymede_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_gan < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_gan);
+                            let norm = (hit_pos - ganymede_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_gan,
+                                body_id: BodyId::Ganymede,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Callisto hit (sphere)
+                    if let Some(t_cal) = Self::intersect_sphere(&ray, callisto_pos, callisto_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_cal < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_cal);
+                            let norm = (hit_pos - callisto_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_cal,
+                                body_id: BodyId::Callisto,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
                     if closest_hit.is_some() {
                         hit_row[u] = true;
                     }
@@ -465,6 +587,28 @@ impl Raycaster {
                                 let local_sun = vesta_mat_inv.mul_vec(sun_dir);
                                 let local_view = vesta_mat_inv.mul_vec(view_dir);
                                 self.vesta_shader.shade(local_hit, local_sun, local_view)
+                            }
+                            BodyId::Jupiter => {
+                                let local_norm = jupiter_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = jupiter_mat_inv.mul_vec(sun_dir);
+                                let local_view = jupiter_mat_inv.mul_vec(view_dir);
+                                self.jupiter_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Io => {
+                                let n_dot_l = hit.world_norm.dot(sun_dir).max(0.0);
+                                [(230.0 * n_dot_l) as u8, (205.0 * n_dot_l) as u8, (75.0 * n_dot_l) as u8]
+                            }
+                            BodyId::Europa => {
+                                let n_dot_l = hit.world_norm.dot(sun_dir).max(0.0);
+                                [(225.0 * n_dot_l) as u8, (220.0 * n_dot_l) as u8, (215.0 * n_dot_l) as u8]
+                            }
+                            BodyId::Ganymede => {
+                                let n_dot_l = hit.world_norm.dot(sun_dir).max(0.0);
+                                [(160.0 * n_dot_l) as u8, (150.0 * n_dot_l) as u8, (140.0 * n_dot_l) as u8]
+                            }
+                            BodyId::Callisto => {
+                                let n_dot_l = hit.world_norm.dot(sun_dir).max(0.0);
+                                [(120.0 * n_dot_l) as u8, (115.0 * n_dot_l) as u8, (110.0 * n_dot_l) as u8]
                             }
                         };
 
@@ -682,6 +826,42 @@ impl Raycaster {
                             '.'
                         };
                         buffer.pixels[pixel_idx] = Pixel::new(ast_r, ast_g, ast_b, ch);
+                    }
+                }
+            }
+        }
+
+        // 7. Analytical Jovian Minor Moons swarm pass (91 minor moons)
+        for i in 0..physics.jovian_swarm.count() {
+            let p_pos = physics.jovian_swarm.calculate_position(i, jupiter_pos, elapsed);
+            let to_p = p_pos - cam_pos;
+            let dist = to_p.length();
+            if dist < 1.0 {
+                continue;
+            }
+            let dir = to_p / dist;
+            let f_dot = dir.dot(f);
+            if f_dot <= 0.05 {
+                continue;
+            }
+
+            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+
+            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+
+                if px < cols && py < v_height {
+                    let pixel_idx = py * cols + px;
+                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                        let moon = &physics.jovian_swarm.moons[i];
+                        let (r_col, g_col, b_col, ch) = match moon.group {
+                            crate::physics::jovian_swarm::JovianMoonGroup::Amalthea => (240, 185, 135, '*'),
+                            crate::physics::jovian_swarm::JovianMoonGroup::Himalia => (185, 205, 225, '+'),
+                            _ => (155, 155, 165, '.'),
+                        };
+                        buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
                     }
                 }
             }

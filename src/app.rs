@@ -121,6 +121,11 @@ impl App {
                         let to_pos = self.physics.ceres.position;
                         self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.4);
                     }
+                    KeyCode::Char('7') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.jupiter.position;
+                        self.camera.start_transition(BodyId::Jupiter, from_pos, to_pos, 1.5);
+                    }
                     KeyCode::Char('m') | KeyCode::Char('M') => {
                         if self.camera.target_body == BodyId::Earth {
                             let from_pos = self.physics.earth.position;
@@ -146,6 +151,26 @@ impl App {
                             let from_pos = self.physics.vesta.position;
                             let to_pos = self.physics.ceres.position;
                             self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.2);
+                        } else if self.camera.target_body == BodyId::Jupiter {
+                            let from_pos = self.physics.jupiter.position;
+                            let to_pos = self.physics.io.position;
+                            self.camera.start_transition(BodyId::Io, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Io {
+                            let from_pos = self.physics.io.position;
+                            let to_pos = self.physics.europa.position;
+                            self.camera.start_transition(BodyId::Europa, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Europa {
+                            let from_pos = self.physics.europa.position;
+                            let to_pos = self.physics.ganymede.position;
+                            self.camera.start_transition(BodyId::Ganymede, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Ganymede {
+                            let from_pos = self.physics.ganymede.position;
+                            let to_pos = self.physics.callisto.position;
+                            self.camera.start_transition(BodyId::Callisto, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Callisto {
+                            let from_pos = self.physics.callisto.position;
+                            let to_pos = self.physics.io.position;
+                            self.camera.start_transition(BodyId::Io, from_pos, to_pos, 1.1);
                         }
                     }
                     KeyCode::Char('n') | KeyCode::Char('N') => {
@@ -160,6 +185,13 @@ impl App {
                         } else if self.camera.target_body == BodyId::Ceres || self.camera.target_body == BodyId::Vesta {
                             self.camera.distance_km = 650_000_000.0;
                             self.camera.elevation = 0.55;
+                        } else if self.camera.target_body == BodyId::Jupiter {
+                            self.camera.distance_km = 2_800_000.0;
+                            self.camera.elevation = 0.35;
+                        } else if matches!(self.camera.target_body, BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto) {
+                            let from_pos = self.physics.get_body(self.camera.target_body).position;
+                            let to_pos = self.physics.jupiter.position;
+                            self.camera.start_transition(BodyId::Jupiter, from_pos, to_pos, 1.1);
                         }
                     }
                     KeyCode::Char('v') | KeyCode::Char('V') => {

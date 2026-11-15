@@ -5,6 +5,7 @@ pub mod deimos_shader;
 pub mod earth_shader;
 pub mod fluid;
 pub mod hud;
+pub mod jupiter_shader;
 pub mod mars_shader;
 pub mod mercury_shader;
 pub mod moon_shader;

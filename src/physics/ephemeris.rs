@@ -33,6 +33,24 @@ pub const VESTA_MEAN_RADIUS_KM: f64 = 262.7;
 pub const VESTA_AXIAL_TILT_RAD: f64 = 27.2 * PI / 180.0;
 pub const VESTA_SIDEREAL_DAY_SECS: f64 = 19_231.2; // 5.342h
 
+pub const JUPITER_RADIUS_EQ_KM: f64 = 71_492.0;
+pub const JUPITER_RADIUS_POL_KM: f64 = 66_854.0;
+pub const JUPITER_MEAN_RADIUS_KM: f64 = 69_911.0;
+pub const JUPITER_AXIAL_TILT_RAD: f64 = 3.13 * PI / 180.0;
+pub const JUPITER_SIDEREAL_DAY_SECS: f64 = 35_730.0; // 9.925h
+
+pub const IO_RADIUS_KM: f64 = 1_821.6;
+pub const IO_SIDEREAL_DAY_SECS: f64 = 152_853.5; // 42.46h
+
+pub const EUROPA_RADIUS_KM: f64 = 1_560.8;
+pub const EUROPA_SIDEREAL_DAY_SECS: f64 = 305_707.0; // 84.92h
+
+pub const GANYMEDE_RADIUS_KM: f64 = 2_634.1;
+pub const GANYMEDE_SIDEREAL_DAY_SECS: f64 = 611_414.0; // 169.84h
+
+pub const CALLISTO_RADIUS_KM: f64 = 2_410.3;
+pub const CALLISTO_SIDEREAL_DAY_SECS: f64 = 1_441_931.0; // 400.54h
+
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]
 pub struct KeplerOrbit {
@@ -167,6 +185,71 @@ impl KeplerOrbit {
             peri: 151.2 * PI / 180.0,
             m0: 20.8 * PI / 180.0,
             period: 1325.7 * 86_400.0, // 3.63 years
+        }
+    }
+
+    /// Jupiter's orbit around the Sun (J2000 Keplerian elements)
+    pub fn jupiter_around_sun() -> Self {
+        Self {
+            a: 778_570_000.0, // 5.2044 AU in km
+            e: 0.0489,
+            i: 1.303 * PI / 180.0,
+            node: 100.464 * PI / 180.0,
+            peri: 273.867 * PI / 180.0,
+            m0: 20.020 * PI / 180.0,
+            period: 4332.59 * 86_400.0, // 11.862 years
+        }
+    }
+
+    /// Io's orbit around Jupiter (inner Galilean moon, tidally locked, Laplace resonance 4:2:1)
+    pub fn io_around_jupiter() -> Self {
+        Self {
+            a: 421_700.0,
+            e: 0.0041,
+            i: 0.050 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 152_853.5, // 1.7691 days (42.46 hours)
+        }
+    }
+
+    /// Europa's orbit around Jupiter (Laplace resonance 2:1 with Io)
+    pub fn europa_around_jupiter() -> Self {
+        Self {
+            a: 670_900.0,
+            e: 0.0090,
+            i: 0.470 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 305_707.0, // 3.5383 days (2 * Io period)
+        }
+    }
+
+    /// Ganymede's orbit around Jupiter (Laplace resonance 4:1 with Io, largest moon)
+    pub fn ganymede_around_jupiter() -> Self {
+        Self {
+            a: 1_070_400.0,
+            e: 0.0013,
+            i: 0.200 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 611_414.0, // 7.0765 days (4 * Io period)
+        }
+    }
+
+    /// Callisto's orbit around Jupiter (outermost Galilean moon)
+    pub fn callisto_around_jupiter() -> Self {
+        Self {
+            a: 1_882_700.0,
+            e: 0.0074,
+            i: 0.280 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 1_441_931.0, // 16.689 days
         }
     }
 

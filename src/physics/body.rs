@@ -2,12 +2,15 @@
 
 use crate::math::{Mat3, Vec3};
 use crate::physics::ephemeris::{
-    KeplerOrbit, CERES_AXIAL_TILT_RAD, CERES_MEAN_RADIUS_KM, CERES_SIDEREAL_DAY_SECS,
-    DEIMOS_MEAN_RADIUS_KM, EARTH_AXIAL_TILT_RAD, EARTH_RADIUS_KM, MARS_AXIAL_TILT_RAD,
-    MARS_RADIUS_KM, MARS_SIDEREAL_DAY_SECS, MERCURY_AXIAL_TILT_RAD, MERCURY_RADIUS_KM,
-    MERCURY_SIDEREAL_DAY_SECS, MOON_RADIUS_KM, PHOBOS_MEAN_RADIUS_KM, SIDEREAL_DAY_SECS,
-    SUN_RADIUS_KM, VENUS_AXIAL_TILT_RAD, VENUS_RADIUS_KM, VENUS_SIDEREAL_DAY_SECS,
-    VESTA_AXIAL_TILT_RAD, VESTA_MEAN_RADIUS_KM, VESTA_SIDEREAL_DAY_SECS,
+    KeplerOrbit, CALLISTO_RADIUS_KM, CALLISTO_SIDEREAL_DAY_SECS, CERES_AXIAL_TILT_RAD,
+    CERES_MEAN_RADIUS_KM, CERES_SIDEREAL_DAY_SECS, DEIMOS_MEAN_RADIUS_KM, EARTH_AXIAL_TILT_RAD,
+    EARTH_RADIUS_KM, EUROPA_RADIUS_KM, EUROPA_SIDEREAL_DAY_SECS, GANYMEDE_RADIUS_KM,
+    GANYMEDE_SIDEREAL_DAY_SECS, IO_RADIUS_KM, IO_SIDEREAL_DAY_SECS, JUPITER_AXIAL_TILT_RAD,
+    JUPITER_MEAN_RADIUS_KM, JUPITER_SIDEREAL_DAY_SECS, MARS_AXIAL_TILT_RAD, MARS_RADIUS_KM,
+    MARS_SIDEREAL_DAY_SECS, MERCURY_AXIAL_TILT_RAD, MERCURY_RADIUS_KM, MERCURY_SIDEREAL_DAY_SECS,
+    MOON_RADIUS_KM, PHOBOS_MEAN_RADIUS_KM, SIDEREAL_DAY_SECS, SUN_RADIUS_KM, VENUS_AXIAL_TILT_RAD,
+    VENUS_RADIUS_KM, VENUS_SIDEREAL_DAY_SECS, VESTA_AXIAL_TILT_RAD, VESTA_MEAN_RADIUS_KM,
+    VESTA_SIDEREAL_DAY_SECS,
 };
 use std::f64::consts::PI;
 
@@ -23,6 +26,11 @@ pub enum BodyId {
     Deimos,
     Ceres,
     Vesta,
+    Jupiter,
+    Io,
+    Europa,
+    Ganymede,
+    Callisto,
 }
 
 impl BodyId {
@@ -38,6 +46,11 @@ impl BodyId {
             BodyId::Deimos => 7,
             BodyId::Ceres => 8,
             BodyId::Vesta => 9,
+            BodyId::Jupiter => 10,
+            BodyId::Io => 11,
+            BodyId::Europa => 12,
+            BodyId::Ganymede => 13,
+            BodyId::Callisto => 14,
         }
     }
 }
@@ -208,6 +221,81 @@ impl CelestialBody {
             orbit: Some(KeplerOrbit::vesta_around_sun()),
             parent: Some(BodyId::Sun),
             position: Vec3::new(353_370_000.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_jupiter() -> Self {
+        Self {
+            id: BodyId::Jupiter,
+            name: "Jupiter",
+            radius_km: JUPITER_MEAN_RADIUS_KM,
+            mass_kg: 1.8982e27,
+            axial_tilt: JUPITER_AXIAL_TILT_RAD,
+            rotation_period_secs: JUPITER_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::jupiter_around_sun()),
+            parent: Some(BodyId::Sun),
+            position: Vec3::new(778_570_000.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_io() -> Self {
+        Self {
+            id: BodyId::Io,
+            name: "Io",
+            radius_km: IO_RADIUS_KM,
+            mass_kg: 8.9319e22,
+            axial_tilt: 0.0,
+            rotation_period_secs: IO_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::io_around_jupiter()),
+            parent: Some(BodyId::Jupiter),
+            position: Vec3::new(778_570_000.0 + 421_700.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_europa() -> Self {
+        Self {
+            id: BodyId::Europa,
+            name: "Europa",
+            radius_km: EUROPA_RADIUS_KM,
+            mass_kg: 4.7998e22,
+            axial_tilt: 0.1 * PI / 180.0,
+            rotation_period_secs: EUROPA_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::europa_around_jupiter()),
+            parent: Some(BodyId::Jupiter),
+            position: Vec3::new(778_570_000.0 + 670_900.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_ganymede() -> Self {
+        Self {
+            id: BodyId::Ganymede,
+            name: "Ganymede",
+            radius_km: GANYMEDE_RADIUS_KM,
+            mass_kg: 1.4819e23,
+            axial_tilt: 0.2 * PI / 180.0,
+            rotation_period_secs: GANYMEDE_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::ganymede_around_jupiter()),
+            parent: Some(BodyId::Jupiter),
+            position: Vec3::new(778_570_000.0 + 1_070_400.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_callisto() -> Self {
+        Self {
+            id: BodyId::Callisto,
+            name: "Callisto",
+            radius_km: CALLISTO_RADIUS_KM,
+            mass_kg: 1.0759e23,
+            axial_tilt: 0.0,
+            rotation_period_secs: CALLISTO_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::callisto_around_jupiter()),
+            parent: Some(BodyId::Jupiter),
+            position: Vec3::new(778_570_000.0 + 1_882_700.0, 0.0, 0.0),
             rotation_angle: 0.0,
         }
     }

@@ -34,7 +34,7 @@ pub struct Camera {
     pub elevation: f64, // Radians (-PI/2 .. PI/2)
     pub distance_km: f64,
     pub fov_y_rad: f64,
-    pub saved_views: [BodyViewState; 10], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta]
+    pub saved_views: [BodyViewState; 15], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta, Jupiter, Io, Europa, Ganymede, Callisto]
     pub transition: Option<CameraTransition>,
 
     // Free flight mode
@@ -56,6 +56,11 @@ impl Camera {
         let deimos_view = Self::default_view(BodyId::Deimos);
         let ceres_view = Self::default_view(BodyId::Ceres);
         let vesta_view = Self::default_view(BodyId::Vesta);
+        let jupiter_view = Self::default_view(BodyId::Jupiter);
+        let io_view = Self::default_view(BodyId::Io);
+        let europa_view = Self::default_view(BodyId::Europa);
+        let ganymede_view = Self::default_view(BodyId::Ganymede);
+        let callisto_view = Self::default_view(BodyId::Callisto);
 
         Self {
             target_body: BodyId::Earth,
@@ -75,6 +80,11 @@ impl Camera {
                 deimos_view,
                 ceres_view,
                 vesta_view,
+                jupiter_view,
+                io_view,
+                europa_view,
+                ganymede_view,
+                callisto_view,
             ],
             transition: None,
             free_flight: false,
@@ -136,6 +146,31 @@ impl Camera {
                 azimuth: -1.25,       // Framing Rheasilvia basin, central peak & Divalia Fossae
                 elevation: -0.55,
                 distance_km: 850.0,   // Dedicated perspective framing Vesta's 286 km triaxial disk
+            },
+            BodyId::Jupiter => BodyViewState {
+                azimuth: 2.10,        // Framing Great Red Spot at -22°S, equatorial zone & Galilean moons
+                elevation: 0.15,
+                distance_km: 210_000.0, // Framing ~140,000 km oblate gas giant disk
+            },
+            BodyId::Io => BodyViewState {
+                azimuth: 1.80,        // Framing Pele & Loki volcanic calderas and sulfur plains
+                elevation: 0.15,
+                distance_km: 5_500.0,  // Framing 3,640 km disk
+            },
+            BodyId::Europa => BodyViewState {
+                azimuth: 2.20,        // Framing bright ice crust, Conamara Chaos & red-brown lineae fractures
+                elevation: 0.15,
+                distance_km: 4_800.0,  // Framing 3,120 km disk
+            },
+            BodyId::Ganymede => BodyViewState {
+                azimuth: 1.95,        // Framing dark polygonal Galileo Regio and bright grooved terrain
+                elevation: 0.15,
+                distance_km: 7_800.0,  // Framing 5,268 km disk (largest moon)
+            },
+            BodyId::Callisto => BodyViewState {
+                azimuth: 2.10,        // Framing heavily cratered crust and Valhalla multi-ring basin
+                elevation: 0.15,
+                distance_km: 7_200.0,  // Framing 4,820 km disk
             },
         }
     }
@@ -252,6 +287,11 @@ impl Camera {
             BodyId::Deimos => 7.8,    // ~300 m above Swift crater
             BodyId::Ceres => 490.0,   // ~8 km above Occator rim / Ahuna Mons
             BodyId::Vesta => 240.0,   // ~17 km above Rheasilvia rim
+            BodyId::Jupiter => 72_000.0, // ~500 km above equatorial 1-bar cloud deck
+            BodyId::Io => 1_850.0,      // ~30 km above sulfur volcanic plains
+            BodyId::Europa => 1_580.0,  // ~20 km above ice fractures
+            BodyId::Ganymede => 2_650.0,// ~15 km above grooved ridges
+            BodyId::Callisto => 2_430.0,// ~20 km above Valhalla crater floor
         };
         self.distance_km = (self.distance_km * 0.88).max(min_dist);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;
