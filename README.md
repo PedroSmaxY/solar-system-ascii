@@ -37,11 +37,13 @@
 
 | Key | Action |
 | :--- | :--- |
-| `Tab` / `0` | **Top-Down Overview** / System view |
+| `0` / `Tab` / `Z` | **Top-Down Overview** $\leftrightarrow$ **Zoom in/out of Sun** |
 | `1` – `8` | Jump to **Mercury**, **Venus**, **Earth**, **Mars**, **Jupiter**, **Saturn**, **Uranus**, **Neptune** |
 | `9` | Jump to **Pluto** |
 | `M` | Cycle through **Moons** of the current focused body |
 | `V` | Toggle **Magellan Radar / Atmosphere** (on Venus) |
+| `T` | Quick-cycle **Time Warp Presets** (10 min/s, 1 day/s, 1 month/s, 1 year/s, 5 years/s, 1x) |
+| `[` / `]` | Fine time warp speed adjustment (up to **10 years / second**) |
 | `L` | Toggle **Orbital Path Lines** |
 | `P` | Toggle **Asteroid Belt** particles |
 | `R` | Reset camera to **Optimal Beauty Angle** |
@@ -51,7 +53,6 @@
 | `A` / `D` | Orbit camera yaw (left / right) |
 | `B` | Toggle Render Mode: **Half-Block (`▀`)** $\leftrightarrow$ **Classic ASCII** |
 | `Space` | **Pause / Resume** simulation and orbital motion |
-| `[` / `]` | Time warp speed ($1\times, 60\times, 3600\times, 86400\times$) |
 | `Q` / `Esc` | Quit gracefully and restore terminal |
 
 ---

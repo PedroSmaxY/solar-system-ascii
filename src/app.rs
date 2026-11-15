@@ -113,9 +113,19 @@ impl App {
                         self.camera.orbit(0.0, -0.06);
                     }
                     KeyCode::Char('0') => {
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.sun.position;
-                        self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.5);
+                        if self.camera.target_body == BodyId::Sun {
+                            self.camera.toggle_sun_zoom();
+                        } else {
+                            self.camera.last_focused_planet = self.camera.target_body;
+                            let from_pos = self.physics.get_body(self.camera.target_body).position;
+                            let to_pos = self.physics.sun.position;
+                            self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.5);
+                        }
+                    }
+                    KeyCode::Char('z') | KeyCode::Char('Z') => {
+                        if self.camera.target_body == BodyId::Sun {
+                            self.camera.toggle_sun_zoom();
+                        }
                     }
                     KeyCode::Char('1') => {
                         self.camera.last_focused_planet = BodyId::Mercury;
@@ -362,11 +372,28 @@ impl App {
                     KeyCode::Char(' ') => {
                         self.paused = !self.paused;
                     }
+                    KeyCode::Char('t') | KeyCode::Char('T') => {
+                        // Quick cycle through astronomical time warp scales:
+                        // 10 min/s (600x) -> 1 day/s (86,400x) -> 1 month/s (2,592,000x) -> 1 year/s (31,536,000x) -> 5 years/s (157,680,000x) -> Realtime (1x)
+                        self.time_warp = if self.time_warp < 1000.0 {
+                            86_400.0
+                        } else if self.time_warp < 100_000.0 {
+                            2_592_000.0
+                        } else if self.time_warp < 10_000_000.0 {
+                            31_536_000.0
+                        } else if self.time_warp < 100_000_000.0 {
+                            157_680_000.0
+                        } else if self.time_warp < 250_000_000.0 {
+                            1.0
+                        } else {
+                            600.0
+                        };
+                    }
                     KeyCode::Char('[') | KeyCode::Char(',') => {
                         self.time_warp = (self.time_warp * 0.5).max(1.0);
                     }
                     KeyCode::Char(']') | KeyCode::Char('.') => {
-                        self.time_warp = (self.time_warp * 2.0).min(100_000.0);
+                        self.time_warp = (self.time_warp * 2.0).min(315_360_000.0);
                     }
                     _ => {}
                 }

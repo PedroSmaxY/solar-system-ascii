@@ -93,10 +93,24 @@ impl Hud {
                 BodyId::Pluto => "Pluto",
                 BodyId::Charon => "Charon",
             };
-            format!("Transit: {} -> {}", from, to)
+            if trans.from_body == BodyId::Sun && trans.to_body == BodyId::Sun {
+                if trans.end_view.distance_km < trans.start_view.distance_km {
+                    "Zoom: Sol Close-up".to_string()
+                } else {
+                    "Zoom: Visão do Sistema".to_string()
+                }
+            } else {
+                format!("Transit: {} -> {}", from, to)
+            }
         } else {
             match camera.target_body {
-                BodyId::Sun => "Solar System Overview (Sol)".to_string(),
+                BodyId::Sun => {
+                    if camera.distance_km > 5.0e7 {
+                        "Solar System Overview (Sol)".to_string()
+                    } else {
+                        "Sun (Sol · Close-up)".to_string()
+                    }
+                }
                 BodyId::Mercury => "Mercury (Mercúrio)".to_string(),
                 BodyId::Venus => "Venus (Vênus)".to_string(),
                 BodyId::Earth => "Earth (Terra)".to_string(),
@@ -150,8 +164,12 @@ impl Hud {
             format!("{:.0} min/s", time_warp / 60.0)
         } else if time_warp < 86400.0 {
             format!("{:.1} hr/s", time_warp / 3600.0)
+        } else if time_warp < 2_592_000.0 {
+            format!("{:.1} dias/s", time_warp / 86400.0)
+        } else if time_warp < 31_536_000.0 {
+            format!("{:.1} meses/s", time_warp / 2_592_000.0)
         } else {
-            format!("{:.1} days/s", time_warp / 86400.0)
+            format!("{:.1} anos/s", time_warp / 31_536_000.0)
         };
 
         // Top Header (Line 0)
@@ -284,10 +302,19 @@ impl Hud {
 
         // Contextual Clean Controls (Bottom Line)
         let (controls_full, controls_compact) = match camera.target_body {
-            BodyId::Sun => (
-                "[1-8] Planetas  [9] Plutão  [P] Asteroides  [L] Órbitas  [+/-] Zoom  [WASD] Mover  [Space] Pausa  [Q] Sair",
-                "[1-9] Planetas  [L] Órbitas  [+/-] Zoom  [Space] Pausa",
-            ),
+            BodyId::Sun => {
+                if camera.distance_km > 5.0e7 {
+                    (
+                        "[0/Z] Zoom no Sol  [1-9] Planetas  [Tab] Planeta  [T] Tempo  [L] Órbitas  [+/-] Zoom  [Space] Pausa",
+                        "[0] Zoom no Sol  [1-9] Planetas  [T] Tempo  [+/-] Zoom",
+                    )
+                } else {
+                    (
+                        "[0/Z] Visão do Sistema  [1-9] Planetas  [Tab] Planeta  [T] Tempo  [L] Órbitas  [R] Reset  [+/-] Zoom",
+                        "[0] Visão Geral  [1-9] Planetas  [T] Tempo  [+/-] Zoom",
+                    )
+                }
+            }
             BodyId::Venus => (
                 "[Tab] Geral  [1-9] Planetas  [V] Radar Magellan  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
                 "[Tab] Geral  [V] Radar  [R] Reset  [+/-] Zoom",

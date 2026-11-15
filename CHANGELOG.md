@@ -28,6 +28,8 @@ All notable changes to **AstroEngine ASCII** will be documented in this file.
   - Curated beauty viewing angles (`[R]`) for every celestial body, including Saturn's iconic oblique ring shadow perspective.
   - Contextual HUD displaying Magellan synthetic aperture radar mode (`[V]`) on Venus and moon navigation (`[M]`).
   - Seamless moon cycling on Mars: `[M]` switches between Phobos and Deimos (`Phobos <-> Deimos`).
+  - Sun Zoom Toggle: `[0]` and `[Z]` seamlessly zoom into the close-up Sun (2.8M km, coronal loops & granulation) and zoom back out to the full Solar System Orrery (1.1e10 km).
+  - Extended Astronomical Time Warp: acceleration scales up to **10 years / second** (`315,360,000x`) with key `[T]` to cycle major astronomical presets (10 min/s, 1 day/s, 1 month/s, 1 year/s, 5 years/s, 1x).
 
 #### 🎨 Application Packaging & Icons
 - **Native Executable Icons**:

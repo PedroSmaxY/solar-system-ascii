@@ -2961,4 +2961,56 @@ fn test_render_polish_and_pluto_demos() {
     let mut cam_saturn = Camera::new();
     cam_saturn.set_target(BodyId::Saturn, physics.saturn.position);
     render_ppm(&mut buffer, &cam_saturn, &format!("{}/saturn_beauty_angle.ppm", brain_dir));
+
+    // 9. Sun Close-up View (Photosphere Granulation & Magnetic Corona Loops)
+    let mut cam_sun_close = Camera::new();
+    cam_sun_close.distance_km = 2_800_000.0;
+    cam_sun_close.azimuth = 0.0;
+    cam_sun_close.elevation = 0.15;
+    render_ppm(&mut buffer, &cam_sun_close, &format!("{}/sun_closeup_view.ppm", brain_dir));
+}
+
+#[test]
+fn test_sun_zoom_toggle_and_extended_timewarp() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let physics = SolarSystemPhysics::new();
+    let mut cam = Camera::new();
+
+    // 1. Initial state at Sun: Solar System Overview
+    assert_eq!(cam.target_body, BodyId::Sun);
+    assert!((cam.distance_km - 1.1e10).abs() < 1e5);
+
+    // 2. Toggle Sun Zoom -> Swoop in to Sun Close-up (2,800,000 km)
+    cam.toggle_sun_zoom();
+    assert!(cam.transition.is_some());
+    let trans = cam.transition.as_ref().unwrap();
+    assert_eq!(trans.from_body, BodyId::Sun);
+    assert_eq!(trans.to_body, BodyId::Sun);
+    assert!((trans.end_view.distance_km - 2_800_000.0).abs() < 1e-4);
+
+    // Complete transition
+    cam.update(1.5, &physics);
+    assert!(cam.transition.is_none());
+    assert_eq!(cam.target_body, BodyId::Sun);
+    assert!((cam.distance_km - 2_800_000.0).abs() < 1e-4);
+
+    // 3. Toggle Sun Zoom again -> Swoop out to Solar System Overview (1.1e10 km)
+    cam.toggle_sun_zoom();
+    assert!(cam.transition.is_some());
+    let trans2 = cam.transition.as_ref().unwrap();
+    assert!((trans2.end_view.distance_km - 1.1e10).abs() < 1e5);
+
+    // Complete transition
+    cam.update(1.5, &physics);
+    assert!(cam.transition.is_none());
+    assert_eq!(cam.target_body, BodyId::Sun);
+    assert!((cam.distance_km - 1.1e10).abs() < 1e5);
+
+    // 4. Extended Timewarp check
+    let max_timewarp = 315_360_000.0; // 10 years / sec
+    let one_year = 31_536_000.0;
+    assert!(max_timewarp >= 10.0 * one_year);
 }

@@ -333,6 +333,44 @@ impl Camera {
         });
     }
 
+    /// Smoothly toggle between close-up view of the Sun and the full Solar System Orrery view.
+    pub fn toggle_sun_zoom(&mut self) {
+        if self.target_body != BodyId::Sun {
+            return;
+        }
+        self.cancel_transition();
+        let start_view = BodyViewState {
+            azimuth: self.azimuth,
+            elevation: self.elevation,
+            distance_km: self.distance_km,
+        };
+
+        // If currently in the solar system overview (> 50 million km), zoom into close-up Sun view
+        let end_view = if self.distance_km > 5.0e7 {
+            BodyViewState {
+                azimuth: 0.0,
+                elevation: 0.15,
+                distance_km: 2_800_000.0, // Photorealistic solar disk close-up framing corona & loops
+            }
+        } else {
+            BodyViewState {
+                azimuth: 0.0,
+                elevation: 0.0,
+                distance_km: 1.1e10, // Top-down solar system orrery view
+            }
+        };
+
+        self.transition = Some(CameraTransition {
+            from_body: BodyId::Sun,
+            to_body: BodyId::Sun,
+            start_view,
+            end_view,
+            elapsed_secs: 0.0,
+            duration_secs: 1.2,
+            journey_dist_km: 0.0,
+        });
+    }
+
     /// Cancel any active transition immediately.
     pub fn cancel_transition(&mut self) {
         if let Some(trans) = self.transition.take() {
@@ -370,14 +408,18 @@ impl Camera {
             let log_end = trans.end_view.distance_km.ln();
             let base_log = log_start * (1.0 - s) + log_end * s;
 
-            // Apex altitude pulls out to reveal interplanetary scale
-            let apex_dist = (trans.journey_dist_km * 0.70)
-                .max(trans.start_view.distance_km * 1.5)
-                .max(trans.end_view.distance_km * 1.5);
-            let apex_log = apex_dist.ln();
-            let arc_height = (apex_log - base_log).max(0.0);
-            let arc_factor = 4.0 * s * (1.0 - s); // Parabola peaking at 1.0 at s=0.5
-            let current_log = base_log + arc_factor * arc_height;
+            // Apex altitude pulls out to reveal interplanetary scale (only for spatial travel between bodies)
+            let current_log = if trans.journey_dist_km > 0.0 {
+                let apex_dist = (trans.journey_dist_km * 0.70)
+                    .max(trans.start_view.distance_km * 1.5)
+                    .max(trans.end_view.distance_km * 1.5);
+                let apex_log = apex_dist.ln();
+                let arc_height = (apex_log - base_log).max(0.0);
+                let arc_factor = 4.0 * s * (1.0 - s); // Parabola peaking at 1.0 at s=0.5
+                base_log + arc_factor * arc_height
+            } else {
+                base_log
+            };
             self.distance_km = current_log.exp();
 
             if progress >= 1.0 {
