@@ -36,7 +36,7 @@ os.makedirs(TMP_DIR, exist_ok=True)
 
 URLS = {
     "jupiter": "https://raw.githubusercontent.com/CelestiaProject/CelestiaContent/master/textures/hires/jupiter.jpg",
-    "io": "https://raw.githubusercontent.com/CelestiaProject/CelestiaContent/master/textures/hires/io.png",
+    "io": "https://upload.wikimedia.org/wikipedia/commons/e/e4/Io_from_Galileo_and_Voyager_missions.jpg",
     "europa": "https://raw.githubusercontent.com/CelestiaProject/CelestiaContent/master/textures/hires/europa.jpg",
     "ganymede": "https://raw.githubusercontent.com/CelestiaProject/CelestiaContent/master/textures/hires/ganymede.jpg",
     "callisto": "https://raw.githubusercontent.com/CelestiaProject/CelestiaContent/master/textures/hires/callisto.jpg",
@@ -55,12 +55,18 @@ def download_file(url, out_path):
         print(f"Cached: {out_path}")
 
 def downsample_to_bmp(src_path, dst_bmp_path, width, height):
-    # Use sips (native macOS image processor)
+    # If source is PNG, convert to intermediate JPEG to cleanly strip alpha channel
+    current_src = src_path
+    if src_path.endswith(".png"):
+        intermediate_jpg = src_path + ".jpg"
+        subprocess.run(["sips", "-s", "format", "jpeg", src_path, "--out", intermediate_jpg], check=True, stdout=subprocess.DEVNULL)
+        current_src = intermediate_jpg
+
     cmd = [
         "sips",
         "-z", str(height), str(width),
         "-s", "format", "bmp",
-        src_path,
+        current_src,
         "--out", dst_bmp_path
     ]
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)

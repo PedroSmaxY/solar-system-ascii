@@ -4,15 +4,18 @@ use crate::math::{Ray, Vec3};
 use crate::physics::body::BodyId;
 use crate::physics::ephemeris::{
     CERES_RADIUS_EQ_KM, CERES_RADIUS_POL_KM, DEIMOS_SEMI_AXES_KM, PHOBOS_SEMI_AXES_KM,
-    VESTA_SEMI_AXES_KM, JUPITER_RADIUS_EQ_KM, JUPITER_RADIUS_POL_KM, IO_RADIUS_KM,
-    EUROPA_RADIUS_KM, GANYMEDE_RADIUS_KM, CALLISTO_RADIUS_KM,
+    VESTA_SEMI_AXES_KM, JUPITER_RADIUS_EQ_KM, JUPITER_RADIUS_POL_KM,
 };
 use crate::physics::SolarSystemPhysics;
 use crate::render::buffer::{FrameBuffer, Pixel, RenderMode};
+use crate::render::callisto_shader::CallistoShader;
 use crate::render::camera::Camera;
 use crate::render::ceres_shader::CeresShader;
 use crate::render::deimos_shader::DeimosShader;
 use crate::render::earth_shader::EarthShader;
+use crate::render::europa_shader::EuropaShader;
+use crate::render::ganymede_shader::GanymedeShader;
+use crate::render::io_shader::IoShader;
 use crate::render::jupiter_shader::JupiterShader;
 use crate::render::mars_shader::MarsShader;
 use crate::render::mercury_shader::MercuryShader;
@@ -38,6 +41,10 @@ pub struct Raycaster {
     pub ceres_shader: CeresShader,
     pub vesta_shader: VestaShader,
     pub jupiter_shader: JupiterShader,
+    pub io_shader: IoShader,
+    pub europa_shader: EuropaShader,
+    pub ganymede_shader: GanymedeShader,
+    pub callisto_shader: CallistoShader,
 }
 
 struct SphereHit {
@@ -61,6 +68,10 @@ impl Raycaster {
             ceres_shader: CeresShader::new(),
             vesta_shader: VestaShader::new(),
             jupiter_shader: JupiterShader::new(),
+            io_shader: IoShader::new(),
+            europa_shader: EuropaShader::new(),
+            ganymede_shader: GanymedeShader::new(),
+            callisto_shader: CallistoShader::new(),
         }
     }
 
@@ -205,22 +216,22 @@ impl Raycaster {
         let io_pos = physics.io.position;
         let io_rad = physics.io.radius_km;
         let io_mat = physics.io.orientation_matrix();
-        let _io_mat_inv = io_mat.transpose();
+        let io_mat_inv = io_mat.transpose();
 
         let europa_pos = physics.europa.position;
         let europa_rad = physics.europa.radius_km;
         let europa_mat = physics.europa.orientation_matrix();
-        let _europa_mat_inv = europa_mat.transpose();
+        let europa_mat_inv = europa_mat.transpose();
 
         let ganymede_pos = physics.ganymede.position;
         let ganymede_rad = physics.ganymede.radius_km;
         let ganymede_mat = physics.ganymede.orientation_matrix();
-        let _ganymede_mat_inv = ganymede_mat.transpose();
+        let ganymede_mat_inv = ganymede_mat.transpose();
 
         let callisto_pos = physics.callisto.position;
         let callisto_rad = physics.callisto.radius_km;
         let callisto_mat = physics.callisto.orientation_matrix();
-        let _callisto_mat_inv = callisto_mat.transpose();
+        let callisto_mat_inv = callisto_mat.transpose();
 
         let mut hit_mask: Vec<bool> = vec![false; cols * v_height];
 
@@ -595,20 +606,28 @@ impl Raycaster {
                                 self.jupiter_shader.shade(local_norm, local_sun, local_view)
                             }
                             BodyId::Io => {
-                                let n_dot_l = hit.world_norm.dot(sun_dir).max(0.0);
-                                [(230.0 * n_dot_l) as u8, (205.0 * n_dot_l) as u8, (75.0 * n_dot_l) as u8]
+                                let local_norm = io_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = io_mat_inv.mul_vec(sun_dir);
+                                let local_view = io_mat_inv.mul_vec(view_dir);
+                                self.io_shader.shade(local_norm, local_sun, local_view)
                             }
                             BodyId::Europa => {
-                                let n_dot_l = hit.world_norm.dot(sun_dir).max(0.0);
-                                [(225.0 * n_dot_l) as u8, (220.0 * n_dot_l) as u8, (215.0 * n_dot_l) as u8]
+                                let local_norm = europa_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = europa_mat_inv.mul_vec(sun_dir);
+                                let local_view = europa_mat_inv.mul_vec(view_dir);
+                                self.europa_shader.shade(local_norm, local_sun, local_view)
                             }
                             BodyId::Ganymede => {
-                                let n_dot_l = hit.world_norm.dot(sun_dir).max(0.0);
-                                [(160.0 * n_dot_l) as u8, (150.0 * n_dot_l) as u8, (140.0 * n_dot_l) as u8]
+                                let local_norm = ganymede_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = ganymede_mat_inv.mul_vec(sun_dir);
+                                let local_view = ganymede_mat_inv.mul_vec(view_dir);
+                                self.ganymede_shader.shade(local_norm, local_sun, local_view)
                             }
                             BodyId::Callisto => {
-                                let n_dot_l = hit.world_norm.dot(sun_dir).max(0.0);
-                                [(120.0 * n_dot_l) as u8, (115.0 * n_dot_l) as u8, (110.0 * n_dot_l) as u8]
+                                let local_norm = callisto_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = callisto_mat_inv.mul_vec(sun_dir);
+                                let local_view = callisto_mat_inv.mul_vec(view_dir);
+                                self.callisto_shader.shade(local_norm, local_sun, local_view)
                             }
                         };
 

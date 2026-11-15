@@ -148,28 +148,28 @@ impl Camera {
                 distance_km: 850.0,   // Dedicated perspective framing Vesta's 286 km triaxial disk
             },
             BodyId::Jupiter => BodyViewState {
-                azimuth: 2.10,        // Framing Great Red Spot at -22°S, equatorial zone & Galilean moons
-                elevation: 0.15,
+                azimuth: -1.35,       // Framing sunlit disk, Great Red Spot at -22°S, equatorial belts & limb darkening
+                elevation: 0.12,
                 distance_km: 210_000.0, // Framing ~140,000 km oblate gas giant disk
             },
             BodyId::Io => BodyViewState {
-                azimuth: 1.80,        // Framing Pele & Loki volcanic calderas and sulfur plains
-                elevation: 0.15,
+                azimuth: -1.40,       // Framing sunlit Pele & Loki volcanic calderas and sulfur plains
+                elevation: 0.14,
                 distance_km: 5_500.0,  // Framing 3,640 km disk
             },
             BodyId::Europa => BodyViewState {
-                azimuth: 2.20,        // Framing bright ice crust, Conamara Chaos & red-brown lineae fractures
-                elevation: 0.15,
+                azimuth: -1.38,       // Framing sunlit ice crust, Conamara Chaos & red-brown lineae fractures
+                elevation: 0.14,
                 distance_km: 4_800.0,  // Framing 3,120 km disk
             },
             BodyId::Ganymede => BodyViewState {
-                azimuth: 1.95,        // Framing dark polygonal Galileo Regio and bright grooved terrain
-                elevation: 0.15,
+                azimuth: -1.36,       // Framing sunlit dark polygonal Galileo Regio and bright grooved terrain
+                elevation: 0.14,
                 distance_km: 7_800.0,  // Framing 5,268 km disk (largest moon)
             },
             BodyId::Callisto => BodyViewState {
-                azimuth: 2.10,        // Framing heavily cratered crust and Valhalla multi-ring basin
-                elevation: 0.15,
+                azimuth: -1.34,       // Framing sunlit cratered crust and Valhalla multi-ring basin
+                elevation: 0.14,
                 distance_km: 7_200.0,  // Framing 4,820 km disk
             },
         }

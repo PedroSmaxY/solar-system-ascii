@@ -1,10 +1,14 @@
 pub mod buffer;
+pub mod callisto_shader;
 pub mod camera;
 pub mod ceres_shader;
 pub mod deimos_shader;
 pub mod earth_shader;
+pub mod europa_shader;
 pub mod fluid;
+pub mod ganymede_shader;
 pub mod hud;
+pub mod io_shader;
 pub mod jupiter_shader;
 pub mod mars_shader;
 pub mod mercury_shader;

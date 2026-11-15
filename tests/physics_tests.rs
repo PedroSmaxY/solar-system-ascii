@@ -1942,3 +1942,215 @@ fn test_render_asteroid_belt_demo() {
         "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/asteroid_belt_overview.ppm",
     );
 }
+
+#[test]
+fn test_jupiter_keplerian_orbit_and_oblate_disk() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::ephemeris::{
+        JUPITER_RADIUS_EQ_KM, JUPITER_RADIUS_POL_KM, JUPITER_MEAN_RADIUS_KM,
+    };
+    use solar_system_ascii::physics::SolarSystemPhysics;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let jup = physics.get_body(BodyId::Jupiter);
+    let dist_to_sun = jup.position.length();
+
+    let to_sun = (solar_system_ascii::math::Vec3::ZERO - jup.position).normalize();
+    let sun_az = to_sun.x.atan2(to_sun.z);
+    println!("Jupiter pos: {:?}, to_sun: {:?}, sun_az: {}", jup.position, to_sun, sun_az);
+
+    // Jupiter perihelion ~740.5M km, aphelion ~816.6M km (mean ~778.5M km)
+    assert!(dist_to_sun > 740_000_000.0 && dist_to_sun < 820_000_000.0);
+
+    // Oblate spheroid flattening: f = (a - c) / a = 0.06487
+    let flattening = (JUPITER_RADIUS_EQ_KM - JUPITER_RADIUS_POL_KM) / JUPITER_RADIUS_EQ_KM;
+    assert!((flattening - 0.06487).abs() < 1e-4);
+    assert!((JUPITER_MEAN_RADIUS_KM - 69_911.0).abs() < 1.0);
+}
+
+#[test]
+fn test_laplace_resonance_io_europa_ganymede() {
+    use solar_system_ascii::physics::ephemeris::{
+        IO_SIDEREAL_DAY_SECS, EUROPA_SIDEREAL_DAY_SECS, GANYMEDE_SIDEREAL_DAY_SECS,
+    };
+    use solar_system_ascii::physics::SolarSystemPhysics;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let jup_pos = physics.jupiter.position;
+    let io_r = (physics.io.position - jup_pos).length();
+    let europa_r = (physics.europa.position - jup_pos).length();
+    let ganymede_r = (physics.ganymede.position - jup_pos).length();
+    let callisto_r = (physics.callisto.position - jup_pos).length();
+
+    // Check semi-major axis ordering: Io < Europa < Ganymede < Callisto
+    assert!(io_r < europa_r);
+    assert!(europa_r < ganymede_r);
+    assert!(ganymede_r < callisto_r);
+
+    // Exact Laplace resonance 4:2:1
+    let ratio_europa_io = EUROPA_SIDEREAL_DAY_SECS / IO_SIDEREAL_DAY_SECS;
+    let ratio_ganymede_io = GANYMEDE_SIDEREAL_DAY_SECS / IO_SIDEREAL_DAY_SECS;
+    assert!((ratio_europa_io - 2.0).abs() < 1e-3);
+    assert!((ratio_ganymede_io - 4.0).abs() < 1e-3);
+}
+
+#[test]
+fn test_jovian_minor_moon_swarm_groups() {
+    use solar_system_ascii::physics::jovian_swarm::{JovianMoonGroup, MINOR_MOON_COUNT};
+    use solar_system_ascii::physics::SolarSystemPhysics;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    assert_eq!(physics.jovian_swarm.count(), MINOR_MOON_COUNT);
+    assert_eq!(MINOR_MOON_COUNT, 91);
+
+    let mut amalthea_count = 0;
+    let mut himalia_count = 0;
+    let mut retrograde_count = 0;
+
+    for (i, moon) in physics.jovian_swarm.moons.iter().enumerate() {
+        match moon.group {
+            JovianMoonGroup::Amalthea => {
+                amalthea_count += 1;
+                assert!(moon.a < 250_000.0); // Inside synchronous radius
+            }
+            JovianMoonGroup::Himalia => {
+                himalia_count += 1;
+                assert!(moon.inc < 0.6); // Prograde (~28 deg = 0.49 rad)
+            }
+            JovianMoonGroup::Ananke | JovianMoonGroup::Carme | JovianMoonGroup::Pasiphae => {
+                retrograde_count += 1;
+                assert!(moon.inc > 2.0); // Retrograde (145° - 165° > 2.5 rad)
+            }
+            _ => {}
+        }
+
+        let pos = physics.jovian_swarm.calculate_position(i, physics.jupiter.position, 100.0);
+        assert!(!pos.x.is_nan() && !pos.y.is_nan() && !pos.z.is_nan());
+    }
+
+    assert_eq!(amalthea_count, 4); // Metis, Adrastea, Amalthea, Thebe
+    assert_eq!(himalia_count, 10);
+    assert!(retrograde_count >= 70);
+}
+
+#[test]
+fn test_render_jupiter_galilean_demo() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, Pixel, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let cols = 160;
+    let lines = 50;
+    let mut buffer = FrameBuffer::new(cols, lines, RenderMode::HalfBlock);
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let raycaster = Raycaster::new();
+    let mut cam = Camera::new();
+
+    let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
+        buf.pixels.fill(Pixel::BLACK);
+        raycaster.render_frame(buf, camera, &physics, 1, 0.0);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+
+        let v_h = buf.virtual_height();
+        let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
+        for p in &buf.pixels {
+            ppm.push(p.r);
+            ppm.push(p.g);
+            ppm.push(p.b);
+        }
+        std::fs::write(path, ppm).unwrap();
+    };
+
+    let brain_dir = "/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf";
+
+    // 1. Jupiter Full Disk with Great Red Spot & Atmospheric Limb Darkening
+    cam.set_target(BodyId::Jupiter, physics.jupiter.position);
+    cam.azimuth = -1.35;
+    cam.elevation = 0.12;
+    cam.distance_km = 210_000.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/jupiter_full_disk_grs.ppm", brain_dir));
+
+    // 2. Jupiter System Overview (Framing Jupiter + Galilean Moons + Minor Moons Swarm)
+    cam.set_target(BodyId::Jupiter, physics.jupiter.position);
+    cam.azimuth = -1.15;
+    cam.elevation = 0.35;
+    cam.distance_km = 2_800_000.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/jupiter_system_overview.ppm", brain_dir));
+
+    // 3. Io Volcanic Close-up (Sulfur plains, Loki/Pele calderas)
+    cam.set_target(BodyId::Io, physics.io.position);
+    cam.azimuth = -1.40;
+    cam.elevation = 0.14;
+    cam.distance_km = 5_500.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/io_volcanoes_close_up.ppm", brain_dir));
+
+    // 4. Europa Ice Crust Close-up (Conamara Chaos, red-brown lineae fractures)
+    cam.set_target(BodyId::Europa, physics.europa.position);
+    cam.azimuth = -1.38;
+    cam.elevation = 0.14;
+    cam.distance_km = 4_800.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/europa_ice_lineae_close_up.ppm", brain_dir));
+
+    // 5. Ganymede Grooved Terrain Close-up (Uruk Sulcus vs Galileo Regio)
+    cam.set_target(BodyId::Ganymede, physics.ganymede.position);
+    cam.azimuth = -1.36;
+    cam.elevation = 0.14;
+    cam.distance_km = 7_800.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/ganymede_grooved_terrain.ppm", brain_dir));
+
+    // 6. Callisto Valhalla Basin Close-up (Multi-ring ripple basin & saturated craters)
+    cam.set_target(BodyId::Callisto, physics.callisto.position);
+    cam.azimuth = -1.34;
+    cam.elevation = 0.14;
+    cam.distance_km = 7_200.0;
+    render_ppm(&mut buffer, &cam, &format!("{}/callisto_valhalla_crater.ppm", brain_dir));
+}
+
+#[test]
+fn test_jupiter_system_benchmark_framerate() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::raycaster::Raycaster;
+    use std::time::Instant;
+
+    let cols = 160;
+    let lines = 50;
+    let mut buffer = FrameBuffer::new(cols, lines, RenderMode::HalfBlock);
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let raycaster = Raycaster::new();
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Jupiter, physics.jupiter.position);
+    cam.azimuth = -1.35;
+    cam.elevation = 0.12;
+    cam.distance_km = 210_000.0;
+
+    // Warm-up
+    raycaster.render_frame(&mut buffer, &cam, &physics, 1, 0.0);
+
+    let frames = 100;
+    let start = Instant::now();
+    for f in 0..frames {
+        physics.update(f as f64 * 0.1);
+        cam.update(0.016, &physics);
+        raycaster.render_frame(&mut buffer, &cam, &physics, f as u64, f as f64 * 0.1);
+    }
+    let elapsed = start.elapsed();
+    let fps = frames as f64 / elapsed.as_secs_f64();
+    println!("Jupiter System Benchmark: {} frames in {:.3}s ({:.1} FPS)", frames, elapsed.as_secs_f64(), fps);
+    assert!(fps > 100.0, "FPS {:.1} below minimum performance threshold", fps);
+}
