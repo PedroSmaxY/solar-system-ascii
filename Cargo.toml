@@ -1,9 +1,9 @@
 [package]
 name = "solar-system-ascii"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["PedroSmaxY <pedrohenrique.nv@icloud.com>"]
-description = "AstroEngine ASCII - Real-time 3D Solar System & Earth Simulator in TrueColor ANSI"
+description = "AstroEngine ASCII - Real-time 3D Solar System simulator in TrueColor ANSI Half-Block raymarching"
 
 [dependencies]
 crossterm = "0.28"
