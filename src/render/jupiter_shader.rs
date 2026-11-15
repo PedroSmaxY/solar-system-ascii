@@ -3,50 +3,30 @@
 //! - Accurate Jovian atmospheric limb darkening (Minnaert k ~ 0.82) and atmospheric scattering.
 //! - Oblate spheroid geometry (polar flattening f = 0.06487, 71,492 km eq vs 66,854 km pol).
 //! - Differential zonal wind drift and Great Red Spot at -22° S.
-//! - Autonomous procedural fallback if binary asset is unavailable.
 
 use crate::math::Vec3;
 use std::f64::consts::PI;
-use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+
+pub const JUPITER_SYSTEM_DATA: &[u8] = include_bytes!("../../assets/jupiter_system_data.bin");
 
 const TWO_PI: f64 = 2.0 * PI;
-const TEX_WIDTH: usize = 1024;
-const TEX_HEIGHT: usize = 512;
-const MAP_BYTES: usize = TEX_WIDTH * TEX_HEIGHT * 3;
+pub const TEX_WIDTH: usize = 1024;
+pub const TEX_HEIGHT: usize = 512;
+pub const PIXELS: usize = TEX_WIDTH * TEX_HEIGHT;
 
 pub struct JupiterShader {
-    jupiter_rgb: Option<Vec<u8>>,
+    jupiter_rgb: &'static [u8],
 }
 
 impl JupiterShader {
     pub fn new() -> Self {
-        let jupiter_rgb = Self::load_jupiter_texture();
+        assert_eq!(&JUPITER_SYSTEM_DATA[0..8], b"ASTRO_JP", "Invalid jupiter_system_data.bin header");
+        let jupiter_rgb = &JUPITER_SYSTEM_DATA[16..16 + 3 * PIXELS];
         Self { jupiter_rgb }
-    }
-
-    fn load_jupiter_texture() -> Option<Vec<u8>> {
-        let mut file = File::open("assets/jupiter_system_data.bin").ok()?;
-        let mut header = [0u8; 8];
-        file.read_exact(&mut header).ok()?;
-        if &header != b"ASTRO_JP" {
-            return None;
-        }
-
-        // Jupiter RGB texture starts at byte offset 16
-        file.seek(SeekFrom::Start(16)).ok()?;
-        let mut buf = vec![0u8; MAP_BYTES];
-        file.read_exact(&mut buf).ok()?;
-        Some(buf)
     }
 
     /// Sample the 1024x512 cylindrical projection using bilinear interpolation.
     fn sample_texture_bilinear(&self, u: f64, v: f64) -> [u8; 3] {
-        let rgb_data = match self.jupiter_rgb {
-            Some(ref data) => data,
-            None => return self.procedural_fallback(v),
-        };
-
         let u_clamped = u.rem_euclid(1.0);
         let v_clamped = v.clamp(0.0001, 0.9999);
 
@@ -68,10 +48,10 @@ impl JupiterShader {
 
         let mut out = [0u8; 3];
         for c in 0..3 {
-            let c00 = rgb_data[idx00 + c] as f64;
-            let c10 = rgb_data[idx10 + c] as f64;
-            let c01 = rgb_data[idx01 + c] as f64;
-            let c11 = rgb_data[idx11 + c] as f64;
+            let c00 = self.jupiter_rgb[idx00 + c] as f64;
+            let c10 = self.jupiter_rgb[idx10 + c] as f64;
+            let c01 = self.jupiter_rgb[idx01 + c] as f64;
+            let c11 = self.jupiter_rgb[idx11 + c] as f64;
 
             let top = c00 * (1.0 - tx) + c10 * tx;
             let bot = c01 * (1.0 - tx) + c11 * tx;
@@ -80,24 +60,6 @@ impl JupiterShader {
         }
 
         out
-    }
-
-    /// High-fidelity procedural fallback if asset file is missing
-    fn procedural_fallback(&self, v: f64) -> [u8; 3] {
-        let lat = (0.5 - v) * PI;
-        let sin_lat = lat.sin();
-        let bands = (sin_lat * 18.0).sin();
-
-        if bands > 0.3 {
-            // Light yellowish-white ammonia ice zones
-            [238, 228, 205]
-        } else if bands < -0.3 {
-            // Dark brown/reddish belt
-            [175, 110, 75]
-        } else {
-            // Intermediate tawny cream
-            [210, 168, 125]
-        }
     }
 
     /// Primary shader for Jupiter surface pixel.
@@ -117,7 +79,7 @@ impl JupiterShader {
         let n_dot_v = local_norm.dot(view_dir).max(0.001);
 
         if n_dot_l <= 0.0 {
-            // Pitch black Jovian nightside (faint ring/starlight negligible)
+            // Pitch black Jovian nightside
             return [0, 0, 0];
         }
 
