@@ -23,6 +23,15 @@ pub const SIDEREAL_DAY_SECS: f64 = 86_164.0905;
 pub const MERCURY_SIDEREAL_DAY_SECS: f64 = 58.6462 * 86_400.0;
 pub const VENUS_SIDEREAL_DAY_SECS: f64 = 243.025 * 86_400.0;
 pub const MARS_SIDEREAL_DAY_SECS: f64 = 88_642.68; // 24h 37m 22.7s (Martian Sol)
+pub const CERES_RADIUS_EQ_KM: f64 = 482.6;
+pub const CERES_RADIUS_POL_KM: f64 = 445.6;
+pub const CERES_MEAN_RADIUS_KM: f64 = 473.0;
+pub const CERES_AXIAL_TILT_RAD: f64 = 4.0 * PI / 180.0;
+pub const CERES_SIDEREAL_DAY_SECS: f64 = 32_667.4; // 9.074h
+pub const VESTA_SEMI_AXES_KM: (f64, f64, f64) = (286.3, 278.6, 223.2); // (X, Z, Y)
+pub const VESTA_MEAN_RADIUS_KM: f64 = 262.7;
+pub const VESTA_AXIAL_TILT_RAD: f64 = 27.2 * PI / 180.0;
+pub const VESTA_SIDEREAL_DAY_SECS: f64 = 19_231.2; // 5.342h
 
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]
@@ -132,6 +141,32 @@ impl KeplerOrbit {
             peri: 0.0,
             m0: 1.20,
             period: 30.298 * 3_600.0, // 109,072.8 s
+        }
+    }
+
+    /// Ceres's orbit around the Sun (J2000 Keplerian elements)
+    pub fn ceres_around_sun() -> Self {
+        Self {
+            a: 413_970_000.0, // 2.7675 AU in km
+            e: 0.0758,
+            i: 10.59 * PI / 180.0,
+            node: 80.3 * PI / 180.0,
+            peri: 73.6 * PI / 180.0,
+            m0: 95.9 * PI / 180.0,
+            period: 1681.6 * 86_400.0, // 4.60 years
+        }
+    }
+
+    /// Vesta's orbit around the Sun (J2000 Keplerian elements)
+    pub fn vesta_around_sun() -> Self {
+        Self {
+            a: 353_370_000.0, // 2.3618 AU in km
+            e: 0.0887,
+            i: 7.14 * PI / 180.0,
+            node: 103.8 * PI / 180.0,
+            peri: 151.2 * PI / 180.0,
+            m0: 20.8 * PI / 180.0,
+            period: 1325.7 * 86_400.0, // 3.63 years
         }
     }
 

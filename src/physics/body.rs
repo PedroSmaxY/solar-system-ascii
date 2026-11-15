@@ -2,11 +2,12 @@
 
 use crate::math::{Mat3, Vec3};
 use crate::physics::ephemeris::{
-    KeplerOrbit, DEIMOS_MEAN_RADIUS_KM, EARTH_AXIAL_TILT_RAD, EARTH_RADIUS_KM,
-    MARS_AXIAL_TILT_RAD, MARS_RADIUS_KM, MARS_SIDEREAL_DAY_SECS, MERCURY_AXIAL_TILT_RAD,
-    MERCURY_RADIUS_KM, MERCURY_SIDEREAL_DAY_SECS, MOON_RADIUS_KM, PHOBOS_MEAN_RADIUS_KM,
-    SIDEREAL_DAY_SECS, SUN_RADIUS_KM, VENUS_AXIAL_TILT_RAD, VENUS_RADIUS_KM,
-    VENUS_SIDEREAL_DAY_SECS,
+    KeplerOrbit, CERES_AXIAL_TILT_RAD, CERES_MEAN_RADIUS_KM, CERES_SIDEREAL_DAY_SECS,
+    DEIMOS_MEAN_RADIUS_KM, EARTH_AXIAL_TILT_RAD, EARTH_RADIUS_KM, MARS_AXIAL_TILT_RAD,
+    MARS_RADIUS_KM, MARS_SIDEREAL_DAY_SECS, MERCURY_AXIAL_TILT_RAD, MERCURY_RADIUS_KM,
+    MERCURY_SIDEREAL_DAY_SECS, MOON_RADIUS_KM, PHOBOS_MEAN_RADIUS_KM, SIDEREAL_DAY_SECS,
+    SUN_RADIUS_KM, VENUS_AXIAL_TILT_RAD, VENUS_RADIUS_KM, VENUS_SIDEREAL_DAY_SECS,
+    VESTA_AXIAL_TILT_RAD, VESTA_MEAN_RADIUS_KM, VESTA_SIDEREAL_DAY_SECS,
 };
 use std::f64::consts::PI;
 
@@ -20,6 +21,8 @@ pub enum BodyId {
     Mars,
     Phobos,
     Deimos,
+    Ceres,
+    Vesta,
 }
 
 impl BodyId {
@@ -33,6 +36,8 @@ impl BodyId {
             BodyId::Mars => 5,
             BodyId::Phobos => 6,
             BodyId::Deimos => 7,
+            BodyId::Ceres => 8,
+            BodyId::Vesta => 9,
         }
     }
 }
@@ -173,6 +178,36 @@ impl CelestialBody {
             orbit: Some(KeplerOrbit::deimos_around_mars()),
             parent: Some(BodyId::Mars),
             position: Vec3::new(227_939_200.0 + 23_463.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_ceres() -> Self {
+        Self {
+            id: BodyId::Ceres,
+            name: "Ceres",
+            radius_km: CERES_MEAN_RADIUS_KM,
+            mass_kg: 9.383e20,
+            axial_tilt: CERES_AXIAL_TILT_RAD,
+            rotation_period_secs: CERES_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::ceres_around_sun()),
+            parent: Some(BodyId::Sun),
+            position: Vec3::new(413_970_000.0, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_vesta() -> Self {
+        Self {
+            id: BodyId::Vesta,
+            name: "Vesta",
+            radius_km: VESTA_MEAN_RADIUS_KM,
+            mass_kg: 2.59e20,
+            axial_tilt: VESTA_AXIAL_TILT_RAD,
+            rotation_period_secs: VESTA_SIDEREAL_DAY_SECS,
+            orbit: Some(KeplerOrbit::vesta_around_sun()),
+            parent: Some(BodyId::Sun),
+            position: Vec3::new(353_370_000.0, 0.0, 0.0),
             rotation_angle: 0.0,
         }
     }

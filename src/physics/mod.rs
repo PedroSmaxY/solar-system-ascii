@@ -1,6 +1,8 @@
+pub mod asteroid_belt;
 pub mod body;
 pub mod ephemeris;
 
+use self::asteroid_belt::AsteroidField;
 use self::body::{BodyId, CelestialBody};
 use crate::math::Vec3;
 use ephemeris::TWO_PI;
@@ -14,6 +16,9 @@ pub struct SolarSystemPhysics {
     pub mars: CelestialBody,
     pub phobos: CelestialBody,
     pub deimos: CelestialBody,
+    pub ceres: CelestialBody,
+    pub vesta: CelestialBody,
+    pub asteroid_field: AsteroidField,
 }
 
 impl SolarSystemPhysics {
@@ -27,6 +32,9 @@ impl SolarSystemPhysics {
             mars: CelestialBody::new_mars(),
             phobos: CelestialBody::new_phobos(),
             deimos: CelestialBody::new_deimos(),
+            ceres: CelestialBody::new_ceres(),
+            vesta: CelestialBody::new_vesta(),
+            asteroid_field: AsteroidField::new(),
         }
     }
 
@@ -83,6 +91,18 @@ impl SolarSystemPhysics {
             // Synchronous tidal locking: Longest axis permanently faces Mars
             self.deimos.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
         }
+
+        // 9. Ceres orbits Sun (dwarf planet, e=0.0758, 9.07h rotation)
+        if let Some(ref orb) = self.ceres.orbit {
+            self.ceres.position = orb.calculate_position(t);
+        }
+        self.ceres.rotation_angle = (t * (TWO_PI / self.ceres.rotation_period_secs)).rem_euclid(TWO_PI);
+
+        // 10. Vesta orbits Sun (protoplanet, e=0.0887, 5.34h rotation)
+        if let Some(ref orb) = self.vesta.orbit {
+            self.vesta.position = orb.calculate_position(t);
+        }
+        self.vesta.rotation_angle = (t * (TWO_PI / self.vesta.rotation_period_secs)).rem_euclid(TWO_PI);
     }
 
     pub fn get_body(&self, id: BodyId) -> &CelestialBody {
@@ -95,6 +115,8 @@ impl SolarSystemPhysics {
             BodyId::Mars => &self.mars,
             BodyId::Phobos => &self.phobos,
             BodyId::Deimos => &self.deimos,
+            BodyId::Ceres => &self.ceres,
+            BodyId::Vesta => &self.vesta,
         }
     }
 
@@ -108,6 +130,8 @@ impl SolarSystemPhysics {
             BodyId::Mars => &mut self.mars,
             BodyId::Phobos => &mut self.phobos,
             BodyId::Deimos => &mut self.deimos,
+            BodyId::Ceres => &mut self.ceres,
+            BodyId::Vesta => &mut self.vesta,
         }
     }
 }
