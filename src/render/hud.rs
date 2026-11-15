@@ -40,6 +40,12 @@ impl Hud {
                 BodyId::Europa => "Europa",
                 BodyId::Ganymede => "Ganymede",
                 BodyId::Callisto => "Callisto",
+                BodyId::Saturn => "Saturn",
+                BodyId::Titan => "Titan",
+                BodyId::Enceladus => "Enceladus",
+                BodyId::Mimas => "Mimas",
+                BodyId::Iapetus => "Iapetus",
+                BodyId::Rhea => "Rhea",
             };
             let to = match trans.to_body {
                 BodyId::Sun => "Sun",
@@ -57,6 +63,12 @@ impl Hud {
                 BodyId::Europa => "Europa",
                 BodyId::Ganymede => "Ganymede",
                 BodyId::Callisto => "Callisto",
+                BodyId::Saturn => "Saturn",
+                BodyId::Titan => "Titan",
+                BodyId::Enceladus => "Enceladus",
+                BodyId::Mimas => "Mimas",
+                BodyId::Iapetus => "Iapetus",
+                BodyId::Rhea => "Rhea",
             };
             format!("Transit: {} -> {}", from, to)
         } else {
@@ -76,6 +88,12 @@ impl Hud {
                 BodyId::Europa => "Europa (Ice Ocean Moon)".to_string(),
                 BodyId::Ganymede => "Ganymede (Largest Moon)".to_string(),
                 BodyId::Callisto => "Callisto (Cratered Moon)".to_string(),
+                BodyId::Saturn => "Saturn (Ringed Planet)".to_string(),
+                BodyId::Titan => "Titan (Hazy Giant Moon)".to_string(),
+                BodyId::Enceladus => "Enceladus (Geyser Ice Moon)".to_string(),
+                BodyId::Mimas => "Mimas (Herschel Crater Moon)".to_string(),
+                BodyId::Iapetus => "Iapetus (Yin-Yang Moon)".to_string(),
+                BodyId::Rhea => "Rhea (Cratered Ice Moon)".to_string(),
             }
         };
 
@@ -146,6 +164,12 @@ impl Hud {
             (BodyId::Europa, physics.europa.position, physics.europa.radius_km, "[Europa]", [215, 225, 235]),
             (BodyId::Ganymede, physics.ganymede.position, physics.ganymede.radius_km, "[Ganímedes]", [185, 175, 165]),
             (BodyId::Callisto, physics.callisto.position, physics.callisto.radius_km, "[Calisto]", [150, 145, 140]),
+            (BodyId::Saturn, physics.saturn.position, physics.saturn.radius_km, "[Saturno]", [235, 205, 140]),
+            (BodyId::Titan, physics.titan.position, physics.titan.radius_km, "[Titã]", [230, 160, 60]),
+            (BodyId::Enceladus, physics.enceladus.position, physics.enceladus.radius_km, "[Encélado]", [245, 250, 255]),
+            (BodyId::Mimas, physics.mimas.position, physics.mimas.radius_km, "[Mimas]", [200, 200, 205]),
+            (BodyId::Iapetus, physics.iapetus.position, physics.iapetus.radius_km, "[Jápeto]", [170, 160, 150]),
+            (BodyId::Rhea, physics.rhea.position, physics.rhea.radius_km, "[Reia]", [210, 215, 220]),
         ];
 
         let mut sun_in_fov = false;
@@ -250,6 +274,10 @@ impl Hud {
             controls.push_str("  [M] Moons  [N] Jovian Overview");
         } else if matches!(camera.target_body, BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto) {
             controls.push_str("  [M] Cycle Moons  [N] Jupiter");
+        } else if camera.target_body == BodyId::Saturn {
+            controls.push_str("  [M] Moons  [N] Ring Overview");
+        } else if matches!(camera.target_body, BodyId::Titan | BodyId::Enceladus | BodyId::Mimas | BodyId::Iapetus | BodyId::Rhea) {
+            controls.push_str("  [M] Cycle Moons  [N] Saturn");
         }
         controls.push_str("  [+/-] Zoom  [WASD] Orbit  [R] Reset  [F] Find Sun  [H] Labels  [B] Mode  [Space] Pause  [Q] Quit");
         if lines > 1 && cols >= controls.len() + 2 {

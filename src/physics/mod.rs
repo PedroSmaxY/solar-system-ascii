@@ -2,10 +2,12 @@ pub mod asteroid_belt;
 pub mod body;
 pub mod ephemeris;
 pub mod jovian_swarm;
+pub mod saturnian_swarm;
 
 use self::asteroid_belt::AsteroidField;
 use self::body::{BodyId, CelestialBody};
 use self::jovian_swarm::JovianMoonSwarm;
+use self::saturnian_swarm::SaturnianMoonSwarm;
 use crate::math::Vec3;
 use ephemeris::TWO_PI;
 
@@ -27,6 +29,13 @@ pub struct SolarSystemPhysics {
     pub ganymede: CelestialBody,
     pub callisto: CelestialBody,
     pub jovian_swarm: JovianMoonSwarm,
+    pub saturn: CelestialBody,
+    pub titan: CelestialBody,
+    pub enceladus: CelestialBody,
+    pub mimas: CelestialBody,
+    pub iapetus: CelestialBody,
+    pub rhea: CelestialBody,
+    pub saturnian_swarm: SaturnianMoonSwarm,
 }
 
 impl SolarSystemPhysics {
@@ -49,6 +58,13 @@ impl SolarSystemPhysics {
             ganymede: CelestialBody::new_ganymede(),
             callisto: CelestialBody::new_callisto(),
             jovian_swarm: JovianMoonSwarm::new(),
+            saturn: CelestialBody::new_saturn(),
+            titan: CelestialBody::new_titan(),
+            enceladus: CelestialBody::new_enceladus(),
+            mimas: CelestialBody::new_mimas(),
+            iapetus: CelestialBody::new_iapetus(),
+            rhea: CelestialBody::new_rhea(),
+            saturnian_swarm: SaturnianMoonSwarm::new(),
         }
     }
 
@@ -151,6 +167,47 @@ impl SolarSystemPhysics {
             self.callisto.position = self.jupiter.position + rel_pos;
             self.callisto.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
         }
+
+        // 16. Saturn orbits Sun (gas giant, e=0.0565, 10.55h fast rotation, axial tilt 26.73°)
+        if let Some(ref orb) = self.saturn.orbit {
+            self.saturn.position = orb.calculate_position(t);
+        }
+        self.saturn.rotation_angle = (t * (TWO_PI / self.saturn.rotation_period_secs)).rem_euclid(TWO_PI);
+
+        // 17. Mimas orbits Saturn (inner moon, 22.76h period, tidally locked)
+        if let Some(ref orb) = self.mimas.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.mimas.position = self.saturn.position + rel_pos;
+            self.mimas.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 18. Enceladus orbits Saturn (32.88h period, tidally locked)
+        if let Some(ref orb) = self.enceladus.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.enceladus.position = self.saturn.position + rel_pos;
+            self.enceladus.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 19. Rhea orbits Saturn (108.43h period, tidally locked)
+        if let Some(ref orb) = self.rhea.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.rhea.position = self.saturn.position + rel_pos;
+            self.rhea.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 20. Titan orbits Saturn (giant atmosphere moon, 15.95d period, tidally locked)
+        if let Some(ref orb) = self.titan.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.titan.position = self.saturn.position + rel_pos;
+            self.titan.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
+
+        // 21. Iapetus orbits Saturn (outer inclined moon, 79.33d period, tidally locked)
+        if let Some(ref orb) = self.iapetus.orbit {
+            let rel_pos = orb.calculate_position(t);
+            self.iapetus.position = self.saturn.position + rel_pos;
+            self.iapetus.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
+        }
     }
 
     pub fn get_body(&self, id: BodyId) -> &CelestialBody {
@@ -170,6 +227,12 @@ impl SolarSystemPhysics {
             BodyId::Europa => &self.europa,
             BodyId::Ganymede => &self.ganymede,
             BodyId::Callisto => &self.callisto,
+            BodyId::Saturn => &self.saturn,
+            BodyId::Titan => &self.titan,
+            BodyId::Enceladus => &self.enceladus,
+            BodyId::Mimas => &self.mimas,
+            BodyId::Iapetus => &self.iapetus,
+            BodyId::Rhea => &self.rhea,
         }
     }
 
@@ -190,6 +253,12 @@ impl SolarSystemPhysics {
             BodyId::Europa => &mut self.europa,
             BodyId::Ganymede => &mut self.ganymede,
             BodyId::Callisto => &mut self.callisto,
+            BodyId::Saturn => &mut self.saturn,
+            BodyId::Titan => &mut self.titan,
+            BodyId::Enceladus => &mut self.enceladus,
+            BodyId::Mimas => &mut self.mimas,
+            BodyId::Iapetus => &mut self.iapetus,
+            BodyId::Rhea => &mut self.rhea,
         }
     }
 }

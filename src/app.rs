@@ -126,6 +126,11 @@ impl App {
                         let to_pos = self.physics.jupiter.position;
                         self.camera.start_transition(BodyId::Jupiter, from_pos, to_pos, 1.5);
                     }
+                    KeyCode::Char('8') => {
+                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                        let to_pos = self.physics.saturn.position;
+                        self.camera.start_transition(BodyId::Saturn, from_pos, to_pos, 1.6);
+                    }
                     KeyCode::Char('m') | KeyCode::Char('M') => {
                         if self.camera.target_body == BodyId::Earth {
                             let from_pos = self.physics.earth.position;
@@ -171,6 +176,30 @@ impl App {
                             let from_pos = self.physics.callisto.position;
                             let to_pos = self.physics.io.position;
                             self.camera.start_transition(BodyId::Io, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Saturn {
+                            let from_pos = self.physics.saturn.position;
+                            let to_pos = self.physics.titan.position;
+                            self.camera.start_transition(BodyId::Titan, from_pos, to_pos, 1.2);
+                        } else if self.camera.target_body == BodyId::Titan {
+                            let from_pos = self.physics.titan.position;
+                            let to_pos = self.physics.enceladus.position;
+                            self.camera.start_transition(BodyId::Enceladus, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Enceladus {
+                            let from_pos = self.physics.enceladus.position;
+                            let to_pos = self.physics.mimas.position;
+                            self.camera.start_transition(BodyId::Mimas, from_pos, to_pos, 1.0);
+                        } else if self.camera.target_body == BodyId::Mimas {
+                            let from_pos = self.physics.mimas.position;
+                            let to_pos = self.physics.iapetus.position;
+                            self.camera.start_transition(BodyId::Iapetus, from_pos, to_pos, 1.3);
+                        } else if self.camera.target_body == BodyId::Iapetus {
+                            let from_pos = self.physics.iapetus.position;
+                            let to_pos = self.physics.rhea.position;
+                            self.camera.start_transition(BodyId::Rhea, from_pos, to_pos, 1.2);
+                        } else if self.camera.target_body == BodyId::Rhea {
+                            let from_pos = self.physics.rhea.position;
+                            let to_pos = self.physics.titan.position;
+                            self.camera.start_transition(BodyId::Titan, from_pos, to_pos, 1.2);
                         }
                     }
                     KeyCode::Char('n') | KeyCode::Char('N') => {
@@ -192,6 +221,13 @@ impl App {
                             let from_pos = self.physics.get_body(self.camera.target_body).position;
                             let to_pos = self.physics.jupiter.position;
                             self.camera.start_transition(BodyId::Jupiter, from_pos, to_pos, 1.1);
+                        } else if self.camera.target_body == BodyId::Saturn {
+                            self.camera.distance_km = 1_800_000.0;
+                            self.camera.elevation = 0.42;
+                        } else if matches!(self.camera.target_body, BodyId::Titan | BodyId::Enceladus | BodyId::Mimas | BodyId::Iapetus | BodyId::Rhea) {
+                            let from_pos = self.physics.get_body(self.camera.target_body).position;
+                            let to_pos = self.physics.saturn.position;
+                            self.camera.start_transition(BodyId::Saturn, from_pos, to_pos, 1.3);
                         }
                     }
                     KeyCode::Char('v') | KeyCode::Char('V') => {

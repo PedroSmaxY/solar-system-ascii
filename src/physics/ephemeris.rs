@@ -51,6 +51,30 @@ pub const GANYMEDE_SIDEREAL_DAY_SECS: f64 = 611_414.0; // 169.84h
 pub const CALLISTO_RADIUS_KM: f64 = 2_410.3;
 pub const CALLISTO_SIDEREAL_DAY_SECS: f64 = 1_441_931.0; // 400.54h
 
+pub const SATURN_RADIUS_EQ_KM: f64 = 60_268.0;
+pub const SATURN_RADIUS_POL_KM: f64 = 54_364.0;
+pub const SATURN_MEAN_RADIUS_KM: f64 = 58_232.0;
+pub const SATURN_AXIAL_TILT_RAD: f64 = 26.73 * PI / 180.0;
+pub const SATURN_SIDEREAL_DAY_SECS: f64 = 37_978.0; // 10.55h
+
+pub const SATURN_RING_INNER_RADIUS_KM: f64 = 74_500.0;
+pub const SATURN_RING_OUTER_RADIUS_KM: f64 = 140_220.0;
+
+pub const MIMAS_RADIUS_KM: f64 = 198.2;
+pub const MIMAS_SIDEREAL_DAY_SECS: f64 = 81_936.0; // 22.76h
+
+pub const ENCELADUS_RADIUS_KM: f64 = 252.1;
+pub const ENCELADUS_SIDEREAL_DAY_SECS: f64 = 118_368.0; // 32.88h
+
+pub const RHEA_RADIUS_KM: f64 = 763.8;
+pub const RHEA_SIDEREAL_DAY_SECS: f64 = 390_355.0; // 108.43h
+
+pub const TITAN_RADIUS_KM: f64 = 2_574.7;
+pub const TITAN_SIDEREAL_DAY_SECS: f64 = 1_377_648.0; // 15.945 days
+
+pub const IAPETUS_RADIUS_KM: f64 = 735.6;
+pub const IAPETUS_SIDEREAL_DAY_SECS: f64 = 6_854_112.0; // 79.33 days
+
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]
 pub struct KeplerOrbit {
@@ -250,6 +274,84 @@ impl KeplerOrbit {
             peri: 0.0,
             m0: 0.0,
             period: 1_441_931.0, // 16.689 days
+        }
+    }
+
+    /// Saturn's orbit around the Sun (J2000 Keplerian elements)
+    pub fn saturn_around_sun() -> Self {
+        Self {
+            a: 1_433_530_000.0, // 9.5826 AU in km
+            e: 0.0565,
+            i: 2.485 * PI / 180.0,
+            node: 113.665 * PI / 180.0,
+            peri: 339.392 * PI / 180.0,
+            m0: 317.020 * PI / 180.0,
+            period: 929_590_000.0, // 29.457 years
+        }
+    }
+
+    /// Mimas's orbit around Saturn (resonant driver of Cassini Division)
+    pub fn mimas_around_saturn() -> Self {
+        Self {
+            a: 185_520.0,
+            e: 0.0202,
+            i: 1.574 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 81_936.0, // 22.76h
+        }
+    }
+
+    /// Enceladus's orbit around Saturn (cryovolcanic ocean world)
+    pub fn enceladus_around_saturn() -> Self {
+        Self {
+            a: 238_020.0,
+            e: 0.0047,
+            i: 0.009 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 118_368.0, // 32.88h
+        }
+    }
+
+    /// Rhea's orbit around Saturn (second largest moon)
+    pub fn rhea_around_saturn() -> Self {
+        Self {
+            a: 527_040.0,
+            e: 0.00125,
+            i: 0.345 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 390_355.0, // 108.43h
+        }
+    }
+
+    /// Titan's orbit around Saturn (dense organic atmosphere moon)
+    pub fn titan_around_saturn() -> Self {
+        Self {
+            a: 1_221_830.0,
+            e: 0.0288,
+            i: 0.348 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 1_377_648.0, // 15.945 days
+        }
+    }
+
+    /// Iapetus's orbit around Saturn (high inclination 15.47°, extreme yin-yang moon)
+    pub fn iapetus_around_saturn() -> Self {
+        Self {
+            a: 3_561_300.0,
+            e: 0.0286,
+            i: 15.47 * PI / 180.0,
+            node: 0.0,
+            peri: 0.0,
+            m0: 0.0,
+            period: 6_854_112.0, // 79.33 days
         }
     }
 

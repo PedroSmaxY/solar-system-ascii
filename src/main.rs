@@ -41,6 +41,12 @@ fn main() {
                         "europa" => target_body = Some(solar_system_ascii::physics::body::BodyId::Europa),
                         "ganymede" | "ganimedes" => target_body = Some(solar_system_ascii::physics::body::BodyId::Ganymede),
                         "callisto" | "calisto" => target_body = Some(solar_system_ascii::physics::body::BodyId::Callisto),
+                        "saturn" | "saturno" => target_body = Some(solar_system_ascii::physics::body::BodyId::Saturn),
+                        "titan" | "tita" => target_body = Some(solar_system_ascii::physics::body::BodyId::Titan),
+                        "enceladus" | "encelado" => target_body = Some(solar_system_ascii::physics::body::BodyId::Enceladus),
+                        "mimas" => target_body = Some(solar_system_ascii::physics::body::BodyId::Mimas),
+                        "iapetus" | "japeto" => target_body = Some(solar_system_ascii::physics::body::BodyId::Iapetus),
+                        "rhea" | "reia" => target_body = Some(solar_system_ascii::physics::body::BodyId::Rhea),
                         _ => {}
                     }
                     i += 1;

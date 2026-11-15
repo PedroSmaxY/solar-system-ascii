@@ -19,12 +19,21 @@ use crate::render::io_shader::IoShader;
 use crate::render::jupiter_shader::JupiterShader;
 use crate::render::mars_shader::MarsShader;
 use crate::render::mercury_shader::MercuryShader;
+use crate::render::mimas_shader::MimasShader;
 use crate::render::moon_shader::MoonShader;
 use crate::render::phobos_shader::PhobosShader;
+use crate::render::rhea_shader::RheaShader;
+use crate::render::saturn_shader::{
+    SaturnShader, SATURN_RADIUS_EQ_KM, SATURN_RADIUS_POL_KM, SATURN_RING_INNER_RADIUS_KM,
+    SATURN_RING_OUTER_RADIUS_KM,
+};
 use crate::render::stars::Starfield;
 use crate::render::sun_shader::SunShader;
+use crate::render::titan_shader::TitanShader;
 use crate::render::venus_shader::VenusShader;
 use crate::render::vesta_shader::VestaShader;
+use crate::render::enceladus_shader::EnceladusShader;
+use crate::render::iapetus_shader::IapetusShader;
 use rayon::prelude::*;
 
 const ASCII_RAMP: &[u8] = b" .:-=+*x%#@";
@@ -45,6 +54,12 @@ pub struct Raycaster {
     pub europa_shader: EuropaShader,
     pub ganymede_shader: GanymedeShader,
     pub callisto_shader: CallistoShader,
+    pub saturn_shader: SaturnShader,
+    pub titan_shader: TitanShader,
+    pub enceladus_shader: EnceladusShader,
+    pub mimas_shader: MimasShader,
+    pub iapetus_shader: IapetusShader,
+    pub rhea_shader: RheaShader,
 }
 
 struct SphereHit {
@@ -72,6 +87,12 @@ impl Raycaster {
             europa_shader: EuropaShader::new(),
             ganymede_shader: GanymedeShader::new(),
             callisto_shader: CallistoShader::new(),
+            saturn_shader: SaturnShader::new(),
+            titan_shader: TitanShader::new(),
+            enceladus_shader: EnceladusShader::new(),
+            mimas_shader: MimasShader::new(),
+            iapetus_shader: IapetusShader::new(),
+            rhea_shader: RheaShader::new(),
         }
     }
 
@@ -232,6 +253,35 @@ impl Raycaster {
         let callisto_rad = physics.callisto.radius_km;
         let callisto_mat = physics.callisto.orientation_matrix();
         let callisto_mat_inv = callisto_mat.transpose();
+
+        let saturn_pos = physics.saturn.position;
+        let saturn_mat = physics.saturn.orientation_matrix();
+        let saturn_mat_inv = saturn_mat.transpose();
+
+        let titan_pos = physics.titan.position;
+        let titan_rad = physics.titan.radius_km;
+        let titan_mat = physics.titan.orientation_matrix();
+        let titan_mat_inv = titan_mat.transpose();
+
+        let enceladus_pos = physics.enceladus.position;
+        let enceladus_rad = physics.enceladus.radius_km;
+        let enceladus_mat = physics.enceladus.orientation_matrix();
+        let enceladus_mat_inv = enceladus_mat.transpose();
+
+        let mimas_pos = physics.mimas.position;
+        let mimas_rad = physics.mimas.radius_km;
+        let mimas_mat = physics.mimas.orientation_matrix();
+        let mimas_mat_inv = mimas_mat.transpose();
+
+        let iapetus_pos = physics.iapetus.position;
+        let iapetus_rad = physics.iapetus.radius_km;
+        let iapetus_mat = physics.iapetus.orientation_matrix();
+        let iapetus_mat_inv = iapetus_mat.transpose();
+
+        let rhea_pos = physics.rhea.position;
+        let rhea_rad = physics.rhea.radius_km;
+        let rhea_mat = physics.rhea.orientation_matrix();
+        let rhea_mat_inv = rhea_mat.transpose();
 
         let mut hit_mask: Vec<bool> = vec![false; cols * v_height];
 
@@ -517,6 +567,141 @@ impl Raycaster {
                         }
                     }
 
+                    // Saturn hit (oblate spheroid: 60,268 km eq, 54,364 km pol)
+                    if let Some((t_sat, norm)) = Self::intersect_ellipsoid(
+                        &ray,
+                        saturn_pos,
+                        saturn_mat,
+                        (SATURN_RADIUS_EQ_KM, SATURN_RADIUS_EQ_KM, SATURN_RADIUS_POL_KM),
+                    ) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_sat < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_sat);
+                            closest_hit = Some(SphereHit {
+                                t: t_sat,
+                                body_id: BodyId::Saturn,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Titan hit (sphere)
+                    if let Some(t_tit) = Self::intersect_sphere(&ray, titan_pos, titan_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_tit < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_tit);
+                            let norm = (hit_pos - titan_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_tit,
+                                body_id: BodyId::Titan,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Enceladus hit (sphere)
+                    if let Some(t_enc) = Self::intersect_sphere(&ray, enceladus_pos, enceladus_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_enc < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_enc);
+                            let norm = (hit_pos - enceladus_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_enc,
+                                body_id: BodyId::Enceladus,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Mimas hit (sphere)
+                    if let Some(t_mim) = Self::intersect_sphere(&ray, mimas_pos, mimas_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_mim < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_mim);
+                            let norm = (hit_pos - mimas_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_mim,
+                                body_id: BodyId::Mimas,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Iapetus hit (sphere)
+                    if let Some(t_iap) = Self::intersect_sphere(&ray, iapetus_pos, iapetus_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_iap < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_iap);
+                            let norm = (hit_pos - iapetus_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_iap,
+                                body_id: BodyId::Iapetus,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Rhea hit (sphere)
+                    if let Some(t_rhe) = Self::intersect_sphere(&ray, rhea_pos, rhea_rad) {
+                        let is_closer = match closest_hit {
+                            Some(ref h) => t_rhe < h.t,
+                            None => true,
+                        };
+                        if is_closer {
+                            let hit_pos = ray.at(t_rhe);
+                            let norm = (hit_pos - rhea_pos).normalize();
+                            closest_hit = Some(SphereHit {
+                                t: t_rhe,
+                                body_id: BodyId::Rhea,
+                                world_pos: hit_pos,
+                                world_norm: norm,
+                            });
+                        }
+                    }
+
+                    // Saturn Ring Plane intersection (in Saturn's equatorial coordinate frame)
+                    let sat_local_o = saturn_mat_inv.mul_vec(ray.origin - saturn_pos);
+                    let sat_local_d = saturn_mat_inv.mul_vec(ray.dir);
+                    let mut ring_hit: Option<(f64, [u8; 4])> = None;
+                    if sat_local_d.y.abs() > 1e-6 {
+                        let t_ring = -sat_local_o.y / sat_local_d.y;
+                        if t_ring > 0.0 {
+                            let p_ring = sat_local_o + sat_local_d * t_ring;
+                            let r_ring_sq = p_ring.x * p_ring.x + p_ring.z * p_ring.z;
+                            if r_ring_sq >= SATURN_RING_INNER_RADIUS_KM * SATURN_RING_INNER_RADIUS_KM
+                                && r_ring_sq <= SATURN_RING_OUTER_RADIUS_KM * SATURN_RING_OUTER_RADIUS_KM
+                            {
+                                let ring_world_hit = ray.at(t_ring);
+                                let sun_to_ring = (sun_pos - ring_world_hit).normalize();
+                                let local_sun = saturn_mat_inv.mul_vec(sun_to_ring);
+                                let local_view = -sat_local_d;
+                                if let Some(rgba) = self.saturn_shader.shade_ring(p_ring, local_sun, local_view) {
+                                    ring_hit = Some((t_ring, rgba));
+                                }
+                            }
+                        }
+                    }
+
                     if closest_hit.is_some() {
                         hit_row[u] = true;
                     }
@@ -629,12 +814,75 @@ impl Raycaster {
                                 let local_view = callisto_mat_inv.mul_vec(view_dir);
                                 self.callisto_shader.shade(local_norm, local_sun, local_view)
                             }
+                            BodyId::Saturn => {
+                                let local_norm = saturn_mat_inv.mul_vec(hit.world_norm);
+                                let local_hit = saturn_mat_inv.mul_vec(hit.world_pos - saturn_pos);
+                                let local_sun = saturn_mat_inv.mul_vec(sun_dir);
+                                let local_view = saturn_mat_inv.mul_vec(view_dir);
+                                self.saturn_shader.shade(local_norm, local_hit, local_sun, local_view)
+                            }
+                            BodyId::Titan => {
+                                let local_norm = titan_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = titan_mat_inv.mul_vec(sun_dir);
+                                let local_view = titan_mat_inv.mul_vec(view_dir);
+                                self.titan_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Enceladus => {
+                                let local_norm = enceladus_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = enceladus_mat_inv.mul_vec(sun_dir);
+                                let local_view = enceladus_mat_inv.mul_vec(view_dir);
+                                self.enceladus_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Mimas => {
+                                let local_norm = mimas_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = mimas_mat_inv.mul_vec(sun_dir);
+                                let local_view = mimas_mat_inv.mul_vec(view_dir);
+                                self.mimas_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Iapetus => {
+                                let local_norm = iapetus_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = iapetus_mat_inv.mul_vec(sun_dir);
+                                let local_view = iapetus_mat_inv.mul_vec(view_dir);
+                                self.iapetus_shader.shade(local_norm, local_sun, local_view)
+                            }
+                            BodyId::Rhea => {
+                                let local_norm = rhea_mat_inv.mul_vec(hit.world_norm);
+                                let local_sun = rhea_mat_inv.mul_vec(sun_dir);
+                                let local_view = rhea_mat_inv.mul_vec(view_dir);
+                                self.rhea_shader.shade(local_norm, local_sun, local_view)
+                            }
                         };
 
-                        let lum = 0.299 * color[0] as f64 + 0.587 * color[1] as f64 + 0.114 * color[2] as f64;
+                        let final_color = if let Some((t_r, ring_rgba)) = ring_hit {
+                            if t_r < hit.t {
+                                let alpha = ring_rgba[3] as f64 / 255.0;
+                                [
+                                    (ring_rgba[0] as f64 * alpha + color[0] as f64 * (1.0 - alpha)).round() as u8,
+                                    (ring_rgba[1] as f64 * alpha + color[1] as f64 * (1.0 - alpha)).round() as u8,
+                                    (ring_rgba[2] as f64 * alpha + color[2] as f64 * (1.0 - alpha)).round() as u8,
+                                ]
+                            } else {
+                                color
+                            }
+                        } else {
+                            color
+                        };
+
+                        let lum = 0.299 * final_color[0] as f64 + 0.587 * final_color[1] as f64 + 0.114 * final_color[2] as f64;
                         let r_idx = ((lum / 255.0 * (ASCII_RAMP.len() - 1) as f64) as usize)
                             .clamp(1, ASCII_RAMP.len() - 1);
-                        (color, ASCII_RAMP[r_idx] as char)
+                        (final_color, ASCII_RAMP[r_idx] as char)
+                    } else if let Some((_t_r, ring_rgba)) = ring_hit {
+                        hit_row[u] = true;
+                        let (star_rgb, _star_ch) = Starfield::sample(ray.dir, tick);
+                        let alpha = ring_rgba[3] as f64 / 255.0;
+                        let r = (ring_rgba[0] as f64 * alpha + star_rgb[0] as f64 * (1.0 - alpha)).round() as u8;
+                        let g = (ring_rgba[1] as f64 * alpha + star_rgb[1] as f64 * (1.0 - alpha)).round() as u8;
+                        let b = (ring_rgba[2] as f64 * alpha + star_rgb[2] as f64 * (1.0 - alpha)).round() as u8;
+                        let lum = 0.299 * r as f64 + 0.587 * g as f64 + 0.114 * b as f64;
+                        let r_idx = ((lum / 255.0 * (ASCII_RAMP.len() - 1) as f64) as usize)
+                            .clamp(1, ASCII_RAMP.len() - 1);
+                        ([r, g, b], ASCII_RAMP[r_idx] as char)
                     } else {
                         // 1. Check Solar Corona & Extended Radial Rays (only close-up, <= 10,000,000 km)
                         let oc_sun = ray.origin - sun_pos;
@@ -879,6 +1127,42 @@ impl Raycaster {
                             crate::physics::jovian_swarm::JovianMoonGroup::Amalthea => (240, 185, 135, '*'),
                             crate::physics::jovian_swarm::JovianMoonGroup::Himalia => (185, 205, 225, '+'),
                             _ => (155, 155, 165, '.'),
+                        };
+                        buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                    }
+                }
+            }
+        }
+
+        // 8. Analytical Saturnian Minor Moons swarm pass (141 minor moons)
+        for i in 0..physics.saturnian_swarm.count() {
+            let p_pos = physics.saturnian_swarm.calculate_position(i, saturn_pos, elapsed);
+            let to_p = p_pos - cam_pos;
+            let dist = to_p.length();
+            if dist < 1.0 {
+                continue;
+            }
+            let dir = to_p / dist;
+            let f_dot = dir.dot(f);
+            if f_dot <= 0.05 {
+                continue;
+            }
+
+            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+
+            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+
+                if px < cols && py < v_height {
+                    let pixel_idx = py * cols + px;
+                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                        let moon = &physics.saturnian_swarm.moons[i];
+                        let (r_col, g_col, b_col, ch) = match moon.group {
+                            crate::physics::saturnian_swarm::SaturnianMoonGroup::RingShepherd => (245, 225, 185, '*'),
+                            crate::physics::saturnian_swarm::SaturnianMoonGroup::TrojanIntermediate => (215, 225, 245, '+'),
+                            _ => (160, 160, 170, '.'),
                         };
                         buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
                     }

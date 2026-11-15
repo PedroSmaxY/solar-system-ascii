@@ -34,7 +34,7 @@ pub struct Camera {
     pub elevation: f64, // Radians (-PI/2 .. PI/2)
     pub distance_km: f64,
     pub fov_y_rad: f64,
-    pub saved_views: [BodyViewState; 15], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta, Jupiter, Io, Europa, Ganymede, Callisto]
+    pub saved_views: [BodyViewState; 21], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta, Jupiter, Io, Europa, Ganymede, Callisto, Saturn, Titan, Enceladus, Mimas, Iapetus, Rhea]
     pub transition: Option<CameraTransition>,
 
     // Free flight mode
@@ -61,6 +61,12 @@ impl Camera {
         let europa_view = Self::default_view(BodyId::Europa);
         let ganymede_view = Self::default_view(BodyId::Ganymede);
         let callisto_view = Self::default_view(BodyId::Callisto);
+        let saturn_view = Self::default_view(BodyId::Saturn);
+        let titan_view = Self::default_view(BodyId::Titan);
+        let enceladus_view = Self::default_view(BodyId::Enceladus);
+        let mimas_view = Self::default_view(BodyId::Mimas);
+        let iapetus_view = Self::default_view(BodyId::Iapetus);
+        let rhea_view = Self::default_view(BodyId::Rhea);
 
         Self {
             target_body: BodyId::Earth,
@@ -85,6 +91,12 @@ impl Camera {
                 europa_view,
                 ganymede_view,
                 callisto_view,
+                saturn_view,
+                titan_view,
+                enceladus_view,
+                mimas_view,
+                iapetus_view,
+                rhea_view,
             ],
             transition: None,
             free_flight: false,
@@ -171,6 +183,36 @@ impl Camera {
                 azimuth: -1.34,       // Framing sunlit cratered crust and Valhalla multi-ring basin
                 elevation: 0.14,
                 distance_km: 7_200.0,  // Framing 4,820 km disk
+            },
+            BodyId::Saturn => BodyViewState {
+                azimuth: -1.35,       // Framing sunlit golden disk, rings, shadow on disk, and Cassini division
+                elevation: 0.35,      // Slightly elevated to view ring plane structure
+                distance_km: 260_000.0, // Framing ~120,000 km disk and 280,000 km ring system
+            },
+            BodyId::Titan => BodyViewState {
+                azimuth: -1.35,       // Framing hazy orange nitrogen/methane atmosphere and limb
+                elevation: 0.12,
+                distance_km: 6_200.0,  // Framing 5,150 km disk
+            },
+            BodyId::Enceladus => BodyViewState {
+                azimuth: -1.35,       // Framing ultra-reflective ice crust and south polar tiger stripes
+                elevation: -0.30,     // Looking slightly up at south polar terrain
+                distance_km: 750.0,   // Framing 504 km disk
+            },
+            BodyId::Mimas => BodyViewState {
+                azimuth: -1.35,       // Framing colossal Herschel crater basin ("Death Star")
+                elevation: 0.05,
+                distance_km: 600.0,   // Framing 396 km disk
+            },
+            BodyId::Iapetus => BodyViewState {
+                azimuth: -1.35,       // Framing dramatic Yin-Yang dichotomy and equatorial ridge
+                elevation: 0.26,      // 15 deg inclined orbit perspective
+                distance_km: 2_200.0, // Framing 1,471 km disk
+            },
+            BodyId::Rhea => BodyViewState {
+                azimuth: -1.35,       // Framing heavily cratered ice/rock crust and wispy streaks
+                elevation: 0.15,
+                distance_km: 2_300.0, // Framing 1,528 km disk
             },
         }
     }
@@ -292,6 +334,12 @@ impl Camera {
             BodyId::Europa => 1_580.0,  // ~20 km above ice fractures
             BodyId::Ganymede => 2_650.0,// ~15 km above grooved ridges
             BodyId::Callisto => 2_430.0,// ~20 km above Valhalla crater floor
+            BodyId::Saturn => 61_000.0, // ~700 km above equatorial 1-bar cloud deck
+            BodyId::Titan => 2_600.0,   // ~25 km above thick haze deck
+            BodyId::Enceladus => 260.0, // ~8 km above tiger stripes
+            BodyId::Mimas => 210.0,     // ~12 km above Herschel crater floor
+            BodyId::Iapetus => 750.0,   // ~14 km above equatorial ridge
+            BodyId::Rhea => 780.0,      // ~16 km above crater rim
         };
         self.distance_km = (self.distance_km * 0.88).max(min_dist);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;
