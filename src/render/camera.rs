@@ -590,8 +590,42 @@ impl Camera {
                 duration_secs: 0.9,
                 journey_dist_km: 0.0,
             });
-        } else {
-            self.align_to_sun(sun_pos);
+        } else if self.target_body != BodyId::Sun {
+            self.cancel_transition();
+            let start_view = BodyViewState {
+                azimuth: self.azimuth,
+                elevation: self.elevation,
+                distance_km: self.distance_km,
+            };
+            let target_to_sun = sun_pos - self.target_pos;
+            if target_to_sun.length_squared() >= 1.0 {
+                let dir = target_to_sun.normalize();
+                let sun_az = (dir.x.atan2(dir.z) + std::f64::consts::PI - 0.28).rem_euclid(2.0 * std::f64::consts::PI);
+                let sun_el = -dir.y.clamp(-0.99, 0.99).asin() + 0.06;
+                let az_diff = (self.azimuth - sun_az).abs();
+                let is_aligned = az_diff < 0.15 || (az_diff > 2.0 * std::f64::consts::PI - 0.15);
+                let end_view = if is_aligned {
+                    Self::default_view(self.target_body)
+                } else {
+                    BodyViewState {
+                        azimuth: sun_az,
+                        elevation: sun_el,
+                        distance_km: self.distance_km,
+                    }
+                };
+                let body = self.target_body;
+                self.saved_views[body.index()] = end_view;
+                self.transition = Some(CameraTransition {
+                    from_body: body,
+                    to_body: body,
+                    from_pos: self.target_pos,
+                    start_view,
+                    end_view,
+                    elapsed_secs: 0.0,
+                    duration_secs: 0.8,
+                    journey_dist_km: 0.0,
+                });
+            }
         }
     }
 

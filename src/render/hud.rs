@@ -187,8 +187,8 @@ impl Hud {
             }
         }
 
-        // Welcome Callout (Line 1) during the first 6 seconds of simulation
-        if physics.sim_time <= 3600.0 && lines > 4 {
+        // Welcome Callout (Line 1) during the first 6 seconds of simulation at Earth
+        if physics.sim_time <= 3600.0 && !paused && camera.target_body == BodyId::Earth && lines > 4 {
             let welcome = "✦ Welcome to AstroEngine 3D · Press [0] Solar System Orrery  [1-9] Planets  [M] Moons  [Y] Voyagers  [?] Help ✦";
             let w_len = welcome.chars().count();
             if cols >= w_len + 2 {
@@ -323,9 +323,8 @@ impl Hud {
             }
         };
 
-        // Priority Pass: If viewing from deep space or Voyager, place Earth FIRST so it is not suppressed by Sun collision
-        let at_voyager = cam_pos.length() > 1.0e10
-            || camera.target_body == BodyId::Voyager1
+        // Priority Pass: If viewing from Voyager, place Earth FIRST so it is not suppressed by Sun collision
+        let at_voyager = camera.target_body == BodyId::Voyager1
             || camera.target_body == BodyId::Voyager2;
         if at_voyager {
             place_label(
@@ -373,11 +372,21 @@ impl Hud {
         let v_str = if venus_radar { "[V] Optical Clouds" } else { "[V] Radar View" };
         let space_str = if paused { "[Space] Resume" } else { "[Space] Pause" };
 
-        let (controls_full, controls_compact) = match camera.target_body {
-            BodyId::Sun => (
-                format!("{}  [1-9/P] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  {}  [?] Help", zero_str, space_str),
-                format!("{}  [1-9/P] Worlds  [Tab] Next  [?] Help", zero_str),
-            ),
+        let sun_n_str = if camera.is_in_system_view() { "[N] Inner Orrery" } else { "[N] Heliosphere" };
+        let (mut controls_full, mut controls_compact) = match camera.target_body {
+            BodyId::Sun => {
+                if camera.distance_km > 5.0e7 {
+                    (
+                        format!("{}  [1-9/P] Worlds  [Y] Voyagers  {}  [Tab] Next  [T] Warp  {}  [?] Help", zero_str, sun_n_str, space_str),
+                        format!("{}  [1-9/P] Worlds  [Y] Voyagers  [Tab] Next  [?] Help", zero_str),
+                    )
+                } else {
+                    (
+                        format!("{}  [1-9/P] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  {}  [?] Help", zero_str, space_str),
+                        format!("{}  [1-9/P] Worlds  [Tab] Next  [?] Help", zero_str),
+                    )
+                }
+            }
             BodyId::Venus => (
                 format!("{}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  {}  [?] Help", v_str, space_str),
                 format!("{}  [Tab] Next  [1-9/P] Worlds  [?] Help", v_str),
@@ -437,6 +446,11 @@ impl Hud {
                 format!("{}  {}  [Y] V1", z_str, f_str),
             ),
         };
+
+        if camera.distance_km > 3.0e9 && camera.target_body != BodyId::Sun && camera.target_body != BodyId::Voyager1 && camera.target_body != BodyId::Voyager2 {
+            controls_full.push_str("  [Y] Voyagers");
+            controls_compact.push_str("  [Y] Voyagers");
+        }
 
         if lines > 1 {
             let full_len = controls_full.chars().count();

@@ -4,7 +4,6 @@
 //! 2. High-Res Half-Block Mode: Unicode '▀' with independent foreground (top) and background (bottom)
 //!    colors, effectively doubling the vertical pixel resolution.
 
-use std::fmt::Write as FmtWrite;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RenderMode {
@@ -43,6 +42,38 @@ pub struct FrameBuffer {
     pub mode: RenderMode,
     // Buffer for pixels: in HalfBlock mode, height is lines * 2
     pub pixels: Vec<Pixel>,
+    // Pre-allocated reusable hit mask for raymarching passes
+    pub hit_mask: Vec<bool>,
+    // Pre-allocated reusable byte buffer for ANSI TrueColor output (zero allocations per frame)
+    pub byte_buffer: Vec<u8>,
+}
+
+#[inline(always)]
+fn push_u8_fast(buf: &mut Vec<u8>, mut n: u8) {
+    if n >= 100 {
+        buf.push(b'0' + n / 100);
+        n %= 100;
+        buf.push(b'0' + n / 10);
+        n %= 10;
+        buf.push(b'0' + n);
+    } else if n >= 10 {
+        buf.push(b'0' + n / 10);
+        n %= 10;
+        buf.push(b'0' + n);
+    } else {
+        buf.push(b'0' + n);
+    }
+}
+
+#[inline(always)]
+fn push_color_seq(buf: &mut Vec<u8>, prefix: &[u8], color: [u8; 3]) {
+    buf.extend_from_slice(prefix);
+    push_u8_fast(buf, color[0]);
+    buf.push(b';');
+    push_u8_fast(buf, color[1]);
+    buf.push(b';');
+    push_u8_fast(buf, color[2]);
+    buf.push(b'm');
 }
 
 impl FrameBuffer {
@@ -52,7 +83,9 @@ impl FrameBuffer {
             RenderMode::HalfBlock => lines * 2,
         };
         let pixels = vec![Pixel::BLACK; cols * height];
-        Self { cols, lines, mode, pixels }
+        let hit_mask = vec![false; cols * height];
+        let byte_buffer = Vec::with_capacity(cols * lines * 24);
+        Self { cols, lines, mode, pixels, hit_mask, byte_buffer }
     }
 
     pub fn resize(&mut self, cols: usize, lines: usize) {
@@ -64,6 +97,8 @@ impl FrameBuffer {
                 RenderMode::HalfBlock => lines * 2,
             };
             self.pixels = vec![Pixel::BLACK; cols * height];
+            self.hit_mask = vec![false; cols * height];
+            self.byte_buffer = Vec::with_capacity(cols * lines * 24);
         }
     }
 
@@ -75,6 +110,8 @@ impl FrameBuffer {
                 RenderMode::HalfBlock => self.lines * 2,
             };
             self.pixels = vec![Pixel::BLACK; self.cols * height];
+            self.hit_mask = vec![false; self.cols * height];
+            self.byte_buffer = Vec::with_capacity(self.cols * self.lines * 24);
         }
     }
 
@@ -94,11 +131,11 @@ impl FrameBuffer {
         }
     }
 
-    /// Render internal grid into an optimized ANSI TrueColor string buffer.
-    pub fn flush_to_string(&self) -> String {
-        let mut out = String::with_capacity(self.cols * self.lines * 24);
+    /// Render internal grid directly into the persistent, reusable byte buffer (zero heap allocations).
+    pub fn flush_to_bytes(&mut self) -> &[u8] {
+        self.byte_buffer.clear();
         // Synchronized output (DEC Mode 2026) to prevent screen tearing on modern terminals
-        out.push_str("\x1b[?2026h\x1b[H");
+        self.byte_buffer.extend_from_slice(b"\x1b[?2026h\x1b[H");
 
         match self.mode {
             RenderMode::Ascii => {
@@ -108,25 +145,27 @@ impl FrameBuffer {
                         let p = &self.pixels[y * self.cols + x];
                         if p.ch == ' ' {
                             if curr_fg.is_some() {
-                                out.push_str("\x1b[0m");
+                                self.byte_buffer.extend_from_slice(b"\x1b[0m");
                                 curr_fg = None;
                             }
-                            out.push(' ');
+                            self.byte_buffer.push(b' ');
                         } else {
                             let fg = [p.r, p.g, p.b];
                             if curr_fg != Some(fg) {
-                                let _ = write!(out, "\x1b[38;2;{};{};{}m", fg[0], fg[1], fg[2]);
+                                push_color_seq(&mut self.byte_buffer, b"\x1b[38;2;", fg);
                                 curr_fg = Some(fg);
                             }
-                            out.push(p.ch);
+                            let mut utf8_buf = [0u8; 4];
+                            let s = p.ch.encode_utf8(&mut utf8_buf);
+                            self.byte_buffer.extend_from_slice(s.as_bytes());
                         }
                     }
                     if curr_fg.is_some() {
-                        out.push_str("\x1b[0m");
+                        self.byte_buffer.extend_from_slice(b"\x1b[0m");
                         curr_fg = None;
                     }
                     if y + 1 < self.lines {
-                        out.push_str("\r\n");
+                        self.byte_buffer.extend_from_slice(b"\r\n");
                     }
                 }
             }
@@ -145,61 +184,85 @@ impl FrameBuffer {
                         let fg = [p_top.r, p_top.g, p_top.b];
                         let bg = [p_bot.r, p_bot.g, p_bot.b];
 
-                        // If cell is completely black
-                        if fg == [0, 0, 0] && bg == [0, 0, 0] && p_top.ch == ' ' && p_bot.ch == ' ' {
+                        // 1. Célula preta (espaço vazio sem texto sobreposto)
+                        if fg == [0, 0, 0] && bg == [0, 0, 0] && !p_top.is_text {
                             if curr_fg.is_some() || curr_bg.is_some() {
-                                out.push_str("\x1b[0m");
+                                self.byte_buffer.extend_from_slice(b"\x1b[0m");
                                 curr_fg = None;
                                 curr_bg = None;
                             }
-                            out.push(' ');
+                            self.byte_buffer.push(b' ');
                             continue;
                         }
 
-                        // If HUD or character overlay is present
+                        // 2. HUD ou texto de label sobreposto
                         if p_top.is_text {
                             if curr_bg != Some(bg) {
                                 if bg == [0, 0, 0] {
-                                    out.push_str("\x1b[49m");
+                                    self.byte_buffer.extend_from_slice(b"\x1b[49m");
                                     curr_bg = None;
                                 } else {
-                                    let _ = write!(out, "\x1b[48;2;{};{};{}m", bg[0], bg[1], bg[2]);
+                                    push_color_seq(&mut self.byte_buffer, b"\x1b[48;2;", bg);
                                     curr_bg = Some(bg);
                                 }
                             }
                             if curr_fg != Some(fg) {
-                                let _ = write!(out, "\x1b[38;2;{};{};{}m", fg[0], fg[1], fg[2]);
+                                push_color_seq(&mut self.byte_buffer, b"\x1b[38;2;", fg);
                                 curr_fg = Some(fg);
                             }
-                            out.push(p_top.ch);
+                            let mut utf8_buf = [0u8; 4];
+                            let s = p_top.ch.encode_utf8(&mut utf8_buf);
+                            self.byte_buffer.extend_from_slice(s.as_bytes());
                             continue;
                         }
 
-                        // Normal Half-Block '▀': foreground is top, background is bottom
+                        // 3. Otimização quando fg == bg (ambas as metades têm a mesma cor exata)
+                        if fg == bg {
+                            if curr_bg == Some(bg) {
+                                self.byte_buffer.push(b' ');
+                                continue;
+                            } else if curr_fg == Some(fg) {
+                                self.byte_buffer.extend_from_slice("█".as_bytes());
+                                continue;
+                            } else {
+                                push_color_seq(&mut self.byte_buffer, b"\x1b[48;2;", bg);
+                                curr_bg = Some(bg);
+                                self.byte_buffer.push(b' ');
+                                continue;
+                            }
+                        }
+
+                        // 4. Normal Half-Block '▀': foreground é topo, background é base
                         if curr_fg != Some(fg) {
-                            let _ = write!(out, "\x1b[38;2;{};{};{}m", fg[0], fg[1], fg[2]);
+                            push_color_seq(&mut self.byte_buffer, b"\x1b[38;2;", fg);
                             curr_fg = Some(fg);
                         }
                         if curr_bg != Some(bg) {
-                            let _ = write!(out, "\x1b[48;2;{};{};{}m", bg[0], bg[1], bg[2]);
+                            push_color_seq(&mut self.byte_buffer, b"\x1b[48;2;", bg);
                             curr_bg = Some(bg);
                         }
-                        out.push('▀');
+                        self.byte_buffer.extend_from_slice("▀".as_bytes());
                     }
 
                     if curr_fg.is_some() || curr_bg.is_some() {
-                        out.push_str("\x1b[0m");
+                        self.byte_buffer.extend_from_slice(b"\x1b[0m");
                         curr_fg = None;
                         curr_bg = None;
                     }
                     if y + 1 < self.lines {
-                        out.push_str("\r\n");
+                        self.byte_buffer.extend_from_slice(b"\r\n");
                     }
                 }
             }
         }
 
-        out.push_str("\x1b[?2026l");
-        out
+        self.byte_buffer.extend_from_slice(b"\x1b[?2026l");
+        &self.byte_buffer
+    }
+
+    /// Render internal grid into an ANSI TrueColor string.
+    pub fn flush_to_string(&mut self) -> String {
+        let bytes = self.flush_to_bytes();
+        String::from_utf8_lossy(bytes).into_owned()
     }
 }

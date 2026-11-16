@@ -1,6 +1,6 @@
 [package]
 name = "solar-system-ascii"
-version = "1.5.0"
+version = "1.6.0"
 edition = "2021"
 authors = ["PedroSmaxY <pedrohenrique.nv@icloud.com>"]
 description = "solar-system-ascii (AstroEngine) - Real-time 3D Solar System simulator in TrueColor ANSI Half-Block raymarching"

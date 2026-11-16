@@ -2,6 +2,31 @@
 
 All notable changes to **solar-system-ascii (AstroEngine)** will be documented in this file.
 
+## [1.6.0] - 2026-11-16
+
+### 🚀 Zero-Allocation Terminal I/O, HalfBlock (`--hd`) Ultra-Optimization & Voyager Discoverability
+
+#### ⚡ HalfBlock (`--hd`) Performance & Terminal Pipe Unbottlenecking
+- **Root-Cause Resolution**:
+  - Eliminated terminal emulator PTY backpressure caused by ANSI TrueColor flooding.
+  - Starfield thresholding: cells with luminosity $\le 12.0$ now return exact pure black `([0, 0, 0], ' ')`, allowing empty space to serialize as a single space byte (`0x20`) instead of 41 bytes of TrueColor escape codes. Slashes deep-space frame size by 70–80%.
+  - Zero-Allocation FrameBuffer byte serialization: replaced `format!` / `write!` with `push_u8_fast` inline arithmetic and reusable `byte_buffer`, achieving **7.77x faster serialization** (0.051ms vs 0.395ms) and 0 KB heap churn.
+  - Locked standard output (`stdout().lock()`) and direct byte streaming (`flush_to_bytes()`).
+  - Pre-allocated `hit_mask` inside `FrameBuffer`, eliminating scanline heap allocations in raycasting.
+
+#### 🛰️ Discoverable Voyagers & Dual-Scale Solar Navigation
+- **HUD Discoverability (`[Y] Voyagers`)**:
+  - `[Y] Voyagers` dynamically surfaces in the HUD bottom bar whenever viewing the Solar System Orrery (`[0]`) or when zoomed out in deep space ($> 3.0\times 10^9\text{ km}$ / 20 AU).
+  - Dynamic `[N] Heliosphere` $\leftrightarrow$ `[N] Inner Orrery` toggle at the Sun seamlessly bridges the planetary orrery ($1.80\times 10^{10}\text{ km}$) and interstellar scale ($6.80\times 10^{10}\text{ km}$).
+
+#### 🎨 Polished Perspective & Visual Continuity
+- **Pale Blue Dot Scoping**:
+  - Restricted Carl Sagan's sunbeam diffraction ray and cyan Earth tag strictly to Voyager 1 and Voyager 2 target views, eliminating false triggers in the top-down Solar System Orrery.
+- **Planetary `[F]` Sun Alignment**:
+  - Pressing `[F]` on planetary worlds smoothly transitions the camera (0.8s) to frame the crescent limb against the solar glare. Pressing `[F]` again smoothly returns to the default orbital overview.
+- **Context-Aware Welcome Banner**:
+  - Welcome callout automatically hides when navigating away from Earth or pausing the simulation.
+
 ## [1.5.0] - 2026-11-16
 
 ### 🌍 "Momento Zero", Carl Sagan's "Pale Blue Dot" Experience & 100% Reactive HUD

@@ -116,7 +116,7 @@ impl App {
         let mut frame_count = 0u64;
 
         let target_frame_duration = Duration::from_micros(16_666); // ~60 FPS
-        let mut out = stdout();
+        let mut out = stdout().lock();
 
         loop {
             let frame_start = Instant::now();
@@ -552,8 +552,8 @@ impl App {
             }
 
             // Flush frame buffer to terminal
-            let output = self.buffer.flush_to_string();
-            let _ = out.write_all(output.as_bytes());
+            let frame_bytes = self.buffer.flush_to_bytes();
+            let _ = out.write_all(frame_bytes);
             let _ = out.flush();
 
             frame_count += 1;

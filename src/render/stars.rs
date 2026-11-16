@@ -78,6 +78,10 @@ impl Starfield {
             b = (b * twinkle).min(255.0);
         }
 
+        if lum <= 12.0 {
+            return ([0, 0, 0], ' ');
+        }
+
         let r_byte = r.clamp(0.0, 255.0) as u8;
         let g_byte = g.clamp(0.0, 255.0) as u8;
         let b_byte = b.clamp(0.0, 255.0) as u8;

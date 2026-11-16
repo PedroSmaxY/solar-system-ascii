@@ -3745,3 +3745,177 @@ fn test_reactive_hud_labels() {
     }
     assert!(text2.contains("[N] Planet Close-up") || text2.contains("[N] Close-up"), "Expected close-up label, got: {}", text2);
 }
+
+#[test]
+fn test_framebuffer_zero_allocation_flush() {
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode, Pixel};
+
+    let mut buf = FrameBuffer::new(80, 24, RenderMode::HalfBlock);
+    buf.set_pixel(10, 5, Pixel::new(255, 100, 50, '*'));
+    buf.set_pixel(10, 6, Pixel::new(50, 100, 255, '+'));
+
+    // Verify flush_to_bytes returns non-empty slice matching flush_to_string
+    let bytes = buf.flush_to_bytes().to_vec();
+    let str_rep = buf.flush_to_string();
+    assert_eq!(bytes, str_rep.as_bytes());
+
+    // Repeated flushes reuse internal buffer capacity
+    let cap = buf.byte_buffer.capacity();
+    for _ in 0..5 {
+        let _ = buf.flush_to_bytes();
+        assert_eq!(buf.byte_buffer.capacity(), cap, "Capacity should not reallocate");
+    }
+}
+
+#[test]
+fn test_starfield_deep_space_pure_black() {
+    use solar_system_ascii::render::stars::Starfield;
+    use solar_system_ascii::math::Vec3;
+
+    // Ray pointing into empty space with zero/low luminosity
+    let dir = Vec3::new(0.3, 0.4, 0.5).normalize();
+    let (col, ch) = Starfield::sample(dir, 0);
+    // If lum <= 12.0, returns exact pure black
+    if ch == ' ' {
+        assert_eq!(col, [0, 0, 0], "Empty starfield cells must return exact [0, 0, 0]");
+    }
+}
+
+#[test]
+fn test_voyager_y_shortcut_hud_appearance() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+
+    let mut buf = FrameBuffer::new(120, 30, RenderMode::Ascii);
+    let physics = SolarSystemPhysics::new();
+    let mut cam = Camera::new();
+
+    // 1. At Sun Orrery Overview: [Y] Voyagers should appear in controls
+    cam.set_target(BodyId::Sun, physics.sun.position);
+    cam.distance_km = 1.80e10;
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut text = String::new();
+    for p in &buf.pixels {
+        if p.is_text {
+            text.push(p.ch);
+        }
+    }
+    assert!(text.contains("[Y] Voyagers"), "Expected [Y] Voyagers at Sun Orrery view, got: {}", text);
+    assert!(text.contains("[N] Heliosphere"), "Expected [N] Heliosphere at Sun Orrery view, got: {}", text);
+
+    // 2. In Heliosphere System View: [N] should say Inner Orrery
+    buf.pixels.fill(solar_system_ascii::render::buffer::Pixel::BLACK);
+    cam.distance_km = Camera::system_view_distance(BodyId::Sun);
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut text_helio = String::new();
+    for p in &buf.pixels {
+        if p.is_text {
+            text_helio.push(p.ch);
+        }
+    }
+    assert!(text_helio.contains("[N] Inner Orrery"), "Expected [N] Inner Orrery in Heliosphere view, got: {}", text_helio);
+
+    // 3. At Jupiter zoomed out into deep space (> 3.0e9 km): [Y] Voyagers should appear
+    buf.pixels.fill(solar_system_ascii::render::buffer::Pixel::BLACK);
+    cam.set_target(BodyId::Jupiter, physics.jupiter.position);
+    cam.distance_km = 3.5e9;
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut text_jup = String::new();
+    for p in &buf.pixels {
+        if p.is_text {
+            text_jup.push(p.ch);
+        }
+    }
+    assert!(text_jup.contains("[Y] Voyagers"), "Expected [Y] Voyagers in deep space, got: {}", text_jup);
+}
+
+#[test]
+fn test_solar_system_overview_does_not_contain_pale_blue_dot() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+
+    let mut buf = FrameBuffer::new(120, 30, RenderMode::Ascii);
+    let physics = SolarSystemPhysics::new();
+    let mut cam = Camera::new();
+
+    // 1. At Sun Orrery Overview (top-down view at 1.80e10 km)
+    cam.set_target(BodyId::Sun, physics.sun.position);
+    cam.distance_km = 1.80e10;
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut text = String::new();
+    for p in &buf.pixels {
+        if p.is_text {
+            text.push(p.ch);
+        }
+    }
+    assert!(!text.contains("Pale Blue Dot"), "Solar System Overview must NOT label Earth as Pale Blue Dot! Got: {}", text);
+
+    // 2. Earth view must label Earth as standard [Earth]
+    buf.pixels.fill(solar_system_ascii::render::buffer::Pixel::BLACK);
+    cam.set_target(BodyId::Earth, physics.earth.position);
+    cam.distance_km = 150_000.0;
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut text_earth = String::new();
+    for p in &buf.pixels {
+        if p.is_text {
+            text_earth.push(p.ch);
+        }
+    }
+    assert!(text_earth.contains("[Earth]"), "Earth view must label Earth as standard [Earth]! Got: {}", text_earth);
+    assert!(!text_earth.contains("Pale Blue Dot"), "Earth view must NOT label Earth as Pale Blue Dot! Got: {}", text_earth);
+
+    // 3. Voyager 1 view MUST prioritize and label Earth as Pale Blue Dot
+    buf.pixels.fill(solar_system_ascii::render::buffer::Pixel::BLACK);
+    cam.set_target(BodyId::Voyager1, physics.voyager1.position);
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut text_v1 = String::new();
+    for p in &buf.pixels {
+        if p.is_text {
+            text_v1.push(p.ch);
+        }
+    }
+    assert!(text_v1.contains("Pale Blue Dot"), "Voyager view MUST label Earth as Pale Blue Dot! Got: {}", text_v1);
+}
+
+#[test]
+fn test_planetary_align_to_sun_toggle() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let physics = SolarSystemPhysics::new();
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Mars, physics.mars.position);
+
+    let orig_view = Camera::default_view(BodyId::Mars);
+    assert_eq!(cam.azimuth, orig_view.azimuth);
+
+    // 1. First [F] press triggers smooth transition towards the Sun
+    cam.toggle_pale_blue_dot(physics.earth.position, physics.sun.position);
+    assert!(cam.transition.is_some(), "Camera should transition on first [F] press");
+    let trans = cam.transition.as_ref().unwrap();
+    assert_eq!(trans.to_body, BodyId::Mars);
+
+    // Simulate completion of transition
+    cam.azimuth = trans.end_view.azimuth;
+    cam.elevation = trans.end_view.elevation;
+    cam.transition = None;
+
+    // 2. Second [F] press toggles back to default view
+    cam.toggle_pale_blue_dot(physics.earth.position, physics.sun.position);
+    assert!(cam.transition.is_some(), "Camera should transition back on second [F] press");
+    let trans2 = cam.transition.as_ref().unwrap();
+    assert_eq!(trans2.end_view.azimuth, orig_view.azimuth, "Should toggle back to default view azimuth");
+}

@@ -390,13 +390,13 @@ impl Raycaster {
         let check_v1 = cam_dist_v1 < 100.0 || camera.target_body == BodyId::Voyager1;
         let check_v2 = cam_dist_v2 < 100.0 || camera.target_body == BodyId::Voyager2;
 
-        let mut hit_mask: Vec<bool> = vec![false; cols * v_height];
+        buffer.hit_mask.fill(false);
 
         // Render each scanline in parallel with Rayon
         buffer
             .pixels
             .par_chunks_mut(cols)
-            .zip(hit_mask.par_chunks_mut(cols))
+            .zip(buffer.hit_mask.par_chunks_mut(cols))
             .enumerate()
             .for_each(|(v, (row, hit_row))| {
                 for u in 0..cols {
@@ -1580,7 +1580,7 @@ impl Raycaster {
                 if px < cols && py < v_height {
                     let pixel_idx = py * cols + px;
                     // Only draw over background space/starfield (never occlude illuminated planets or nightside)
-                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                         let particle = &physics.asteroid_field.particles[i];
                         let brightness = (particle.radius_km / 12.0).clamp(0.65, 1.35);
                         let base_gray = (165.0 * brightness) as u8;
@@ -1624,7 +1624,7 @@ impl Raycaster {
 
                 if px < cols && py < v_height {
                     let pixel_idx = py * cols + px;
-                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                         let moon = &physics.jovian_swarm.moons[i];
                         let (r_col, g_col, b_col, ch) = match moon.group {
                             crate::physics::jovian_swarm::JovianMoonGroup::Amalthea => (240, 185, 135, '*'),
@@ -1660,7 +1660,7 @@ impl Raycaster {
 
                 if px < cols && py < v_height {
                     let pixel_idx = py * cols + px;
-                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                         let moon = &physics.saturnian_swarm.moons[i];
                         let (r_col, g_col, b_col, ch) = match moon.group {
                             crate::physics::saturnian_swarm::SaturnianMoonGroup::RingShepherd => (245, 225, 185, '*'),
@@ -1696,7 +1696,7 @@ impl Raycaster {
 
                 if px < cols && py < v_height {
                     let pixel_idx = py * cols + px;
-                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                         let moon = &physics.uranian_swarm.moons[i];
                         let (r_col, g_col, b_col, ch) = match moon.group {
                             crate::physics::uranian_swarm::UranianMoonGroup::InnerShepherd => (200, 240, 245, '*'),
@@ -1732,7 +1732,7 @@ impl Raycaster {
 
                 if px < cols && py < v_height {
                     let pixel_idx = py * cols + px;
-                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                         let moon = &physics.neptunian_swarm.moons[i];
                         let (r_col, g_col, b_col, ch) = match moon.group {
                             crate::physics::neptunian_swarm::NeptunianMoonGroup::InnerRegular => (160, 195, 255, '*'),
@@ -1788,7 +1788,7 @@ impl Raycaster {
 
                             if px < cols && py < v_height {
                                 let pixel_idx = py * cols + px;
-                                if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                                if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                                     buffer.pixels[pixel_idx] = Pixel::new(color[0], color[1], color[2], '.');
                                 }
                             }
@@ -1849,7 +1849,7 @@ impl Raycaster {
 
                                 if px < cols && py < v_height {
                                     let pixel_idx = py * cols + px;
-                                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                                         buffer.pixels[pixel_idx] = Pixel::new(color[0], color[1], color[2], '.');
                                     }
                                 }
@@ -1884,7 +1884,7 @@ impl Raycaster {
 
                         if px < cols && py < v_height {
                             let pixel_idx = py * cols + px;
-                            if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                            if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                                 buffer.pixels[pixel_idx] = Pixel::new(color[0], color[1], color[2], '+');
                             }
                         }
@@ -1894,7 +1894,7 @@ impl Raycaster {
         }
 
         // 13. Voyager Pale Blue Dot & 1990 Sagan Sunbeam (visible from deep space / Voyager view)
-        if cam_pos.length() > 1.0e10 || camera.target_body == BodyId::Voyager1 || camera.target_body == BodyId::Voyager2 {
+        if camera.target_body == BodyId::Voyager1 || camera.target_body == BodyId::Voyager2 {
             let to_earth = earth_pos - cam_pos;
             let dist_earth = to_earth.length();
             if dist_earth > 1.0e9 {
@@ -1914,7 +1914,7 @@ impl Raycaster {
                                 let c = col_center + dc;
                                 if c >= 0 && (c as usize) < cols {
                                     let c_idx = row * cols + (c as usize);
-                                    if !hit_mask[c_idx] && !buffer.pixels[c_idx].is_text {
+                                    if !buffer.hit_mask[c_idx] && !buffer.pixels[c_idx].is_text {
                                         let intensity = if dc == 0 { 42 } else { 22 };
                                         let curr = &buffer.pixels[c_idx];
                                         buffer.pixels[c_idx] = Pixel::new(
