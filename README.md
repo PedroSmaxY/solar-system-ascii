@@ -4,7 +4,7 @@
 > *Rendered directly in your terminal using 24-bit TrueColor ANSI Half-Block Raymarching — 100% CPU, zero GPU dependencies.*
 
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
-[![Release](https://img.shields.io/badge/release-v1.7.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
+[![Release](https://img.shields.io/badge/release-v1.8.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Terminal](https://img.shields.io/badge/terminal-TrueColor%2024--bit-purple.svg?style=flat-square)]()
 [![Performance](https://img.shields.io/badge/framerate-600%2B%20FPS-brightgreen.svg?style=flat-square)]()
@@ -240,7 +240,7 @@ Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.44$, and $u_2 = 0.17$. Photos
 | `?` / `F1` / `/` | **Interactive Help Modal** | Display on-screen controls cheat sheet overlay. Dismiss with `?`, `/`, `Esc`, or Left-Click. |
 | `Space` | **Pause / Resume** | Freeze simulation physics and orbital evolution. |
 | `T` | **Time Warp Presets** | Progressive warp cycling: **Real-time (1.0x)** $\to$ **10 min/s** $\to$ **1 hr/s** $\to$ **1 day/s** $\to$ **1 mo/s** $\to$ **1 yr/s** $\to$ **1.0x**. |
-| `J` / `\` | **Return to Live Time** | Instantly snaps simulation to current system wall-clock date/time and **1.0x** real-time speed. |
+| `J` / `\` | **Return / Rewind to Live Time** | Smooth 1.3-second cubic rewind/forward to current system wall-clock date/time and **1.0x** real-time speed. |
 | `[` / `]` | **Fine Time Adjustment** | Halve (`[`) or double (`]`) time speed up to **10 years / second** ($315.360.000\times$). |
 | `Q` / `Esc` / `Ctrl+C` | **Quit** | Cleanly restore terminal mouse/cursor state and exit (or dismiss help modal). |
 

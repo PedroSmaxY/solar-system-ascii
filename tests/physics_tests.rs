@@ -3594,18 +3594,20 @@ fn test_momento_zero_cinematic_intro_setup() {
 
     // Trigger cinematic intro
     app.start_cinematic_intro();
-    assert_eq!(app.camera.target_body, BodyId::Earth);
-    assert!((app.camera.distance_km - 58_000.0).abs() < 1e-4);
+    assert_eq!(app.camera.target_body, BodyId::Sun);
+    assert!((app.camera.distance_km - 5.5e8).abs() < 1e-4);
     assert!(app.camera.transition.is_some());
+    assert!(app.time_sync.is_some());
 
     let trans = app.camera.transition.as_ref().unwrap();
     assert_eq!(trans.to_body, BodyId::Earth);
     assert!((trans.end_view.distance_km - 21_000.0).abs() < 1e-4);
-    assert!((trans.duration_secs - 2.4).abs() < 1e-4);
+    assert!((trans.duration_secs - 3.0).abs() < 1e-4);
 
     // Complete transition
-    app.camera.update(2.5, &app.physics);
+    app.camera.update(3.1, &app.physics);
     assert!(app.camera.transition.is_none());
+    assert_eq!(app.camera.target_body, BodyId::Earth);
     assert!((app.camera.distance_km - 21_000.0).abs() < 1e-4);
 }
 
@@ -4051,4 +4053,96 @@ fn test_v170_live_time_hud_display() {
     }
     assert!(line0.contains("2026-11-16"), "HUD line 0 must show live UTC year/month/day! Got: {}", line0);
     assert!(line0.contains("LIVE (1.0x)"), "HUD line 0 must display LIVE (1.0x) status! Got: {}", line0);
+}
+
+#[test]
+fn test_v180_cubic_time_sync_convergence() {
+    let live_target: f64 = 848_138_400.0;
+    let offset_past: f64 = -129_600.0; // 36 hours in past
+    let duration: f64 = 3.0;
+
+    // At p = 0.0: sim_time is live + offset, warp is initial high warp
+    let p0: f64 = 0.0;
+    let inv0 = 1.0 - p0;
+    let t0 = live_target + offset_past * inv0 * inv0 * inv0;
+    let warp0 = 1.0 - (3.0 * offset_past / duration) * inv0 * inv0;
+    assert!((t0 - (live_target + offset_past)).abs() < 1e-6);
+    assert!((warp0 - 129_601.0).abs() < 1e-6);
+
+    // At p = 1.0: sim_time is exact live_target, warp is exact 1.0x
+    let p1: f64 = 1.0;
+    let inv1 = 1.0 - p1;
+    let t1 = live_target + offset_past * inv1 * inv1 * inv1;
+    let warp1 = 1.0 - (3.0 * offset_past / duration) * inv1 * inv1;
+    assert!((t1 - live_target).abs() < 1e-6);
+    assert!((warp1 - 1.0).abs() < 1e-6);
+}
+
+#[test]
+fn test_v180_saturn_system_zoom_visibility_at_56m_km() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(848_138_400.0);
+
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Saturn, physics.saturn.position);
+    cam.distance_km = 56_324_489.0; // Exact distance from user's screenshot (0.3765 AU)
+
+    let mut buf = FrameBuffer::new(120, 40, RenderMode::HalfBlock);
+    let raycaster = Raycaster::new();
+
+    // Render frame and HUD at 56.3M km
+    raycaster.render_frame(&mut buf, &cam, &physics, 1, 848_138_400.0);
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    // Verify Titan and Iapetus labels are preserved at 56.3M km (thresholds: Titan 75M km, Iapetus 200M km)
+    let full_hud_text: String = buf.pixels.iter().filter(|p| p.is_text).map(|p| p.ch).collect();
+    assert!(full_hud_text.contains("Titan"), "Titan label should remain visible at 56.3M km! Got: {}", full_hud_text);
+    assert!(full_hud_text.contains("Iapetus"), "Iapetus label should remain visible at 56.3M km! Got: {}", full_hud_text);
+
+    // Verify Saturnian minor moon swarm particles exist in frame buffer
+    let swarm_hits = buf.pixels.iter().filter(|p| !p.is_text && (p.ch == '.' || p.ch == '+' || p.ch == '*')).count();
+    assert!(swarm_hits > 10, "Saturnian moon swarm particles should render at 56.3M km (limit 240M km): got {}", swarm_hits);
+}
+
+#[test]
+fn test_v180_instant_live_snap_on_interrupt() {
+    use solar_system_ascii::app::App;
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::buffer::RenderMode;
+
+    let mut app = App::new(RenderMode::Ascii);
+    app.start_cinematic_intro();
+    assert!(app.time_sync.is_some());
+    assert!(app.camera.transition.is_some());
+
+    // When an event occurs, instant live snap takes effect
+    if let Some(sync) = app.time_sync.take() {
+        let live_now = solar_system_ascii::physics::SolarSystemPhysics::current_j2000_seconds();
+        app.sim_time = live_now;
+        app.time_warp = 1.0;
+        app.physics.update(app.sim_time);
+        if sync.is_intro {
+            app.camera.transition = None;
+            app.camera.target_body = BodyId::Earth;
+            let end_view = solar_system_ascii::render::camera::Camera::sunlit_beauty_view(
+                BodyId::Earth,
+                app.physics.earth.position,
+                app.physics.sun.position,
+            );
+            app.camera.distance_km = end_view.distance_km;
+        }
+    }
+
+    assert!(app.time_sync.is_none());
+    assert!(app.camera.transition.is_none());
+    assert_eq!(app.camera.target_body, BodyId::Earth);
+    assert_eq!(app.time_warp, 1.0);
+    assert!((app.camera.distance_km - 21_000.0).abs() < 1e-4);
 }

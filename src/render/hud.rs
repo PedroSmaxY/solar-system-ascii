@@ -18,13 +18,28 @@ impl Hud {
         paused: bool,
         venus_radar: bool,
     ) {
+        Self::render_with_sync(buffer, camera, physics, fps, time_warp, paused, venus_radar, None);
+    }
+
+    pub fn render_with_sync(
+        buffer: &mut FrameBuffer,
+        camera: &Camera,
+        physics: &SolarSystemPhysics,
+        fps: f64,
+        time_warp: f64,
+        paused: bool,
+        venus_radar: bool,
+        time_sync: Option<(bool, f64)>, // (is_intro, offset_secs)
+    ) {
         let cols = buffer.cols;
         let lines = buffer.lines;
         if cols < 20 || lines < 6 {
             return;
         }
 
-        let target_name = if let Some(ref trans) = camera.transition {
+        let target_name = if let Some((true, _)) = time_sync {
+            "Welcome Dive: Solar System › Earth".to_string()
+        } else if let Some(ref trans) = camera.transition {
             let from = trans.from_body.name();
             let to = trans.to_body.name();
             if trans.from_body == trans.to_body {
@@ -134,6 +149,14 @@ impl Hud {
 
         let warp_str = if paused {
             "PAUSED".to_string()
+        } else if let Some((is_intro, offset)) = time_sync {
+            if is_intro {
+                format!("WARP DESCENT ({:.0}x)", time_warp)
+            } else if offset > 0.0 {
+                format!("⏪ REWIND TO LIVE ({:.0}x)", time_warp)
+            } else {
+                format!("⏩ SYNC TO LIVE ({:.0}x)", time_warp)
+            }
         } else if (time_warp - 1.0).abs() < 1e-3 {
             "LIVE (1.0x)".to_string()
         } else if time_warp < 60.0 {
@@ -239,28 +262,29 @@ impl Hud {
             (BodyId::Pluto, physics.pluto.position, physics.pluto.radius_km, "[Pluto]", [220, 195, 175]),
         ];
 
-        // Natural Satellites / Moons - only rendered within their planetary system's proximity (LOD)
+        // Natural Satellites / Moons - dynamic angular LOD based on semi-major axis (a)
+        // A moon's label remains visible while its orbit spans >= ~2.5 screen cells (55 * a)
         let moons = [
-            (BodyId::Moon, physics.moon.position, physics.moon.radius_km, "[Moon]", [210, 215, 225], physics.earth.position, 6_000_000.0),
-            (BodyId::Phobos, physics.phobos.position, physics.phobos.radius_km, "[Phobos]", [160, 155, 150], physics.mars.position, 1_500_000.0),
-            (BodyId::Deimos, physics.deimos.position, physics.deimos.radius_km, "[Deimos]", [175, 160, 145], physics.mars.position, 1_500_000.0),
-            (BodyId::Io, physics.io.position, physics.io.radius_km, "[Io]", [240, 215, 80], physics.jupiter.position, 40_000_000.0),
-            (BodyId::Europa, physics.europa.position, physics.europa.radius_km, "[Europa]", [215, 225, 235], physics.jupiter.position, 40_000_000.0),
-            (BodyId::Ganymede, physics.ganymede.position, physics.ganymede.radius_km, "[Ganymede]", [185, 175, 165], physics.jupiter.position, 40_000_000.0),
-            (BodyId::Callisto, physics.callisto.position, physics.callisto.radius_km, "[Callisto]", [150, 145, 140], physics.jupiter.position, 40_000_000.0),
-            (BodyId::Titan, physics.titan.position, physics.titan.radius_km, "[Titan]", [230, 160, 60], physics.saturn.position, 55_000_000.0),
-            (BodyId::Enceladus, physics.enceladus.position, physics.enceladus.radius_km, "[Enceladus]", [245, 250, 255], physics.saturn.position, 55_000_000.0),
-            (BodyId::Mimas, physics.mimas.position, physics.mimas.radius_km, "[Mimas]", [200, 200, 205], physics.saturn.position, 55_000_000.0),
-            (BodyId::Iapetus, physics.iapetus.position, physics.iapetus.radius_km, "[Iapetus]", [170, 160, 150], physics.saturn.position, 55_000_000.0),
-            (BodyId::Rhea, physics.rhea.position, physics.rhea.radius_km, "[Rhea]", [210, 215, 220], physics.saturn.position, 55_000_000.0),
-            (BodyId::Miranda, physics.miranda.position, physics.miranda.radius_km, "[Miranda]", [190, 195, 200], physics.uranus.position, 25_000_000.0),
-            (BodyId::Ariel, physics.ariel.position, physics.ariel.radius_km, "[Ariel]", [215, 220, 225], physics.uranus.position, 25_000_000.0),
-            (BodyId::Umbriel, physics.umbriel.position, physics.umbriel.radius_km, "[Umbriel]", [140, 140, 145], physics.uranus.position, 25_000_000.0),
-            (BodyId::Titania, physics.titania.position, physics.titania.radius_km, "[Titania]", [185, 185, 190], physics.uranus.position, 25_000_000.0),
-            (BodyId::Oberon, physics.oberon.position, physics.oberon.radius_km, "[Oberon]", [175, 175, 180], physics.uranus.position, 25_000_000.0),
-            (BodyId::Triton, physics.triton.position, physics.triton.radius_km, "[Triton]", [215, 225, 235], physics.neptune.position, 25_000_000.0),
-            (BodyId::Proteus, physics.proteus.position, physics.proteus.radius_km, "[Proteus]", [130, 130, 135], physics.neptune.position, 25_000_000.0),
-            (BodyId::Charon, physics.charon.position, physics.charon.radius_km, "[Charon]", [185, 175, 170], physics.pluto.position, 2_000_000.0),
+            (BodyId::Moon, physics.moon.position, physics.moon.radius_km, "[Moon]", [210, 215, 225], physics.earth.position, 22_000_000.0),
+            (BodyId::Phobos, physics.phobos.position, physics.phobos.radius_km, "[Phobos]", [160, 155, 150], physics.mars.position, 1_200_000.0),
+            (BodyId::Deimos, physics.deimos.position, physics.deimos.radius_km, "[Deimos]", [175, 160, 145], physics.mars.position, 3_500_000.0),
+            (BodyId::Io, physics.io.position, physics.io.radius_km, "[Io]", [240, 215, 80], physics.jupiter.position, 23_000_000.0),
+            (BodyId::Europa, physics.europa.position, physics.europa.radius_km, "[Europa]", [215, 225, 235], physics.jupiter.position, 38_000_000.0),
+            (BodyId::Ganymede, physics.ganymede.position, physics.ganymede.radius_km, "[Ganymede]", [185, 175, 165], physics.jupiter.position, 65_000_000.0),
+            (BodyId::Callisto, physics.callisto.position, physics.callisto.radius_km, "[Callisto]", [150, 145, 140], physics.jupiter.position, 120_000_000.0),
+            (BodyId::Mimas, physics.mimas.position, physics.mimas.radius_km, "[Mimas]", [200, 200, 205], physics.saturn.position, 11_000_000.0),
+            (BodyId::Enceladus, physics.enceladus.position, physics.enceladus.radius_km, "[Enceladus]", [245, 250, 255], physics.saturn.position, 14_000_000.0),
+            (BodyId::Rhea, physics.rhea.position, physics.rhea.radius_km, "[Rhea]", [210, 215, 220], physics.saturn.position, 30_000_000.0),
+            (BodyId::Titan, physics.titan.position, physics.titan.radius_km, "[Titan]", [230, 160, 60], physics.saturn.position, 75_000_000.0),
+            (BodyId::Iapetus, physics.iapetus.position, physics.iapetus.radius_km, "[Iapetus]", [170, 160, 150], physics.saturn.position, 200_000_000.0),
+            (BodyId::Miranda, physics.miranda.position, physics.miranda.radius_km, "[Miranda]", [190, 195, 200], physics.uranus.position, 8_000_000.0),
+            (BodyId::Ariel, physics.ariel.position, physics.ariel.radius_km, "[Ariel]", [215, 220, 225], physics.uranus.position, 12_000_000.0),
+            (BodyId::Umbriel, physics.umbriel.position, physics.umbriel.radius_km, "[Umbriel]", [140, 140, 145], physics.uranus.position, 16_000_000.0),
+            (BodyId::Titania, physics.titania.position, physics.titania.radius_km, "[Titania]", [185, 185, 190], physics.uranus.position, 28_000_000.0),
+            (BodyId::Oberon, physics.oberon.position, physics.oberon.radius_km, "[Oberon]", [175, 175, 180], physics.uranus.position, 45_000_000.0),
+            (BodyId::Triton, physics.triton.position, physics.triton.radius_km, "[Triton]", [215, 225, 235], physics.neptune.position, 35_000_000.0),
+            (BodyId::Proteus, physics.proteus.position, physics.proteus.radius_km, "[Proteus]", [130, 130, 135], physics.neptune.position, 8_000_000.0),
+            (BodyId::Charon, physics.charon.position, physics.charon.radius_km, "[Charon]", [185, 175, 170], physics.pluto.position, 3_500_000.0),
         ];
 
         let mut occupied_regions: Vec<(usize, usize, usize)> = Vec::new(); // (row_y, x_start, x_end)

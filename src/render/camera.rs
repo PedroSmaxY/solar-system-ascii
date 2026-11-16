@@ -669,8 +669,15 @@ impl Camera {
             let s = progress * progress * progress * (progress * (progress * 6.0 - 15.0) + 10.0);
 
             // Interpolate target focal position between moving bodies
+            let is_startup_dive = trans.from_body == BodyId::Sun && trans.to_body == BodyId::Earth && trans.journey_dist_km == 0.0;
             let to_pos = physics.get_body(trans.to_body).position;
-            self.target_pos = trans.from_pos * (1.0 - s) + to_pos * s;
+            if is_startup_dive {
+                // Fast-Lock Quintic: target snaps to Earth in first ~0.8s so Earth remains centered during descent
+                let s_pos = 1.0 - (1.0 - progress).powi(5);
+                self.target_pos = trans.from_pos * (1.0 - s_pos) + to_pos * s_pos;
+            } else {
+                self.target_pos = trans.from_pos * (1.0 - s) + to_pos * s;
+            }
 
             // Shortest circular angular arc for azimuth
             let d_az = ((trans.end_view.azimuth - trans.start_view.azimuth + PI).rem_euclid(2.0 * PI)) - PI;
@@ -682,7 +689,12 @@ impl Camera {
             // Logarithmic distance interpolation with parabolic altitude arc (zoom-out then zoom-in)
             let log_start = trans.start_view.distance_km.ln();
             let log_end = trans.end_view.distance_km.ln();
-            let base_log = log_start * (1.0 - s) + log_end * s;
+            let base_log = if is_startup_dive {
+                let s_dist = 1.0 - (1.0 - progress).powi(3);
+                log_start * (1.0 - s_dist) + log_end * s_dist
+            } else {
+                log_start * (1.0 - s) + log_end * s
+            };
 
             // Apex altitude pulls out to reveal interplanetary scale (only for spatial travel between bodies)
             let current_log = if trans.journey_dist_km > 0.0 {
@@ -781,10 +793,14 @@ impl Camera {
 
         let overview_threshold = match self.target_body {
             BodyId::Sun => 1.5e11,
-            BodyId::Jupiter | BodyId::Saturn | BodyId::Uranus | BodyId::Neptune => 1.5e9,
-            BodyId::Ceres | BodyId::Vesta => 1.2e9,
-            BodyId::Voyager1 | BodyId::Voyager2 => 0.50, // 500 meters
-            _ => 1.8e8,
+            BodyId::Jupiter | BodyId::Saturn => 260_000_000.0, // ~1.74 AU (seamlessly follows 240M km swarm fade-out)
+            BodyId::Uranus | BodyId::Neptune => 130_000_000.0, // ~0.87 AU (follows 110M km swarm fade-out)
+            BodyId::Earth => 35_000_000.0,                    // ~0.23 AU (follows 32M km Moon orbit line)
+            BodyId::Mars => 15_000_000.0,                     // ~0.10 AU (follows 8M km Deimos orbit line)
+            BodyId::Ceres | BodyId::Vesta => 350_000_000.0,   // Inner Asteroid Belt overview
+            BodyId::Pluto => 15_000_000.0,                    // ~0.10 AU (follows Charon orbit)
+            BodyId::Voyager1 | BodyId::Voyager2 => 0.50,      // 500 meters
+            _ => 150_000_000.0,
         };
 
         if self.target_body != BodyId::Sun && self.distance_km > overview_threshold {

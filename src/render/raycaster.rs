@@ -1610,7 +1610,9 @@ impl Raycaster {
         }
 
         // 7. Analytical Jovian Minor Moons swarm pass (91 minor moons within Jovian system)
-        if (cam_pos - jupiter_pos).length() <= 45_000_000.0 {
+        let dist_to_jup = (cam_pos - jupiter_pos).length();
+        if dist_to_jup <= 240_000_000.0 {
+            let fade = ((240_000_000.0 - dist_to_jup) / 120_000_000.0).clamp(0.18, 1.0);
             for i in 0..physics.jovian_swarm.count() {
                 let p_pos = physics.jovian_swarm.calculate_position(i, jupiter_pos, elapsed);
                 let to_p = p_pos - cam_pos;
@@ -1635,11 +1637,14 @@ impl Raycaster {
                         let pixel_idx = py * cols + px;
                         if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                             let moon = &physics.jovian_swarm.moons[i];
-                            let (r_col, g_col, b_col, ch) = match moon.group {
+                            let (r_base, g_base, b_base, ch) = match moon.group {
                                 crate::physics::jovian_swarm::JovianMoonGroup::Amalthea => (240, 185, 135, '*'),
                                 crate::physics::jovian_swarm::JovianMoonGroup::Himalia => (185, 205, 225, '+'),
                                 _ => (155, 155, 165, '.'),
                             };
+                            let r_col = (r_base as f64 * fade) as u8;
+                            let g_col = (g_base as f64 * fade) as u8;
+                            let b_col = (b_base as f64 * fade) as u8;
                             buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
                         }
                     }
@@ -1648,7 +1653,9 @@ impl Raycaster {
         }
 
         // 8. Analytical Saturnian Minor Moons swarm pass (141 minor moons within Saturnian system)
-        if (cam_pos - saturn_pos).length() <= 55_000_000.0 {
+        let dist_to_sat = (cam_pos - saturn_pos).length();
+        if dist_to_sat <= 240_000_000.0 {
+            let fade = ((240_000_000.0 - dist_to_sat) / 120_000_000.0).clamp(0.18, 1.0);
             for i in 0..physics.saturnian_swarm.count() {
                 let p_pos = physics.saturnian_swarm.calculate_position(i, saturn_pos, elapsed);
                 let to_p = p_pos - cam_pos;
@@ -1673,11 +1680,14 @@ impl Raycaster {
                         let pixel_idx = py * cols + px;
                         if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                             let moon = &physics.saturnian_swarm.moons[i];
-                            let (r_col, g_col, b_col, ch) = match moon.group {
+                            let (r_base, g_base, b_base, ch) = match moon.group {
                                 crate::physics::saturnian_swarm::SaturnianMoonGroup::RingShepherd => (245, 225, 185, '*'),
                                 crate::physics::saturnian_swarm::SaturnianMoonGroup::TrojanIntermediate => (215, 225, 245, '+'),
                                 _ => (160, 160, 170, '.'),
                             };
+                            let r_col = (r_base as f64 * fade) as u8;
+                            let g_col = (g_base as f64 * fade) as u8;
+                            let b_col = (b_base as f64 * fade) as u8;
                             buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
                         }
                     }
@@ -1686,7 +1696,9 @@ impl Raycaster {
         }
 
         // 9. Analytical Uranian Minor Moons swarm pass (23 minor moons within Uranian system)
-        if (cam_pos - uranus_pos).length() <= 25_000_000.0 {
+        let dist_to_ura = (cam_pos - uranus_pos).length();
+        if dist_to_ura <= 110_000_000.0 {
+            let fade = ((110_000_000.0 - dist_to_ura) / 55_000_000.0).clamp(0.18, 1.0);
             for i in 0..physics.uranian_swarm.count() {
                 let p_pos = physics.uranian_swarm.calculate_position(i, uranus_pos, elapsed);
                 let to_p = p_pos - cam_pos;
@@ -1711,11 +1723,14 @@ impl Raycaster {
                         let pixel_idx = py * cols + px;
                         if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                             let moon = &physics.uranian_swarm.moons[i];
-                            let (r_col, g_col, b_col, ch) = match moon.group {
+                            let (r_base, g_base, b_base, ch) = match moon.group {
                                 crate::physics::uranian_swarm::UranianMoonGroup::InnerShepherd => (200, 240, 245, '*'),
                                 crate::physics::uranian_swarm::UranianMoonGroup::InnerPortia => (180, 225, 235, '+'),
                                 _ => (150, 160, 170, '.'),
                             };
+                            let r_col = (r_base as f64 * fade) as u8;
+                            let g_col = (g_base as f64 * fade) as u8;
+                            let b_col = (b_base as f64 * fade) as u8;
                             buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
                         }
                     }
@@ -1724,7 +1739,9 @@ impl Raycaster {
         }
 
         // 10. Analytical Neptunian Minor Moons swarm pass (14 minor moons within Neptunian system)
-        if (cam_pos - neptune_pos).length() <= 25_000_000.0 {
+        let dist_to_nep = (cam_pos - neptune_pos).length();
+        if dist_to_nep <= 110_000_000.0 {
+            let fade = ((110_000_000.0 - dist_to_nep) / 55_000_000.0).clamp(0.18, 1.0);
             for i in 0..physics.neptunian_swarm.count() {
                 let p_pos = physics.neptunian_swarm.calculate_position(i, neptune_pos, elapsed);
                 let to_p = p_pos - cam_pos;
@@ -1749,11 +1766,14 @@ impl Raycaster {
                         let pixel_idx = py * cols + px;
                         if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                             let moon = &physics.neptunian_swarm.moons[i];
-                            let (r_col, g_col, b_col, ch) = match moon.group {
+                            let (r_base, g_base, b_base, ch) = match moon.group {
                                 crate::physics::neptunian_swarm::NeptunianMoonGroup::InnerRegular => (160, 195, 255, '*'),
                                 crate::physics::neptunian_swarm::NeptunianMoonGroup::Nereid => (210, 225, 255, '+'),
                                 _ => (155, 160, 175, '.'),
                             };
+                            let r_col = (r_base as f64 * fade) as u8;
+                            let g_col = (g_base as f64 * fade) as u8;
+                            let b_col = (b_base as f64 * fade) as u8;
                             buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
                         }
                     }
@@ -1814,31 +1834,37 @@ impl Raycaster {
             }
 
             // Natural satellite orbits around their host worlds (visible when viewing planetary systems)
+            // Progressive angular LOD based on semi-major axis (~80 * a), fading smoothly into overview
             let moon_systems: &[(&Option<crate::physics::ephemeris::KeplerOrbit>, Vec3, [u8; 3], f64)] = &[
-                (&physics.moon.orbit, earth_pos, [145, 175, 210], 15_000_000.0),
+                (&physics.moon.orbit, earth_pos, [145, 175, 210], 32_000_000.0),
                 (&physics.phobos.orbit, mars_pos, [180, 140, 110], 2_500_000.0),
-                (&physics.deimos.orbit, mars_pos, [160, 150, 140], 2_500_000.0),
-                (&physics.io.orbit, jupiter_pos, [215, 185, 75], 45_000_000.0),
-                (&physics.europa.orbit, jupiter_pos, [165, 185, 215], 45_000_000.0),
-                (&physics.ganymede.orbit, jupiter_pos, [175, 160, 145], 45_000_000.0),
-                (&physics.callisto.orbit, jupiter_pos, [145, 145, 155], 45_000_000.0),
-                (&physics.titan.orbit, saturn_pos, [215, 185, 120], 55_000_000.0),
-                (&physics.enceladus.orbit, saturn_pos, [195, 215, 235], 55_000_000.0),
-                (&physics.mimas.orbit, saturn_pos, [175, 175, 185], 55_000_000.0),
-                (&physics.iapetus.orbit, saturn_pos, [160, 150, 140], 55_000_000.0),
-                (&physics.rhea.orbit, saturn_pos, [185, 190, 195], 55_000_000.0),
-                (&physics.miranda.orbit, uranus_pos, [165, 175, 185], 25_000_000.0),
-                (&physics.ariel.orbit, uranus_pos, [185, 195, 205], 25_000_000.0),
+                (&physics.deimos.orbit, mars_pos, [160, 150, 140], 8_000_000.0),
+                (&physics.io.orbit, jupiter_pos, [215, 185, 75], 35_000_000.0),
+                (&physics.europa.orbit, jupiter_pos, [165, 185, 215], 55_000_000.0),
+                (&physics.ganymede.orbit, jupiter_pos, [175, 160, 145], 90_000_000.0),
+                (&physics.callisto.orbit, jupiter_pos, [145, 145, 155], 160_000_000.0),
+                (&physics.mimas.orbit, saturn_pos, [175, 175, 185], 16_000_000.0),
+                (&physics.enceladus.orbit, saturn_pos, [195, 215, 235], 20_000_000.0),
+                (&physics.rhea.orbit, saturn_pos, [185, 190, 195], 45_000_000.0),
+                (&physics.titan.orbit, saturn_pos, [215, 185, 120], 110_000_000.0),
+                (&physics.iapetus.orbit, saturn_pos, [160, 150, 140], 240_000_000.0),
+                (&physics.miranda.orbit, uranus_pos, [165, 175, 185], 12_000_000.0),
+                (&physics.ariel.orbit, uranus_pos, [185, 195, 205], 18_000_000.0),
                 (&physics.umbriel.orbit, uranus_pos, [130, 130, 140], 25_000_000.0),
-                (&physics.titania.orbit, uranus_pos, [165, 165, 175], 25_000_000.0),
-                (&physics.oberon.orbit, uranus_pos, [155, 155, 165], 25_000_000.0),
-                (&physics.triton.orbit, neptune_pos, [175, 195, 220], 25_000_000.0),
-                (&physics.proteus.orbit, neptune_pos, [120, 125, 135], 25_000_000.0),
-                (&physics.charon.orbit, pluto_pos, [165, 155, 145], 2_000_000.0),
+                (&physics.titania.orbit, uranus_pos, [165, 165, 175], 40_000_000.0),
+                (&physics.oberon.orbit, uranus_pos, [155, 155, 165], 65_000_000.0),
+                (&physics.proteus.orbit, neptune_pos, [120, 125, 135], 12_000_000.0),
+                (&physics.triton.orbit, neptune_pos, [175, 195, 220], 50_000_000.0),
+                (&physics.charon.orbit, pluto_pos, [165, 155, 145], 8_000_000.0),
             ];
 
             for (orb_opt, parent_center, color, max_cam_dist) in moon_systems {
-                if (cam_pos - *parent_center).length() <= *max_cam_dist {
+                let dist_parent = (cam_pos - *parent_center).length();
+                if dist_parent <= *max_cam_dist {
+                    let fade = ((*max_cam_dist - dist_parent) / (*max_cam_dist * 0.5)).clamp(0.20, 1.0);
+                    let orb_r = (color[0] as f64 * fade) as u8;
+                    let orb_g = (color[1] as f64 * fade) as u8;
+                    let orb_b = (color[2] as f64 * fade) as u8;
                     if let Some(ref orb) = orb_opt {
                         const MOON_NODES: usize = 128;
                         let period = orb.period;
@@ -1866,7 +1892,7 @@ impl Raycaster {
                                 if px < cols && py < v_height {
                                     let pixel_idx = py * cols + px;
                                     if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
-                                        buffer.pixels[pixel_idx] = Pixel::new(color[0], color[1], color[2], '.');
+                                        buffer.pixels[pixel_idx] = Pixel::new(orb_r, orb_g, orb_b, '.');
                                     }
                                 }
                             }

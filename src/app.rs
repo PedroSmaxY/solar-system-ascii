@@ -27,6 +27,14 @@ const WORLDS: [BodyId; 12] = [
     BodyId::Pluto,
 ];
 
+#[derive(Clone, Copy, Debug)]
+pub struct TimeSyncAnim {
+    pub offset_secs: f64,
+    pub elapsed_secs: f64,
+    pub duration_secs: f64,
+    pub is_intro: bool,
+}
+
 pub struct App {
     pub term: TerminalManager,
     pub physics: SolarSystemPhysics,
@@ -39,6 +47,7 @@ pub struct App {
     pub tick: u64,
     pub show_hud: bool,
     pub show_help: bool,
+    pub time_sync: Option<TimeSyncAnim>,
 }
 
 impl App {
@@ -58,16 +67,31 @@ impl App {
             tick: 0,
             show_hud: true,
             show_help: false,
+            time_sync: None,
         };
         app.sync_to_live_time();
         app
     }
 
     /// Synchronize simulation time to current wall-clock system time (LIVE 1.0x).
+    /// If offset > 5.0s, initiates a smooth 1.3s cubic chronos sync (rewind or fast-forward).
+    /// Calling while a transition is active or within 5.0s forces an immediate instant snap.
     pub fn sync_to_live_time(&mut self) {
-        self.sim_time = SolarSystemPhysics::current_j2000_seconds();
-        self.time_warp = 1.0;
-        self.physics.update(self.sim_time);
+        let live_now = SolarSystemPhysics::current_j2000_seconds();
+        let diff = self.sim_time - live_now;
+        if diff.abs() <= 5.0 || self.time_sync.is_some() {
+            self.time_sync = None;
+            self.sim_time = live_now;
+            self.time_warp = 1.0;
+            self.physics.update(self.sim_time);
+        } else {
+            self.time_sync = Some(TimeSyncAnim {
+                offset_secs: diff,
+                elapsed_secs: 0.0,
+                duration_secs: 1.3,
+                is_intro: false,
+            });
+        }
     }
 
     pub fn set_target(&mut self, body: BodyId) {
@@ -75,31 +99,44 @@ impl App {
         self.camera.set_target(body, pos);
     }
 
-    /// Smooth cinematic opening approach to Earth on initial interactive launch.
+    /// Smooth cinematic opening dive from Inner Solar System Orrery to Earth with cubic time deceleration.
     pub fn start_cinematic_intro(&mut self) {
-        self.camera.target_body = BodyId::Earth;
-        self.camera.target_pos = self.physics.earth.position;
+        let live_now = SolarSystemPhysics::current_j2000_seconds();
+        // Start 36 hours in the past so Earth performs ~1.5 rotations while smoothly decelerating
+        let offset = -129_600.0;
+        self.sim_time = live_now + offset;
+        self.time_warp = (1.0 - (3.0 * offset / 3.0)).abs(); // Initial ~129,601x warp
+        self.physics.update(self.sim_time);
 
-        let end_view = Camera::sunlit_beauty_view(BodyId::Earth, self.physics.earth.position, self.physics.sun.position);
-        self.camera.azimuth = (end_view.azimuth - 0.85).rem_euclid(2.0 * std::f64::consts::PI);
-        self.camera.elevation = 0.48;
-        self.camera.distance_km = 58_000.0;
+        self.camera.target_body = BodyId::Sun;
+        self.camera.target_pos = crate::math::Vec3::ZERO;
+        self.camera.distance_km = 5.5e8; // ~3.7 AU: Inner Solar System Orrery
+        self.camera.azimuth = 0.0;
+        self.camera.elevation = 0.52; // Oblique viewing angle framing inner planetary orbits
 
         let start_view = crate::render::camera::BodyViewState {
             azimuth: self.camera.azimuth,
             elevation: self.camera.elevation,
             distance_km: self.camera.distance_km,
         };
+        let end_view = Camera::sunlit_beauty_view(BodyId::Earth, self.physics.earth.position, self.physics.sun.position);
 
         self.camera.transition = Some(crate::render::camera::CameraTransition {
-            from_body: BodyId::Earth,
+            from_body: BodyId::Sun,
             to_body: BodyId::Earth,
-            from_pos: self.physics.earth.position,
+            from_pos: crate::math::Vec3::ZERO,
             start_view,
             end_view,
             elapsed_secs: 0.0,
-            duration_secs: 2.4,
-            journey_dist_km: 0.0,
+            duration_secs: 3.0,
+            journey_dist_km: 0.0, // Special flag: startup dive
+        });
+
+        self.time_sync = Some(TimeSyncAnim {
+            offset_secs: offset,
+            elapsed_secs: 0.0,
+            duration_secs: 3.0,
+            is_intro: true,
         });
     }
 
@@ -130,6 +167,23 @@ impl App {
 
             // Handle non-blocking keyboard and mouse input
             while let Some(evt) = self.term.poll_event() {
+                // Instant Live Snap: any key, click or drag immediately concludes time sync/intro and restores live time
+                if let Some(sync) = self.time_sync.take() {
+                    let live_now = SolarSystemPhysics::current_j2000_seconds();
+                    self.sim_time = live_now;
+                    self.time_warp = 1.0;
+                    self.physics.update(self.sim_time);
+                    if sync.is_intro {
+                        self.camera.transition = None;
+                        self.camera.target_body = BodyId::Earth;
+                        let end_view = Camera::sunlit_beauty_view(BodyId::Earth, self.physics.earth.position, self.physics.sun.position);
+                        self.camera.azimuth = end_view.azimuth;
+                        self.camera.elevation = end_view.elevation;
+                        self.camera.distance_km = end_view.distance_km;
+                        self.camera.target_pos = self.physics.earth.position;
+                    }
+                }
+
                 match evt {
                     TerminalEvent::MouseClick { col, row } => {
                         let b_cols = self.buffer.cols;
@@ -522,7 +576,26 @@ impl App {
             }
 
             // Update simulation
-            if !self.paused {
+            if let Some(mut sync) = self.time_sync {
+                sync.elapsed_secs += dt;
+                let p = (sync.elapsed_secs / sync.duration_secs).clamp(0.0, 1.0);
+                let live_now = SolarSystemPhysics::current_j2000_seconds();
+                let inv = 1.0 - p;
+                self.sim_time = live_now + sync.offset_secs * inv * inv * inv;
+                let warp_raw = 1.0 - (3.0 * sync.offset_secs / sync.duration_secs) * inv * inv;
+                self.time_warp = warp_raw.abs().max(1.0);
+                self.tick += 1;
+                self.physics.update(self.sim_time);
+
+                if p >= 1.0 {
+                    self.time_sync = None;
+                    self.sim_time = live_now;
+                    self.time_warp = 1.0;
+                    self.physics.update(self.sim_time);
+                } else {
+                    self.time_sync = Some(sync);
+                }
+            } else if !self.paused {
                 self.sim_time += dt * self.time_warp;
                 self.tick += 1;
                 self.physics.update(self.sim_time);
@@ -542,7 +615,8 @@ impl App {
 
             // Overlay HUD (if enabled)
             if self.show_hud {
-                Hud::render(
+                let sync_info = self.time_sync.map(|s| (s.is_intro, s.offset_secs));
+                Hud::render_with_sync(
                     &mut self.buffer,
                     &self.camera,
                     &self.physics,
@@ -550,6 +624,7 @@ impl App {
                     self.time_warp,
                     self.paused,
                     self.raycaster.venus_shader.radar_mode,
+                    sync_info,
                 );
             }
 

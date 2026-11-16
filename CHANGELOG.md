@@ -2,6 +2,30 @@
 
 All notable changes to **solar-system-ascii (AstroEngine)** will be documented in this file.
 
+## [1.8.0] - 2026-11-16
+
+### 🚀 Cinematic Startup Dive, Cubic Live Time Rewind Sync & Progressive Planetary Moon LOD
+
+#### 🎬 Cinematic Startup Dive (Inner Orrery $\to$ Earth)
+- **Cinematic Time-Warp Descent**:
+  - The simulation begins at $5.5\times 10^8\text{ km}$ (~3.7 AU, framing the Inner Solar System Orrery: Sun, Mercury, Venus, Earth, Mars, Asteroid Belt) in high warp ($\sim 129{,}601\times$) offset 36 hours in the past.
+  - Over a smooth 3.0-second descent, the camera dives toward Earth's sunlit beauty view ($21{,}000\text{ km}$) while time warp decelerates along an analytic cubic curve ($\text{warp}(p) = 1.0 - \frac{3 \cdot \Delta t}{D} (1-p)^2$), landing exactly at current system wall-clock time and real-time **`LIVE (1.0x)`**.
+  - **Fast-Lock Focal Tracking**: Quintic ease-out focal convergence ($s_{\text{pos}} = 1 - (1-p)^5$) snaps the camera's gaze to Earth in the first 0.8 seconds while still far out, ensuring Earth remains perfectly centered in frame throughout the entire descent without focal drift in empty space.
+  - **HUD Dive Telemetry**: Displays `⚡ WARP DESCENT (129601x ➔ LIVE)` during the dive.
+
+#### ⏪ Smooth Live Time Rewind / Fast-Forward Sync (`[J]` / `[\]`)
+- **Continuous Cubic Time Synchronizer**:
+  - Pressing `[J]` or `[\]` now triggers a smooth 1.3-second cubic time transition (`⏪ REWIND TO LIVE` / `⏩ SYNC TO LIVE`) instead of an abrupt teleport.
+  - Cubic time interpolation ($\text{sim\_time}(p) = t_{\text{live}} + \Delta t \cdot (1-p)^3$) guarantees zero numerical integration drift across arbitrary framerates and smoothly settles at `1.0x` speed.
+  - **Instant Live Snap on User Touch**: Any keypress, mouse click, or drag immediately cancels the intro or sync animation without delay (0 ms latency), snapping time to live and immediately returning full control to the user.
+
+#### 🪐 Progressive Planetary Moon LOD & Fade-Out (Fix Zoom-Out "Pop-Out")
+- **Eliminated 55M km Abrupt Disappearance Cliff**:
+  - Replaced the single uniform 55M km culling threshold with individual angular LOD thresholds scaled to each moon's semi-major axis ($55 \times a$ for HUD labels, $80 \times a$ for Keplerian orbit lines).
+  - Minor moon swarms (Jovian 91 moons, Saturnian 141 moons) and outer orbits (Iapetus 240M km, Callisto 160M km, Titan 110M km) now remain visible up to 240M km.
+  - **Photometric Fade-Out**: Minor moons and orbits smoothly fade out between $0.5 \cdot D_{\text{max}}$ and $D_{\text{max}}$ ($\text{fade} \in [0.18, 1.0]$) instead of abruptly vanishing on a single zoom step.
+  - **Recalibrated Overview Threshold**: Camera zoom-out now smoothly transitions to Solar System Overview at 260M km (Saturn/Jupiter), 130M km (Uranus/Neptune), 35M km (Earth), and 15M km (Mars/Pluto), eliminating the dead zone of empty black space.
+
 ## [1.7.0] - 2026-11-16
 
 ### ⏱️ Real-Time Astronomical Ephemeris Synchronization & HalfBlock Kernel PTY Pipe Overflow Fix
