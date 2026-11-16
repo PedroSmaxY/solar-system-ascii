@@ -151,7 +151,7 @@ impl Camera {
             BodyId::Sun => BodyViewState {
                 azimuth: 0.0,
                 elevation: 0.0,
-                distance_km: 1.1e10, // ~73.5 AU - authentic top-down solar system orrery framing all orbits
+                distance_km: 1.80e10, // ~120.3 AU - authentic top-down solar system orrery framing all 8 planets & Pluto
             },
             BodyId::Mercury => BodyViewState {
                 azimuth: 3.90,        // Framing sunlit Caloris Basin, cratered terrain, and dramatic terminator
@@ -467,7 +467,7 @@ impl Camera {
             BodyViewState {
                 azimuth: 0.0,
                 elevation: 0.0,
-                distance_km: 1.1e10, // Top-down solar system orrery view
+                distance_km: 1.80e10, // Top-down solar system orrery view framing all 8 planets & Pluto
             }
         };
 
@@ -515,6 +515,84 @@ impl Camera {
             duration_secs: 0.8,
             journey_dist_km: 0.0,
         });
+    }
+
+    /// Optimal geometric distance to frame all outer moons and planetary rings in system view.
+    pub fn system_view_distance(body: BodyId) -> f64 {
+        match body {
+            BodyId::Sun => 6.80e10,         // ~455 AU - interstellar scale framing Voyager 1 & 2
+            BodyId::Mercury => 85_000.0,
+            BodyId::Venus => 120_000.0,
+            BodyId::Earth => 1_250_000.0,    // Framing Moon's 384,400 km orbit with 25% margin
+            BodyId::Mars => 78_000.0,        // Framing Deimos's 23,460 km orbit
+            BodyId::Ceres | BodyId::Vesta => 750_000_000.0,
+            BodyId::Jupiter => 6_000_000.0,  // Framing Callisto's 1,882,700 km orbit cleanly
+            BodyId::Saturn => 11_000_000.0,  // Framing Iapetus's 3,560,000 km orbit 100%
+            BodyId::Uranus => 1_900_000.0,   // Framing Oberon's 583,500 km orbit
+            BodyId::Neptune => 1_800_000.0,  // Framing Triton and regular satellites
+            BodyId::Pluto => 65_000.0,       // Framing Charon's 19,591 km binary orbit
+            _ => 6.80e10,
+        }
+    }
+
+    /// Check whether camera is in wide planetary system overview framing moon orbits.
+    pub fn is_in_system_view(&self) -> bool {
+        let def_d = Self::default_view(self.target_body).distance_km;
+        let sys_d = Self::system_view_distance(self.target_body);
+        if (sys_d - def_d).abs() < 1.0 {
+            return false;
+        }
+        (self.distance_km - sys_d).abs() < (self.distance_km - def_d).abs()
+    }
+
+    /// Check whether camera is in close-up Golden Record view at Voyager.
+    pub fn is_golden_record_view(&self) -> bool {
+        (self.target_body == BodyId::Voyager1 || self.target_body == BodyId::Voyager2)
+            && self.distance_km <= 0.005
+    }
+
+    /// Check whether camera is oriented towards Earth from Voyager in Pale Blue Dot configuration.
+    pub fn is_pale_blue_dot_view(&self, earth_pos: Vec3) -> bool {
+        if self.target_body != BodyId::Voyager1 && self.target_body != BodyId::Voyager2 {
+            return false;
+        }
+        let target_to_earth = (earth_pos - self.target_pos).normalize();
+        let (sin_az, cos_az) = self.azimuth.sin_cos();
+        let (sin_el, cos_el) = self.elevation.sin_cos();
+        let cam_fwd = Vec3::new(-cos_el * sin_az, -sin_el, -cos_el * cos_az);
+        cam_fwd.dot(target_to_earth) > 0.85
+    }
+
+    /// Toggle Pale Blue Dot gaze at Voyager 1 & 2, or align camera to Sun on planets.
+    pub fn toggle_pale_blue_dot(&mut self, earth_pos: Vec3, sun_pos: Vec3) {
+        if self.target_body == BodyId::Voyager1 || self.target_body == BodyId::Voyager2 {
+            self.cancel_transition();
+            let start_view = BodyViewState {
+                azimuth: self.azimuth,
+                elevation: self.elevation,
+                distance_km: self.distance_km,
+            };
+            let end_view = if self.is_pale_blue_dot_view(earth_pos) {
+                Self::default_view(self.target_body)
+            } else {
+                // Over-the-shoulder gaze behind HGA dish looking forward towards Earth
+                Self::voyager_view(self.target_pos, earth_pos, Vec3::new(0.22, -0.95, 0.16), 0.0085)
+            };
+            let body = self.target_body;
+            self.saved_views[body.index()] = end_view;
+            self.transition = Some(CameraTransition {
+                from_body: body,
+                to_body: body,
+                from_pos: self.target_pos,
+                start_view,
+                end_view,
+                elapsed_secs: 0.0,
+                duration_secs: 0.9,
+                journey_dist_km: 0.0,
+            });
+        } else {
+            self.align_to_sun(sun_pos);
+        }
     }
 
     /// Cancel any active transition immediately.
@@ -647,14 +725,15 @@ impl Camera {
         self.cancel_transition();
         self.vel_azimuth = 0.0;
         self.vel_elevation = 0.0;
-        self.distance_km = (self.distance_km * 1.14).min(3.5e10);
+        self.distance_km = (self.distance_km * 1.14).min(1.5e11);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;
 
         let overview_threshold = match self.target_body {
-            BodyId::Sun => 3.5e10,
-            BodyId::Jupiter | BodyId::Saturn | BodyId::Uranus | BodyId::Neptune => 4.5e8,
-            BodyId::Voyager1 | BodyId::Voyager2 => 0.06, // 60 meters
-            _ => 3.5e7,
+            BodyId::Sun => 1.5e11,
+            BodyId::Jupiter | BodyId::Saturn | BodyId::Uranus | BodyId::Neptune => 1.5e9,
+            BodyId::Ceres | BodyId::Vesta => 1.2e9,
+            BodyId::Voyager1 | BodyId::Voyager2 => 0.50, // 500 meters
+            _ => 1.8e8,
         };
 
         if self.target_body != BodyId::Sun && self.distance_km > overview_threshold {
@@ -703,7 +782,7 @@ impl Camera {
         // Camera positioned on the terminator/night side looking towards target with Sun framed on the limb:
         let sun_az = dir.x.atan2(dir.z);
         self.azimuth = (sun_az + std::f64::consts::PI - 0.28).rem_euclid(2.0 * PI);
-        self.elevation = 0.06;
+        self.elevation = -dir.y.clamp(-0.99, 0.99).asin() + 0.06;
 
         let idx = self.target_body.index();
         self.saved_views[idx].azimuth = self.azimuth;

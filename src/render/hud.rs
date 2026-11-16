@@ -16,6 +16,7 @@ impl Hud {
         fps: f64,
         time_warp: f64,
         paused: bool,
+        venus_radar: bool,
     ) {
         let cols = buffer.cols;
         let lines = buffer.lines;
@@ -47,6 +48,8 @@ impl Hud {
             } else {
                 format!("Transit: {} -> {}", from, to)
             }
+        } else if camera.is_in_system_view() && camera.target_body != BodyId::Sun {
+            format!("Solar System › {} (System Overview)", camera.target_body.name())
         } else {
             match camera.target_body {
                 BodyId::Sun => {
@@ -57,7 +60,13 @@ impl Hud {
                     }
                 }
                 BodyId::Mercury => "Solar System › Mercury".to_string(),
-                BodyId::Venus => "Solar System › Venus".to_string(),
+                BodyId::Venus => {
+                    if venus_radar {
+                        "Solar System › Venus (Magellan SAR Radar)".to_string()
+                    } else {
+                        "Solar System › Venus (Optical Atmosphere)".to_string()
+                    }
+                }
                 BodyId::Earth => "Solar System › Earth".to_string(),
                 BodyId::Moon => "Solar System › Earth › Moon".to_string(),
                 BodyId::Mars => "Solar System › Mars".to_string(),
@@ -87,8 +96,24 @@ impl Hud {
                 BodyId::Proteus => "Solar System › Neptune › Proteus (Moon 2/2)".to_string(),
                 BodyId::Pluto => "Solar System › Kuiper Belt › Pluto".to_string(),
                 BodyId::Charon => "Solar System › Kuiper Belt › Charon".to_string(),
-                BodyId::Voyager1 => "Solar System › Interstellar Space › Voyager 1 (163.5 AU)".to_string(),
-                BodyId::Voyager2 => "Solar System › Interstellar Space › Voyager 2 (136.8 AU)".to_string(),
+                BodyId::Voyager1 => {
+                    if camera.is_golden_record_view() {
+                        "Solar System › Interstellar Space › Voyager 1 (Golden Record 3m)".to_string()
+                    } else if camera.is_pale_blue_dot_view(physics.earth.position) {
+                        "Solar System › Interstellar Space › Voyager 1 (Pale Blue Dot)".to_string()
+                    } else {
+                        "Solar System › Interstellar Space › Voyager 1 (163.5 AU)".to_string()
+                    }
+                }
+                BodyId::Voyager2 => {
+                    if camera.is_golden_record_view() {
+                        "Solar System › Interstellar Space › Voyager 2 (Golden Record 3m)".to_string()
+                    } else if camera.is_pale_blue_dot_view(physics.earth.position) {
+                        "Solar System › Interstellar Space › Voyager 2 (Pale Blue Dot)".to_string()
+                    } else {
+                        "Solar System › Interstellar Space › Voyager 2 (136.8 AU)".to_string()
+                    }
+                }
             }
         };
 
@@ -159,6 +184,16 @@ impl Hud {
             Self::draw_text(buffer, 1, 0, &title_fit, [180, 215, 255]);
             if cols > s_len + 2 {
                 Self::draw_text(buffer, cols - s_len - 1, 0, s, [200, 215, 230]);
+            }
+        }
+
+        // Welcome Callout (Line 1) during the first 6 seconds of simulation
+        if physics.sim_time <= 3600.0 && lines > 4 {
+            let welcome = "✦ Welcome to AstroEngine 3D · Press [0] Solar System Orrery  [1-9] Planets  [M] Moons  [Y] Voyagers  [?] Help ✦";
+            let w_len = welcome.chars().count();
+            if cols >= w_len + 2 {
+                let wx = (cols - w_len) / 2;
+                Self::draw_text(buffer, wx, 1, welcome, [255, 215, 110]);
             }
         }
 
@@ -288,8 +323,25 @@ impl Hud {
             }
         };
 
+        // Priority Pass: If viewing from deep space or Voyager, place Earth FIRST so it is not suppressed by Sun collision
+        let at_voyager = cam_pos.length() > 1.0e10
+            || camera.target_body == BodyId::Voyager1
+            || camera.target_body == BodyId::Voyager2;
+        if at_voyager {
+            place_label(
+                BodyId::Earth,
+                physics.earth.position,
+                physics.earth.radius_km,
+                "◉ [Earth · Pale Blue Dot (163.5 AU)]",
+                [135, 225, 255],
+            );
+        }
+
         // 1. First pass: Place all major celestial bodies (Planets, Asteroids, Sun)
         for &(id, pos, rad, label, color) in &major_bodies {
+            if at_voyager && id == BodyId::Earth {
+                continue; // Already placed with high priority
+            }
             place_label(id, pos, rad, label, color);
         }
 
@@ -312,40 +364,39 @@ impl Hud {
             }
         }
 
-        // Contextual Clean Controls (Bottom Line)
+        // 100% Reactive Contextual Clean Controls (Bottom Line)
+        let n_str = if camera.is_in_system_view() { "[N] Planet Close-up" } else { "[N] System View" };
+        let n_comp = if camera.is_in_system_view() { "[N] Close-up" } else { "[N] System" };
+        let zero_str = if camera.distance_km > 5.0e7 { "[0] Sun Close-up" } else { "[0] Solar Overview" };
+        let z_str = if camera.is_golden_record_view() { "[Z] Full Craft (12m)" } else { "[Z] Golden Record (3m)" };
+        let f_str = if camera.is_pale_blue_dot_view(physics.earth.position) { "[F] Craft View" } else { "[F] Pale Blue Dot" };
+        let v_str = if venus_radar { "[V] Optical Clouds" } else { "[V] Radar View" };
+        let space_str = if paused { "[Space] Resume" } else { "[Space] Pause" };
+
         let (controls_full, controls_compact) = match camera.target_body {
-            BodyId::Sun => {
-                if camera.distance_km > 5.0e7 {
-                    (
-                        "[0/Z] Sun Close-up  [1-9/P] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  [Space] Pause  [?] Help",
-                        "[0] Close-up  [1-9/P] Worlds  [Tab] Next  [?] Help",
-                    )
-                } else {
-                    (
-                        "[0/Z] Overview  [1-9/P] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  [R] Reset  [?] Help",
-                        "[0] Overview  [1-9/P] Worlds  [Tab] Next  [?] Help",
-                    )
-                }
-            }
+            BodyId::Sun => (
+                format!("{}  [1-9/P] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  {}  [?] Help", zero_str, space_str),
+                format!("{}  [1-9/P] Worlds  [Tab] Next  [?] Help", zero_str),
+            ),
             BodyId::Venus => (
-                "[V] Radar Mode  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  [Space] Pause  [?] Help",
-                "[V] Radar  [Tab] Next  [1-9/P] Worlds  [?] Help",
+                format!("{}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  {}  [?] Help", v_str, space_str),
+                format!("{}  [Tab] Next  [1-9/P] Worlds  [?] Help", v_str),
             ),
             BodyId::Mercury => (
-                "[Tab] Next  [Bksp] Back  [1-9/P] Worlds  [R] Reset  [+/-] Zoom  [Space] Pause  [?] Help",
-                "[Tab] Next  [1-9/P] Worlds  [+/-] Zoom  [?] Help",
+                format!("[Tab] Next  [Bksp] Back  [1-9/P] Worlds  [R] Reset  [+/-] Zoom  {}  [?] Help", space_str),
+                "[Tab] Next  [1-9/P] Worlds  [+/-] Zoom  [?] Help".to_string(),
             ),
             BodyId::Earth | BodyId::Moon => (
-                "[M] Moon Cycle  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  [?] Help",
-                "[M] Moon  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
+                format!("[M] Moon Cycle  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Moon  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Mars | BodyId::Phobos | BodyId::Deimos => (
-                "[M] Moons (Phobos/Deimos)  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
-                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
+                format!("[M] Moons (Phobos/Deimos)  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Jupiter | BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto => (
-                "[M] Galilean Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
-                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
+                format!("[M] Galilean Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Saturn
             | BodyId::Titan
@@ -353,8 +404,8 @@ impl Hud {
             | BodyId::Mimas
             | BodyId::Iapetus
             | BodyId::Rhea => (
-                "[M] Saturn Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
-                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
+                format!("[M] Saturn Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Uranus
             | BodyId::Miranda
@@ -362,28 +413,28 @@ impl Hud {
             | BodyId::Umbriel
             | BodyId::Titania
             | BodyId::Oberon => (
-                "[M] Uranus Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
-                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
+                format!("[M] Uranus Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Neptune | BodyId::Triton | BodyId::Proteus => (
-                "[M] Neptune Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
-                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
+                format!("[M] Neptune Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Pluto | BodyId::Charon => (
-                "[M] Pluto/Charon  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  [?] Help",
-                "[M] Charon  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
+                format!("[M] Pluto/Charon  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Charon  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Ceres | BodyId::Vesta => (
-                "[M] Ceres/Vesta  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  [?] Help",
-                "[M] Belt  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
+                format!("[M] Ceres/Vesta  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Belt  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Voyager1 => (
-                "[Z] Golden Record  [F] Pale Blue Dot  [Y] Voyager 2  [Bksp] Overview  [+/-] Zoom  [?] Help",
-                "[Z] Record  [F] Earth  [Y] V2  [Bksp] Back",
+                format!("{}  {}  [Y] Voyager 2  [Bksp] Overview  {}  [?] Help", z_str, f_str, space_str),
+                format!("{}  {}  [Y] V2", z_str, f_str),
             ),
             BodyId::Voyager2 => (
-                "[Z] Golden Record  [F] Pale Blue Dot  [Y] Voyager 1  [Bksp] Overview  [+/-] Zoom  [?] Help",
-                "[Z] Record  [F] Earth  [Y] V1  [Bksp] Back",
+                format!("{}  {}  [Y] Voyager 1  [Bksp] Overview  {}  [?] Help", z_str, f_str, space_str),
+                format!("{}  {}  [Y] V1", z_str, f_str),
             ),
         };
 
@@ -391,9 +442,9 @@ impl Hud {
             let full_len = controls_full.chars().count();
             let comp_len = controls_compact.chars().count();
             if cols >= full_len + 2 {
-                Self::draw_text(buffer, 1, lines - 1, controls_full, [160, 195, 225]);
+                Self::draw_text(buffer, 1, lines - 1, &controls_full, [160, 195, 225]);
             } else if cols >= comp_len + 2 {
-                Self::draw_text(buffer, 1, lines - 1, controls_compact, [160, 195, 225]);
+                Self::draw_text(buffer, 1, lines - 1, &controls_compact, [160, 195, 225]);
             } else if cols > 20 {
                 Self::draw_text(buffer, 1, lines - 1, "[Tab] Next  [1-9/P] Worlds  [?] Help", [160, 195, 225]);
             }

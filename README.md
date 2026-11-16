@@ -4,7 +4,7 @@
 > *Rendered directly in your terminal using 24-bit TrueColor ANSI Half-Block Raymarching — 100% CPU, zero GPU dependencies.*
 
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
-[![Release](https://img.shields.io/badge/release-v1.4.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
+[![Release](https://img.shields.io/badge/release-v1.5.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Terminal](https://img.shields.io/badge/terminal-TrueColor%2024--bit-purple.svg?style=flat-square)]()
 [![Performance](https://img.shields.io/badge/framerate-600%2B%20FPS-brightgreen.svg?style=flat-square)]()

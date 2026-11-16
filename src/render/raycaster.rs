@@ -1799,26 +1799,26 @@ impl Raycaster {
 
             // Natural satellite orbits around their host worlds (visible when viewing planetary systems)
             let moon_systems: &[(&Option<crate::physics::ephemeris::KeplerOrbit>, Vec3, [u8; 3], f64)] = &[
-                (&physics.moon.orbit, earth_pos, [145, 175, 210], 2_000_000.0),
-                (&physics.phobos.orbit, mars_pos, [180, 140, 110], 250_000.0),
-                (&physics.deimos.orbit, mars_pos, [160, 150, 140], 250_000.0),
-                (&physics.io.orbit, jupiter_pos, [215, 185, 75], 12_000_000.0),
-                (&physics.europa.orbit, jupiter_pos, [165, 185, 215], 12_000_000.0),
-                (&physics.ganymede.orbit, jupiter_pos, [175, 160, 145], 12_000_000.0),
-                (&physics.callisto.orbit, jupiter_pos, [145, 145, 155], 12_000_000.0),
-                (&physics.titan.orbit, saturn_pos, [215, 185, 120], 10_000_000.0),
-                (&physics.enceladus.orbit, saturn_pos, [195, 215, 235], 10_000_000.0),
-                (&physics.mimas.orbit, saturn_pos, [175, 175, 185], 10_000_000.0),
-                (&physics.iapetus.orbit, saturn_pos, [160, 150, 140], 10_000_000.0),
-                (&physics.rhea.orbit, saturn_pos, [185, 190, 195], 10_000_000.0),
-                (&physics.miranda.orbit, uranus_pos, [165, 175, 185], 6_000_000.0),
-                (&physics.ariel.orbit, uranus_pos, [185, 195, 205], 6_000_000.0),
-                (&physics.umbriel.orbit, uranus_pos, [130, 130, 140], 6_000_000.0),
-                (&physics.titania.orbit, uranus_pos, [165, 165, 175], 6_000_000.0),
-                (&physics.oberon.orbit, uranus_pos, [155, 155, 165], 6_000_000.0),
-                (&physics.triton.orbit, neptune_pos, [175, 195, 220], 6_000_000.0),
-                (&physics.proteus.orbit, neptune_pos, [120, 125, 135], 6_000_000.0),
-                (&physics.charon.orbit, pluto_pos, [165, 155, 145], 150_000.0),
+                (&physics.moon.orbit, earth_pos, [145, 175, 210], 15_000_000.0),
+                (&physics.phobos.orbit, mars_pos, [180, 140, 110], 2_500_000.0),
+                (&physics.deimos.orbit, mars_pos, [160, 150, 140], 2_500_000.0),
+                (&physics.io.orbit, jupiter_pos, [215, 185, 75], 45_000_000.0),
+                (&physics.europa.orbit, jupiter_pos, [165, 185, 215], 45_000_000.0),
+                (&physics.ganymede.orbit, jupiter_pos, [175, 160, 145], 45_000_000.0),
+                (&physics.callisto.orbit, jupiter_pos, [145, 145, 155], 45_000_000.0),
+                (&physics.titan.orbit, saturn_pos, [215, 185, 120], 55_000_000.0),
+                (&physics.enceladus.orbit, saturn_pos, [195, 215, 235], 55_000_000.0),
+                (&physics.mimas.orbit, saturn_pos, [175, 175, 185], 55_000_000.0),
+                (&physics.iapetus.orbit, saturn_pos, [160, 150, 140], 55_000_000.0),
+                (&physics.rhea.orbit, saturn_pos, [185, 190, 195], 55_000_000.0),
+                (&physics.miranda.orbit, uranus_pos, [165, 175, 185], 25_000_000.0),
+                (&physics.ariel.orbit, uranus_pos, [185, 195, 205], 25_000_000.0),
+                (&physics.umbriel.orbit, uranus_pos, [130, 130, 140], 25_000_000.0),
+                (&physics.titania.orbit, uranus_pos, [165, 165, 175], 25_000_000.0),
+                (&physics.oberon.orbit, uranus_pos, [155, 155, 165], 25_000_000.0),
+                (&physics.triton.orbit, neptune_pos, [175, 195, 220], 25_000_000.0),
+                (&physics.proteus.orbit, neptune_pos, [120, 125, 135], 25_000_000.0),
+                (&physics.charon.orbit, pluto_pos, [165, 155, 145], 2_000_000.0),
             ];
 
             for (orb_opt, parent_center, color, max_cam_dist) in moon_systems {
@@ -1887,6 +1887,51 @@ impl Raycaster {
                             if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                                 buffer.pixels[pixel_idx] = Pixel::new(color[0], color[1], color[2], '+');
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 13. Voyager Pale Blue Dot & 1990 Sagan Sunbeam (visible from deep space / Voyager view)
+        if cam_pos.length() > 1.0e10 || camera.target_body == BodyId::Voyager1 || camera.target_body == BodyId::Voyager2 {
+            let to_earth = earth_pos - cam_pos;
+            let dist_earth = to_earth.length();
+            if dist_earth > 1.0e9 {
+                let dir_earth = to_earth / dist_earth;
+                let f_dot = dir_earth.dot(f);
+                if f_dot > 0.05 {
+                    let ndc_x = dir_earth.dot(r) / (f_dot * tan_half_fov_x);
+                    let ndc_y = dir_earth.dot(u_vec) / (f_dot * tan_half_fov_y);
+                    if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                        let ex = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                        let ey = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+
+                        // Draw Carl Sagan's iconic 1990 scattered optical diffraction sunbeam ray across screen
+                        for row in 0..v_height {
+                            let col_center = (ex as f64 + (row as f64 - ey as f64) * 0.52).round() as isize;
+                            for dc in -1..=1 {
+                                let c = col_center + dc;
+                                if c >= 0 && (c as usize) < cols {
+                                    let c_idx = row * cols + (c as usize);
+                                    if !hit_mask[c_idx] && !buffer.pixels[c_idx].is_text {
+                                        let intensity = if dc == 0 { 42 } else { 22 };
+                                        let curr = &buffer.pixels[c_idx];
+                                        buffer.pixels[c_idx] = Pixel::new(
+                                            curr.r.saturating_add((intensity as f64 * 0.75) as u8),
+                                            curr.g.saturating_add((intensity as f64 * 0.82) as u8),
+                                            curr.b.saturating_add(intensity),
+                                            if curr.ch == ' ' { '.' } else { curr.ch },
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        // Place the distinct Pale Blue Dot pixel
+                        if ex < cols && ey < v_height {
+                            let e_idx = ey * cols + ex;
+                            buffer.pixels[e_idx] = Pixel::new(135, 215, 255, '*');
                         }
                     }
                 }

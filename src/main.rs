@@ -133,6 +133,8 @@ fn main() {
     let mut app = App::new(initial_mode);
     if let Some(target) = target_body {
         app.set_target(target);
+    } else if test_frames.is_none() && custom_distance.is_none() && custom_elevation.is_none() && custom_azimuth.is_none() {
+        app.start_cinematic_intro();
     }
     if custom_azimuth.is_some() || custom_elevation.is_some() || custom_distance.is_some() {
         let az = custom_azimuth.unwrap_or(2.30);

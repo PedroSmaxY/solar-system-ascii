@@ -80,7 +80,7 @@ fn test_camera_target_zoom_memory() {
 
     let mut cam = Camera::new();
     assert_eq!(cam.target_body, BodyId::Sun);
-    assert!((cam.distance_km - 1.1e10).abs() < 1e-4);
+    assert!((cam.distance_km - 1.80e10).abs() < 1e-4);
 
     // Switch to Earth to test per-body zoom memory
     cam.set_target(BodyId::Earth, Vec3::new(149_597_870.7, 0.0, 0.0));
@@ -197,7 +197,7 @@ fn test_render_transition_demo() {
     let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
         buf.pixels.fill(Pixel::BLACK);
         raycaster.render_frame(buf, camera, &physics, 1, 0.0);
-        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false, false);
 
         let v_h = buf.virtual_height();
         let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
@@ -618,7 +618,7 @@ fn test_camera_flyto_sun_transition() {
     cam.update(0.8, &physics);
     assert!(cam.transition.is_none());
     assert_eq!(cam.target_body, BodyId::Sun);
-    assert!((cam.distance_km - 1.1e10).abs() < 1e-4);
+    assert!((cam.distance_km - 1.80e10).abs() < 1e-4);
 }
 
 #[test]
@@ -640,7 +640,7 @@ fn test_render_sun_demo() {
     let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
         buf.pixels.fill(Pixel::BLACK);
         raycaster.render_frame(buf, camera, &physics, 1, 0.0);
-        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false, false);
 
         let v_h = buf.virtual_height();
         let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
@@ -980,7 +980,7 @@ fn test_hud_label_proximity_and_range_culling() {
     cam.set_target(BodyId::Earth, physics.earth.position);
     cam.distance_km = 21_000.0;
     buffer.pixels.fill(Pixel::BLACK);
-    Hud::render(&mut buffer, &cam, &physics, 60.0, 600.0, false);
+    Hud::render(&mut buffer, &cam, &physics, 60.0, 600.0, false, false);
 
     // Search buffer for string "[Earth]"
     let mut found_earth = false;
@@ -1005,7 +1005,7 @@ fn test_hud_label_proximity_and_range_culling() {
     // [Earth] label must reappear!
     cam.distance_km = 100_000.0;
     buffer.pixels.fill(Pixel::BLACK);
-    Hud::render(&mut buffer, &cam, &physics, 60.0, 600.0, false);
+    Hud::render(&mut buffer, &cam, &physics, 60.0, 600.0, false, false);
 
     let mut found_earth_zoomed = false;
     for y in 0..rows {
@@ -1068,7 +1068,7 @@ fn test_render_mercury_demo() {
     let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
         buf.pixels.fill(Pixel::BLACK);
         raycaster.render_frame(buf, camera, &physics, 1, 0.0);
-        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false, false);
 
         let v_h = buf.virtual_height();
         let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
@@ -1391,7 +1391,7 @@ fn test_render_venus_demo() {
     let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, rc: &Raycaster, path: &str| {
         buf.pixels.fill(Pixel::BLACK);
         rc.render_frame(buf, camera, &physics, 1, 0.0);
-        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false, false);
 
         let v_h = buf.virtual_height();
         let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
@@ -1663,7 +1663,7 @@ fn test_render_mars_system_demo() {
     let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, rc: &Raycaster, path: &str| {
         buf.pixels.fill(Pixel::BLACK);
         rc.render_frame(buf, camera, &physics, 1, 0.0);
-        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false, false);
 
         let v_h = buf.virtual_height();
         let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
@@ -1926,7 +1926,7 @@ fn test_render_asteroid_belt_demo() {
     let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, rc: &Raycaster, path: &str| {
         buf.pixels.fill(Pixel::BLACK);
         rc.render_frame(buf, camera, &physics, 1, 0.0);
-        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false, false);
 
         let v_h = buf.virtual_height();
         let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
@@ -2095,7 +2095,7 @@ fn test_render_jupiter_galilean_demo() {
     let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
         buf.pixels.fill(Pixel::BLACK);
         raycaster.render_frame(buf, camera, &physics, 1, 0.0);
-        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false, false);
 
         let v_h = buf.virtual_height();
         let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
@@ -2411,7 +2411,7 @@ fn test_render_saturn_system_demo() {
     let render_ppm = |buf: &mut FrameBuffer, camera: &Camera, path: &str| {
         buf.pixels.fill(Pixel::BLACK);
         raycaster.render_frame(buf, camera, &physics, 1, 0.0);
-        Hud::render(buf, camera, &physics, 60.0, 600.0, false);
+        Hud::render(buf, camera, &physics, 60.0, 600.0, false, false);
 
         let v_h = buf.virtual_height();
         let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();
@@ -2915,7 +2915,7 @@ fn test_pluto_charon_system_and_voyager_probes() {
     let cam = Camera::new();
     assert_eq!(cam.target_body, BodyId::Sun);
     assert_eq!(cam.show_orbit_lines, true);
-    assert!((cam.distance_km - 1.1e10).abs() < 1e-4);
+    assert!((cam.distance_km - 1.80e10).abs() < 1e-4);
     assert!((cam.elevation - 0.0).abs() < 1e-4);
 }
 
@@ -2939,7 +2939,7 @@ fn test_render_polish_and_pluto_demos() {
     let render_ppm = |buf: &mut FrameBuffer, cam: &Camera, path: &str| {
         buf.pixels.fill(solar_system_ascii::render::buffer::Pixel::BLACK);
         raycaster.render_frame(buf, cam, &physics, 1, 0.0);
-        Hud::render(buf, cam, &physics, 60.0, 1.0, false);
+        Hud::render(buf, cam, &physics, 60.0, 1.0, false, false);
 
         let v_h = buf.virtual_height();
         let mut ppm = format!("P6\n{} {}\n255\n", buf.cols, v_h).into_bytes();
@@ -3012,7 +3012,7 @@ fn test_sun_zoom_toggle_and_extended_timewarp() {
 
     // 1. Initial state at Sun: Solar System Overview
     assert_eq!(cam.target_body, BodyId::Sun);
-    assert!((cam.distance_km - 1.1e10).abs() < 1e5);
+    assert!((cam.distance_km - 1.80e10).abs() < 1e5);
 
     // 2. Toggle Sun Zoom -> Swoop in to Sun Close-up (2,800,000 km)
     cam.toggle_sun_zoom();
@@ -3028,17 +3028,17 @@ fn test_sun_zoom_toggle_and_extended_timewarp() {
     assert_eq!(cam.target_body, BodyId::Sun);
     assert!((cam.distance_km - 2_800_000.0).abs() < 1e-4);
 
-    // 3. Toggle Sun Zoom again -> Swoop out to Solar System Overview (1.1e10 km)
+    // 3. Toggle Sun Zoom again -> Swoop out to Solar System Overview (1.80e10 km)
     cam.toggle_sun_zoom();
     assert!(cam.transition.is_some());
     let trans2 = cam.transition.as_ref().unwrap();
-    assert!((trans2.end_view.distance_km - 1.1e10).abs() < 1e5);
+    assert!((trans2.end_view.distance_km - 1.80e10).abs() < 1e5);
 
     // Complete transition
     cam.update(1.5, &physics);
     assert!(cam.transition.is_none());
     assert_eq!(cam.target_body, BodyId::Sun);
-    assert!((cam.distance_km - 1.1e10).abs() < 1e5);
+    assert!((cam.distance_km - 1.80e10).abs() < 1e5);
 
     // 4. Extended Timewarp check
     let max_timewarp = 315_360_000.0; // 10 years / sec
@@ -3060,10 +3060,10 @@ fn test_hud_moon_labels_culling_at_solar_distance() {
     let mut physics = SolarSystemPhysics::new();
     physics.update(0.0);
 
-    // 1. Top-Down Solar System Orrery View (Camera looking at Sun from 1.1e10 km)
+    // 1. Top-Down Solar System Orrery View (Camera looking at Sun from 1.80e10 km)
     let cam = Camera::new();
     buffer.pixels.fill(Pixel::BLACK);
-    Hud::render(&mut buffer, &cam, &physics, 60.0, 1.0, false);
+    Hud::render(&mut buffer, &cam, &physics, 60.0, 1.0, false, false);
 
     let get_text = |buf: &FrameBuffer| -> String {
         let mut out = String::new();
@@ -3102,7 +3102,7 @@ fn test_hud_moon_labels_culling_at_solar_distance() {
     cam_jup.set_target(BodyId::Jupiter, physics.jupiter.position);
     cam_jup.distance_km = 3_000_000.0;
     buffer.pixels.fill(Pixel::BLACK);
-    Hud::render(&mut buffer, &cam_jup, &physics, 60.0, 1.0, false);
+    Hud::render(&mut buffer, &cam_jup, &physics, 60.0, 1.0, false, false);
 
     let text_jup = get_text(&buffer);
     let any_galilean = text_jup.contains("[Callisto]") || text_jup.contains("[Io]") || text_jup.contains("[Europa]") || text_jup.contains("[Ganymede]");
@@ -3462,9 +3462,9 @@ fn test_voyager_camera_navigation_and_special_modes() {
     let trans2 = camera.transition.unwrap();
     assert!((trans2.end_view.distance_km - 0.012).abs() < 1e-5, "Should return to 12m: got {}", trans2.end_view.distance_km);
 
-    // 3. [F] "Pale Blue Dot" Alignment looking back along antenna boresight towards Sun/Earth
+    // 3. [F] "Pale Blue Dot" Alignment looking back along antenna boresight towards Sun/Earth (true 3D declination)
     camera.align_to_sun(Vec3::ZERO);
-    assert!(camera.elevation.abs() < 0.2);
+    assert!((camera.elevation - 0.67).abs() < 0.15, "Camera should align to 3D declination: got {}", camera.elevation);
 }
 
 #[test]
@@ -3581,4 +3581,167 @@ fn test_render_voyager_spacecraft_demos() {
 
     assert!(gold_hits > 50, "Golden Record close-up should render golden phonograph pixels: got {}", gold_hits);
     let _ = std::fs::write("/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/voyager_golden_record_closeup.ppm", ppm_record);
+}
+
+#[test]
+fn test_momento_zero_cinematic_intro_setup() {
+    use solar_system_ascii::app::App;
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::buffer::RenderMode;
+
+    let mut app = App::new(RenderMode::Ascii);
+    assert_eq!(app.camera.target_body, BodyId::Sun);
+
+    // Trigger cinematic intro
+    app.start_cinematic_intro();
+    assert_eq!(app.camera.target_body, BodyId::Earth);
+    assert!((app.camera.distance_km - 58_000.0).abs() < 1e-4);
+    assert!(app.camera.transition.is_some());
+
+    let trans = app.camera.transition.as_ref().unwrap();
+    assert_eq!(trans.to_body, BodyId::Earth);
+    assert!((trans.end_view.distance_km - 21_000.0).abs() < 1e-4);
+    assert!((trans.duration_secs - 2.4).abs() < 1e-4);
+
+    // Complete transition
+    app.camera.update(2.5, &app.physics);
+    assert!(app.camera.transition.is_none());
+    assert!((app.camera.distance_km - 21_000.0).abs() < 1e-4);
+}
+
+#[test]
+fn test_default_solar_system_frames_pluto_with_margin() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::camera::Camera;
+
+    let def_sun = Camera::default_view(BodyId::Sun);
+    assert!((def_sun.distance_km - 1.80e10).abs() < 1e-4);
+
+    // Verify FOV half-height fits Pluto semi-major axis (5.91e9 km)
+    let fov_half_height = def_sun.distance_km * (22.5 * std::f64::consts::PI / 180.0).tan();
+    assert!(fov_half_height > 5.91e9 * 1.10, "Solar system view must frame Pluto orbit with margin");
+}
+
+#[test]
+fn test_system_view_distances_frame_outer_moons() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::camera::Camera;
+
+    // Saturn frames Iapetus (3.56M km)
+    let sat_sys = Camera::system_view_distance(BodyId::Saturn);
+    assert_eq!(sat_sys, 11_000_000.0);
+    let sat_h = sat_sys * (22.5 * std::f64::consts::PI / 180.0).tan();
+    assert!(sat_h > 3_560_000.0, "Saturn system view must frame Iapetus (3.56M km): got half-height {}", sat_h);
+
+    // Jupiter frames Callisto (1.88M km)
+    let jup_sys = Camera::system_view_distance(BodyId::Jupiter);
+    assert_eq!(jup_sys, 6_000_000.0);
+    let jup_h = jup_sys * (22.5 * std::f64::consts::PI / 180.0).tan();
+    assert!(jup_h > 1_882_700.0, "Jupiter system view must frame Callisto (1.88M km)");
+
+    // Earth frames Moon (384k km)
+    let earth_sys = Camera::system_view_distance(BodyId::Earth);
+    assert_eq!(earth_sys, 1_250_000.0);
+    let earth_h = earth_sys * (22.5 * std::f64::consts::PI / 180.0).tan();
+    assert!(earth_h > 384_400.0, "Earth system view must frame Moon");
+}
+
+#[test]
+fn test_voyager_pale_blue_dot_elevation_and_framing() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let physics = SolarSystemPhysics::new();
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Voyager1, physics.voyager1.position);
+
+    assert!(!cam.is_pale_blue_dot_view(physics.earth.position));
+
+    // Toggle Pale Blue Dot
+    cam.toggle_pale_blue_dot(physics.earth.position, physics.sun.position);
+    assert!(cam.transition.is_some());
+    let trans = cam.transition.as_ref().unwrap();
+    assert!((trans.end_view.distance_km - 0.0085).abs() < 1e-4);
+
+    // Finish transition
+    cam.update(1.0, &physics);
+    assert!(cam.transition.is_none());
+    assert!(cam.is_pale_blue_dot_view(physics.earth.position), "Camera forward should point toward Earth");
+
+    // Toggle back to beauty angle
+    cam.toggle_pale_blue_dot(physics.earth.position, physics.sun.position);
+    assert!(cam.transition.is_some());
+    let trans2 = cam.transition.as_ref().unwrap();
+    assert!((trans2.end_view.distance_km - 0.012).abs() < 1e-4);
+}
+
+#[test]
+fn test_hud_earth_pale_blue_dot_prioritized_at_voyager() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+
+    let cols = 120;
+    let lines = 30;
+    let mut buf = FrameBuffer::new(cols, lines, RenderMode::Ascii);
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Voyager1, physics.voyager1.position);
+    cam.toggle_pale_blue_dot(physics.earth.position, physics.sun.position);
+    cam.update(1.0, &physics);
+
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut text = String::new();
+    for p in &buf.pixels {
+        if p.is_text {
+            text.push(p.ch);
+        }
+    }
+    assert!(text.contains("Earth") || text.contains("Pale Blue Dot"), "HUD should include Pale Blue Dot tag at Voyager: got {}", text);
+}
+
+#[test]
+fn test_reactive_hud_labels() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+
+    let cols = 120;
+    let lines = 30;
+    let mut buf = FrameBuffer::new(cols, lines, RenderMode::Ascii);
+    let physics = SolarSystemPhysics::new();
+
+    // 1. At Earth close-up: [N] should say "System View"
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Earth, physics.earth.position);
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut text1 = String::new();
+    for p in &buf.pixels {
+        if p.is_text {
+            text1.push(p.ch);
+        }
+    }
+    assert!(text1.contains("[N] System View") || text1.contains("[N] System"), "Expected system view label, got: {}", text1);
+
+    // 2. In Earth System View: [N] should say "Planet Close-up"
+    buf.pixels.fill(solar_system_ascii::render::buffer::Pixel::BLACK);
+    cam.distance_km = Camera::system_view_distance(BodyId::Earth);
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut text2 = String::new();
+    for p in &buf.pixels {
+        if p.is_text {
+            text2.push(p.ch);
+        }
+    }
+    assert!(text2.contains("[N] Planet Close-up") || text2.contains("[N] Close-up"), "Expected close-up label, got: {}", text2);
 }

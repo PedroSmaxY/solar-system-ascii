@@ -28,15 +28,15 @@ const WORLDS: [BodyId; 12] = [
 ];
 
 pub struct App {
-    term: TerminalManager,
-    physics: SolarSystemPhysics,
-    raycaster: Raycaster,
-    camera: Camera,
-    buffer: FrameBuffer,
-    time_warp: f64,
-    paused: bool,
-    sim_time: f64,
-    tick: u64,
+    pub term: TerminalManager,
+    pub physics: SolarSystemPhysics,
+    pub raycaster: Raycaster,
+    pub camera: Camera,
+    pub buffer: FrameBuffer,
+    pub time_warp: f64,
+    pub paused: bool,
+    pub sim_time: f64,
+    pub tick: u64,
     pub show_hud: bool,
     pub show_help: bool,
 }
@@ -64,6 +64,36 @@ impl App {
     pub fn set_target(&mut self, body: BodyId) {
         let pos = self.physics.get_body(body).position;
         self.camera.set_target(body, pos);
+    }
+
+    /// Smooth cinematic opening approach to Earth on initial interactive launch.
+    pub fn start_cinematic_intro(&mut self) {
+        self.camera.target_body = BodyId::Earth;
+        self.camera.target_pos = self.physics.earth.position;
+        self.camera.distance_km = 58_000.0;
+        self.camera.azimuth = 1.45;
+        self.camera.elevation = 0.48;
+
+        let start_view = crate::render::camera::BodyViewState {
+            azimuth: self.camera.azimuth,
+            elevation: self.camera.elevation,
+            distance_km: self.camera.distance_km,
+        };
+        let mut end_view = Camera::default_view(BodyId::Earth);
+        end_view.distance_km = 21_000.0;
+        end_view.azimuth = 2.30;
+        end_view.elevation = 0.28;
+
+        self.camera.transition = Some(crate::render::camera::CameraTransition {
+            from_body: BodyId::Earth,
+            to_body: BodyId::Earth,
+            from_pos: self.physics.earth.position,
+            start_view,
+            end_view,
+            elapsed_secs: 0.0,
+            duration_secs: 2.4,
+            journey_dist_km: 0.0,
+        });
     }
 
     pub fn set_view(&mut self, azimuth: f64, elevation: f64, distance: Option<f64>) {
@@ -401,20 +431,7 @@ impl App {
                                     other => other,
                                 };
                                 let default_dist = Camera::default_view(body).distance_km;
-                                let sys_dist = match body {
-                                    BodyId::Sun => 1.95e10,
-                                    BodyId::Mercury => 85_000.0,
-                                    BodyId::Venus => 120_000.0,
-                                    BodyId::Earth => 600_000.0,
-                                    BodyId::Mars => 45_000.0,
-                                    BodyId::Ceres => 650_000_000.0,
-                                    BodyId::Jupiter => 2_800_000.0,
-                                    BodyId::Saturn => 1_800_000.0,
-                                    BodyId::Uranus => 1_200_000.0,
-                                    BodyId::Neptune => 1_500_000.0,
-                                    BodyId::Pluto => 35_000.0,
-                                    _ => 1.95e10,
-                                };
+                                let sys_dist = Camera::system_view_distance(body);
                                 let target_dist = if (self.camera.distance_km - default_dist).abs() < (self.camera.distance_km - sys_dist).abs() {
                                     sys_dist
                                 } else {
@@ -423,7 +440,9 @@ impl App {
                                 let mut end_view = Camera::default_view(body);
                                 end_view.distance_km = target_dist;
                                 if (target_dist - sys_dist).abs() < 1.0 {
-                                    end_view.elevation = end_view.elevation.max(0.38);
+                                    // Oblique 3D viewing angle so moon orbits open into wide concentric ellipses
+                                    end_view.azimuth = 0.25;
+                                    end_view.elevation = 0.28;
                                 }
                                 let from_pos = self.physics.get_body(self.camera.target_body).position;
                                 let to_pos = self.physics.get_body(body).position;
@@ -435,7 +454,7 @@ impl App {
                                 }
                             }
                             KeyCode::Char('f') | KeyCode::Char('F') => {
-                                self.camera.align_to_sun(self.physics.sun.position);
+                                self.camera.toggle_pale_blue_dot(self.physics.earth.position, self.physics.sun.position);
                             }
                             KeyCode::Char('h') | KeyCode::Char('H') => {
                                 self.show_hud = !self.show_hud;
@@ -523,6 +542,7 @@ impl App {
                     fps,
                     self.time_warp,
                     self.paused,
+                    self.raycaster.venus_shader.radar_mode,
                 );
             }
 

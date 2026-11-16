@@ -2,7 +2,56 @@
 
 All notable changes to **solar-system-ascii (AstroEngine)** will be documented in this file.
 
-## [1.4.0] - 2026-11-16
+## [1.5.0] - 2026-11-16
+
+### 🌍 "Momento Zero", Carl Sagan's "Pale Blue Dot" Experience & 100% Reactive HUD
+
+#### 🎬 Cinematic "Momento Zero" Startup Experience
+- **Interactive Orbital Approach to Earth**:
+  - Launching the simulator interactively initiates an automated, non-blocking 2.4-second orbital glide from high orbit ($58{,}000\text{ km}$, $\text{azimuth}=1.45$, $\text{elevation}=0.48$) into Earth's curated beauty angle ($21{,}000\text{ km}$, $\text{azimuth}=2.30$, $\text{elevation}=0.28$).
+  - Instant visual 3D gratification from Frame 0: immediate full globe rendering with Rayleigh atmospheric twilight scattering, daylit continents, and night city lights.
+  - 100% responsive: any mouse drag, zoom scroll, or keypress instantly takes direct control without blocking.
+- **On-Screen Welcome Guide (HUD Line 1)**:
+  - Non-intrusive golden welcome banner displayed during the first 6 seconds of simulation:
+    `✦ Welcome to AstroEngine 3D · Press [0] Solar System Orrery  [1-9] Planets  [M] Moons  [Y] Voyagers  [?] Help ✦`
+
+#### 📐 Geometrically Calibrated Default Distances & Oblique Angles
+- **Solar System Orrery (`[0]`)**:
+  - Default overview distance expanded from $11\times 10^9\text{ km}$ to **$18\times 10^9\text{ km}$ ($120.3\text{ AU}$)**, perfectly framing all 8 planets, the Asteroid Belt, and Pluto's complete elliptical orbit with ~22% margin.
+  - Solar system maximum zoom-out expanded to **$1.5\times 10^{11}\text{ km}$ (~1,000 AU)**.
+- **Planetary System Views (`[N]`)**:
+  - Calibrated distances to frame all outer natural satellites with generous margins:
+    - **Saturn**: Expanded to **$11{,}000{,}000\text{ km}$** (framing Iapetus at $3{,}560{,}000\text{ km}$ 100% cleanly).
+    - **Jupiter**: Expanded to **$6{,}000{,}000\text{ km}$** (framing Callisto at $1{,}882{,}700\text{ km}$).
+    - **Earth**: Expanded to **$1{,}250{,}000\text{ km}$** (framing the Moon at $384{,}400\text{ km}$).
+    - **Mars**: Expanded to **$78{,}000\text{ km}$** (framing Deimos at $23{,}460\text{ km}$).
+    - **Uranus & Neptune**: Expanded to **$1{,}900{,}000\text{ km}$** and **$1{,}800{,}000\text{ km}$**.
+    - **Pluto**: Expanded to **$65{,}000\text{ km}$** (framing Charon's binary orbit).
+  - Entering System View automatically shifts to an oblique 3D angle ($\text{azimuth}=0.25$, $\text{elevation}=0.28$) so moon orbits open into wide concentric ellipses instead of looking flat edge-on.
+  - Satellite orbit line rendering threshold (`max_cam_dist`) expanded 5x–10x across all planetary systems.
+
+#### 🛰️ Carl Sagan's 1990 "Pale Blue Dot" Experience (`[F]` at Voyager)
+- **Over-the-Shoulder Camera Framing**:
+  - Pressing `[F]` at Voyager smoothly glides the camera into an over-the-shoulder perspective behind the high-gain antenna dish ($8.5\text{ m}$ distance), looking forward past the antenna rim.
+- **True 3D Vector & Elevation Calculation**:
+  - Fixed 3D solar/terrestrial alignment elevation to calculate true astronomical declination (accounting for Voyager 1's $+35^\circ$ and Voyager 2's $-48^\circ$ trajectories).
+- **1990 Sagan Scattered Sunbeam & Cyan Sub-pixel Earth**:
+  - Raycaster projects Earth coordinate from $> 24\text{ billion km}$ with a subtle scattered optical diffraction sunbeam ray and bright cyan sub-pixel point (`[135, 215, 255]`, `'*'`).
+- **HUD Target Prioritization**:
+  - Prioritizes `◉ [Earth · Pale Blue Dot (163.5 AU)]` at top of label placement queue, preventing Sun label collision at 160 AU.
+
+#### 🎛️ 100% Reactive Contextual HUD
+- **Dynamic Action Toggles in Control Bar**:
+  - All contextual keys dynamically indicate the exact inverse action they will perform:
+    - `[N]`: `[N] Planet Close-up` $\leftrightarrow$ `[N] System View`
+    - `[0]`: `[0] Sun Close-up` $\leftrightarrow$ `[0] Solar Overview`
+    - `[Z]`: `[Z] Full Craft (12m)` $\leftrightarrow$ `[Z] Golden Record (3m)`
+    - `[F]`: `[F] Craft View` $\leftrightarrow$ `[F] Pale Blue Dot`
+    - `[V]`: `[V] Optical Atmosphere` $\leftrightarrow$ `[V] Radar View`
+    - `[L]`: `[L] Orbits: ON` $\leftrightarrow$ `[L] Orbits: OFF`
+    - `[Space]`: `[Space] Resume` $\leftrightarrow$ `[Space] Pause`
+- **Dynamic Header Breadcrumb**:
+  - Header breadcrumb reactively reflects current mode (`"Solar System › Jupiter (System Overview)"`, `"Solar System › Venus (Magellan SAR Radar)"`, `"Solar System › Interstellar Space › Voyager 1 (Pale Blue Dot)"`).
 
 ### 🛰️ Voyager 1 & 2 Interstellar Spacecraft & "Click-to-Fly" Close-up Exploration
 
