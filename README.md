@@ -11,37 +11,6 @@
 
 ---
 
-## 📑 Table of Contents / Índice
-- [⚡ Quick Start & Download](#-quick-start--download)
-- [🎮 Controls & Navigation](#-controls--navigation)
-- [📸 Visual Showcase](#-visual-showcase)
-- [🖥️ Dual-Mode Rendering (HD vs ASCII)](#-dual-mode-rendering-hd-half-block-vs-classic-retro-ascii-b)
-- [🌟 Highlights & Features](#-highlights)
-- [🔬 Mathematical & Physical Foundations](#-mathematical--physical-foundations)
-- [⚡ Performance Benchmarks](#-performance--benchmarks)
-- [🔨 Compiling from Source](#-compiling-from-source)
-- [📜 License](#-license)
-
----
-
-## ⚡ Quick Start & Download
-
-Download the ready-to-run binary for your operating system from **[GitHub Releases (Latest)](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest)**:
-
-| OS / Architecture | Package | How to Run in 5 Seconds |
-| :--- | :--- | :--- |
-| **macOS Apple Silicon (M1–M4)** | [`solar-system-ascii-aarch64-apple-darwin.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && xattr -d com.apple.quarantine solar-system-ascii && ./solar-system-ascii --hd` |
-| **macOS Intel** | [`solar-system-ascii-x86_64-apple-darwin.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && xattr -d com.apple.quarantine solar-system-ascii && ./solar-system-ascii --hd` |
-| **Windows x64** | [`solar-system-ascii-x86_64-pc-windows-msvc.zip`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | Extract `.zip` $\to$ Double-click `solar-system-ascii.exe` |
-| **Linux x64 / ARM64** | [`solar-system-ascii-*-linux-gnu.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && chmod +x solar-system-ascii && ./solar-system-ascii --hd` |
-
-> [!TIP]
-> **Desbloqueio Rápido (Sem Complicação)**:
-> - **macOS**: Se aparecer aviso de desenvolvedor não verificado, rode `xattr -d com.apple.quarantine solar-system-ascii` no Terminal (ou clique com botão direito no arquivo no Finder $\to$ **Abrir**).
-> - **Windows**: Se a tela azul do SmartScreen aparecer, clique em **"Mais informações"** $\to$ **"Executar assim mesmo"**.
-
----
-
 ## 📸 Visual Showcase
 
 <p align="center">
@@ -114,6 +83,73 @@ AstroEngine features two distinct terminal rendering pipelines that can be toggl
 <p align="center">
   <em>Saturn captured in Classic ASCII Mode: Cassini division, planetary ring disc, ring shadow cast across northern latitudes, and illuminated southern hemisphere.</em>
 </p>
+
+---
+
+## ⚡ Quick Start & Download
+
+Download the ready-to-run binary for your operating system from **[GitHub Releases (Latest)](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest)**:
+
+| OS / Architecture | Package | How to Run in 5 Seconds |
+| :--- | :--- | :--- |
+| **macOS Apple Silicon (M1–M4)** | [`solar-system-ascii-aarch64-apple-darwin.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && xattr -d com.apple.quarantine solar-system-ascii && ./solar-system-ascii --hd` |
+| **macOS Intel** | [`solar-system-ascii-x86_64-apple-darwin.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && xattr -d com.apple.quarantine solar-system-ascii && ./solar-system-ascii --hd` |
+| **Windows x64** | [`solar-system-ascii-x86_64-pc-windows-msvc.zip`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | Extract `.zip` $\to$ Double-click `solar-system-ascii.exe` |
+| **Linux x64 / ARM64** | [`solar-system-ascii-*-linux-gnu.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && chmod +x solar-system-ascii && ./solar-system-ascii --hd` |
+
+> [!TIP]
+> **5-Second Security Unblock**:
+> - **macOS**: If Gatekeeper warns the app is from an unidentified developer, run `xattr -d com.apple.quarantine solar-system-ascii` in your terminal (or right-click the file in Finder $\to$ click **Open**).
+> - **Windows**: If Microsoft Defender SmartScreen displays a blue popup, click **"More info"** $\to$ click **"Run anyway"**.
+
+---
+
+## 📑 Table of Contents
+- [📸 Visual Showcase](#-visual-showcase)
+- [🖥️ Dual-Mode Rendering (HD vs ASCII)](#-dual-mode-rendering-hd-half-block-vs-classic-retro-ascii-b)
+- [⚡ Quick Start & Download](#-quick-start--download)
+- [🎮 Controls & Navigation](#-controls--navigation)
+- [🌟 Highlights & Features](#-highlights)
+- [🔬 Mathematical & Physical Foundations](#-mathematical--physical-foundations)
+- [⚡ Performance Benchmarks](#-performance--benchmarks)
+- [🔨 Compiling from Source](#-compiling-from-source)
+- [📜 License](#-license)
+
+---
+
+## 🎮 Controls & Navigation
+
+| Control | Action | Description |
+| :---: | :---: | :--- |
+| **Mouse Click** | **Click-to-Fly** | Click directly on any planet, moon, or 3D text tag `[Name]` to smoothly fly to that world. |
+| **Mouse Drag** | **Orbit Camera** | Left-click and drag in any direction to smoothly orbit around the targeted celestial body. |
+| **Mouse Scroll** | **Continuous Zoom** | Scroll up to zoom in close to surface features; scroll down to zoom out to interplanetary scale. |
+| `W` / `S` or `↑` / `↓` | **Camera Pitch (Tilt)** | Orbit camera elevation up and down (polar clamped strictly between $-89^\circ$ and $+89^\circ$). |
+| `A` / `D` or `←` / `→` | **Camera Yaw (Orbit)** | Orbit camera azimuth continuously $360^\circ$ around the target. |
+| `+` / `-` | **Exponential Zoom** | Fine exponential zoom in / out. Zooming out far enough automatically returns to the Orrery overview. |
+| `Tab` / `Shift+Tab` | **Sequential World Cycle** | Step sequentially forward and backward across all worlds (`Sun -> Mercury -> Venus -> Earth -> Mars -> Ceres -> Vesta -> Jupiter -> Saturn -> Uranus -> Neptune -> Pluto -> Sun`). |
+| `Backspace` | **Ascend Hierarchy** | Intuitive celestial ascent: `Voyager / Moon -> Parent Planet / Sun -> Solar System Overview`. |
+| `0` | **Solar System $\leftrightarrow$ Sun** | Seamless dive from interplanetary overview to $2.800.000\text{ km}$ solar photosphere close-up, and back. |
+| `Y` | **Interstellar Probes** | Direct toggle between interstellar spacecraft **Voyager 1** ($163.5\text{ AU}$) and **Voyager 2** ($136.8\text{ AU}$). |
+| `Z` | **Close-up / Golden Record** | At Voyager: toggle $3\text{ m}$ Golden Record close-up. At Sun: toggle $2.800.000\text{ km}$ photosphere close-up. |
+| `F` | **Align to Sun / Pale Blue Dot** | At Voyager: look back along antenna axis to distant Earth and Sun ("Pale Blue Dot"). At worlds: frame Sun on limb. |
+| `1` – `8` | **Planetary Jumps** | Mercury (`1`), Venus (`2`), Earth (`3`), Mars (`4`), Jupiter (`5`), Saturn (`6`), Uranus (`7`), Neptune (`8`). |
+| `9` | **Pluto & Charon** | Jump to the binary dwarf world and Tombaugh Regio nitrogen ice heart. |
+| `P` | **Asteroid Belt Worlds** | Jump to dwarf planet Ceres (Occator faculae) and protoplanet Vesta (Rheasilvia basin). |
+| `M` | **Closed-Loop Moon Cycle** | Cycle through all major natural satellites, with the final moon returning cleanly to its parent planet. |
+| `N` | **Toggle System Overview** | Toggle between close-up surface beauty angle and full planetary system overview altitude framing all moon orbits. |
+| `F` | **Align to Sun** | Rotate orbital perspective to frame the Sun directly on the limb alongside the target body. |
+| `V` | **Toggle Venus Radar / Optical** | Switches between Venus's thick cloud deck and Magellan Synthetic Aperture Radar surface topography. |
+| `R` | **Reset to Beauty Angle** | Instantly recenters the camera to the curated optimal aesthetic angle for the focused body. |
+| `L` | **Toggle Orbit Lines** | Turn Keplerian planetary and lunar satellite orbit trajectories on or off. |
+| `B` | **Toggle Half-Block / ASCII** | Switch between HD Half-Block (`▀`) and classic retro ASCII mode on the fly. |
+| `H` | **Toggle HUD Overlay** | Hide or show the astronomical telemetry header, breadcrumb trail, and contextual controls. |
+| `?` / `F1` / `/` | **Interactive Help Modal** | Display on-screen controls cheat sheet overlay. Dismiss with `?`, `/`, `Esc`, or Left-Click. |
+| `Space` | **Pause / Resume** | Freeze simulation physics and orbital evolution. |
+| `T` | **Time Warp Presets** | Progressive warp cycling: **Real-time (1.0x)** $\to$ **10 min/s** $\to$ **1 hr/s** $\to$ **1 day/s** $\to$ **1 mo/s** $\to$ **1 yr/s** $\to$ **1.0x**. |
+| `J` / `\` | **Rewind / Sync to Live Time** | Smooth 1.3-second cubic rewind/forward to current system wall-clock date/time and **1.0x** real-time speed. Any keypress or mouse touch instantly snaps to live. |
+| `[` / `]` | **Fine Time Adjustment** | Halve (`[`) or double (`]`) time speed up to **10 years / second** ($315.360.000\times$). |
+| `Q` / `Esc` / `Ctrl+C` | **Quit** | Cleanly restore terminal mouse/cursor state and exit (or dismiss help modal). |
 
 ---
 
@@ -244,42 +280,6 @@ The Sun is an active plasma emitter rather than an externally lit sphere. Its ra
 $$I(\mu) = I_0 \left(1 - u_1(1 - \mu) - u_2(1 - \mu)^2\right)$$
 
 Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.45$, and $u_2 = 0.22$. Photospheric convection granules ($1000\text{ km}$ scale cells) are evaluated via rotated non-separable tetrahedral cellular wave harmonics (granulation), Spörer tropical magnetic belt active sunspots (Umbra core $4,000\text{ K}$, Penumbra $5,500\text{ K}$, and bright faculae), and volumetric coronal plasma loops ($1.0\text{–}2.2\,R_\odot$).
-
----
-
-## 🎮 Controls & Navigation
-
-| Control | Action | Description |
-| :---: | :---: | :--- |
-| **Mouse Click** | **Click-to-Fly** | Click directly on any planet, moon, or 3D text tag `[Name]` to smoothly fly to that world. |
-| **Mouse Drag** | **Orbit Camera** | Left-click and drag in any direction to smoothly orbit around the targeted celestial body. |
-| **Mouse Scroll** | **Continuous Zoom** | Scroll up to zoom in close to surface features; scroll down to zoom out to interplanetary scale. |
-| `W` / `S` or `↑` / `↓` | **Camera Pitch (Tilt)** | Orbit camera elevation up and down (polar clamped strictly between $-89^\circ$ and $+89^\circ$). |
-| `A` / `D` or `←` / `→` | **Camera Yaw (Orbit)** | Orbit camera azimuth continuously $360^\circ$ around the target. |
-| `+` / `-` | **Exponential Zoom** | Fine exponential zoom in / out. Zooming out far enough automatically returns to the Orrery overview. |
-| `Tab` / `Shift+Tab` | **Sequential World Cycle** | Step sequentially forward and backward across all worlds (`Sun -> Mercury -> Venus -> Earth -> Mars -> Ceres -> Vesta -> Jupiter -> Saturn -> Uranus -> Neptune -> Pluto -> Sun`). |
-| `Backspace` | **Ascend Hierarchy** | Intuitive celestial ascent: `Voyager / Moon -> Parent Planet / Sun -> Solar System Overview`. |
-| `0` | **Solar System $\leftrightarrow$ Sun** | Seamless dive from interplanetary overview to $2.800.000\text{ km}$ solar photosphere close-up, and back. |
-| `Y` | **Interstellar Probes** | Direct toggle between interstellar spacecraft **Voyager 1** ($163.5\text{ AU}$) and **Voyager 2** ($136.8\text{ AU}$). |
-| `Z` | **Close-up / Golden Record** | At Voyager: toggle $3\text{ m}$ Golden Record close-up. At Sun: toggle $2.800.000\text{ km}$ photosphere close-up. |
-| `F` | **Align to Sun / Pale Blue Dot** | At Voyager: look back along antenna axis to distant Earth and Sun ("Pale Blue Dot"). At worlds: frame Sun on limb. |
-| `1` – `8` | **Planetary Jumps** | Mercury (`1`), Venus (`2`), Earth (`3`), Mars (`4`), Jupiter (`5`), Saturn (`6`), Uranus (`7`), Neptune (`8`). |
-| `9` | **Pluto & Charon** | Jump to the binary dwarf world and Tombaugh Regio nitrogen ice heart. |
-| `P` | **Asteroid Belt Worlds** | Jump to dwarf planet Ceres (Occator faculae) and protoplanet Vesta (Rheasilvia basin). |
-| `M` | **Closed-Loop Moon Cycle** | Cycle through all major natural satellites, with the final moon returning cleanly to its parent planet. |
-| `N` | **Toggle System Overview** | Toggle between close-up surface beauty angle and full planetary system overview altitude framing all moon orbits. |
-| `F` | **Align to Sun** | Rotate orbital perspective to frame the Sun directly on the limb alongside the target body. |
-| `V` | **Toggle Venus Radar / Optical** | Switches between Venus's thick cloud deck and Magellan Synthetic Aperture Radar surface topography. |
-| `R` | **Reset to Beauty Angle** | Instantly recenters the camera to the curated optimal aesthetic angle for the focused body. |
-| `L` | **Toggle Orbit Lines** | Turn Keplerian planetary and lunar satellite orbit trajectories on or off. |
-| `B` | **Toggle Half-Block / ASCII** | Switch between HD Half-Block (`▀`) and classic retro ASCII mode on the fly. |
-| `H` | **Toggle HUD Overlay** | Hide or show the astronomical telemetry header, breadcrumb trail, and contextual controls. |
-| `?` / `F1` / `/` | **Interactive Help Modal** | Display on-screen controls cheat sheet overlay. Dismiss with `?`, `/`, `Esc`, or Left-Click. |
-| `Space` | **Pause / Resume** | Freeze simulation physics and orbital evolution. |
-| `T` | **Time Warp Presets** | Progressive warp cycling: **Real-time (1.0x)** $\to$ **10 min/s** $\to$ **1 hr/s** $\to$ **1 day/s** $\to$ **1 mo/s** $\to$ **1 yr/s** $\to$ **1.0x**. |
-| `J` / `\` | **Rewind / Sync to Live Time** | Smooth 1.3-second cubic rewind/forward to current system wall-clock date/time and **1.0x** real-time speed. Any keypress or mouse touch instantly snaps to live. |
-| `[` / `]` | **Fine Time Adjustment** | Halve (`[`) or double (`]`) time speed up to **10 years / second** ($315.360.000\times$). |
-| `Q` / `Esc` / `Ctrl+C` | **Quit** | Cleanly restore terminal mouse/cursor state and exit (or dismiss help modal). |
 
 ---
 
