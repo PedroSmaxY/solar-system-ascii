@@ -11,6 +11,37 @@
 
 ---
 
+## 📑 Table of Contents / Índice
+- [⚡ Quick Start & Download](#-quick-start--download)
+- [🎮 Controls & Navigation](#-controls--navigation)
+- [📸 Visual Showcase](#-visual-showcase)
+- [🖥️ Dual-Mode Rendering (HD vs ASCII)](#-dual-mode-rendering-hd-half-block-vs-classic-retro-ascii-b)
+- [🌟 Highlights & Features](#-highlights)
+- [🔬 Mathematical & Physical Foundations](#-mathematical--physical-foundations)
+- [⚡ Performance Benchmarks](#-performance--benchmarks)
+- [🔨 Compiling from Source](#-compiling-from-source)
+- [📜 License](#-license)
+
+---
+
+## ⚡ Quick Start & Download
+
+Download the ready-to-run binary for your operating system from **[GitHub Releases (Latest)](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest)**:
+
+| OS / Architecture | Package | How to Run in 5 Seconds |
+| :--- | :--- | :--- |
+| **macOS Apple Silicon (M1–M4)** | [`solar-system-ascii-aarch64-apple-darwin.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && xattr -d com.apple.quarantine solar-system-ascii && ./solar-system-ascii --hd` |
+| **macOS Intel** | [`solar-system-ascii-x86_64-apple-darwin.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && xattr -d com.apple.quarantine solar-system-ascii && ./solar-system-ascii --hd` |
+| **Windows x64** | [`solar-system-ascii-x86_64-pc-windows-msvc.zip`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | Extrair `.zip` $\to$ Duplo clique em `solar-system-ascii.exe` |
+| **Linux x64 / ARM64** | [`solar-system-ascii-*-linux-gnu.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && chmod +x solar-system-ascii && ./solar-system-ascii --hd` |
+
+> [!TIP]
+> **Desbloqueio Rápido (Sem Complicação)**:
+> - **macOS**: Se aparecer aviso de desenvolvedor não verificado, rode `xattr -d com.apple.quarantine solar-system-ascii` no Terminal (ou clique com botão direito no arquivo no Finder $\to$ **Abrir**).
+> - **Windows**: Se a tela azul do SmartScreen aparecer, clique em **"Mais informações"** $\to$ **"Executar assim mesmo"**.
+
+---
+
 ## 📸 Visual Showcase
 
 <p align="center">
@@ -270,69 +301,9 @@ Benchmarks measured on standard hardware:
 
 ---
 
-## 📦 Installation & Pre-built Binaries
+## 🔨 Compiling from Source
 
-Pre-compiled standalone binaries with **zero runtime dependencies** are available for direct download on the **[GitHub Releases](https://github.com/PedroSmaxY/solar-system-ascii/releases)** page:
-
-- **Windows x64**: `solar-system-ascii-x86_64-pc-windows-msvc.zip` *(includes embedded application icon)*
-- **macOS Apple Silicon (M1/M2/M3/M4)**: `solar-system-ascii-aarch64-apple-darwin.tar.gz`
-- **macOS Intel**: `solar-system-ascii-x86_64-apple-darwin.tar.gz`
-- **Linux x86_64 (glibc)**: `solar-system-ascii-x86_64-unknown-linux-gnu.tar.gz`
-- **Linux x86_64 (musl static)**: `solar-system-ascii-x86_64-unknown-linux-musl.tar.gz`
-- **Linux ARM64**: `solar-system-ascii-aarch64-unknown-linux-gnu.tar.gz`
-
----
-
-### 🛡️ How to Run & Security Unblocking
-
-Because AstroEngine is a free open-source project distributed without expensive commercial developer certificates ($99/year Apple Developer, $300+/year Microsoft EV), modern operating systems flag binaries downloaded directly from the web with security warnings (Gatekeeper on macOS and SmartScreen on Windows). Here is how to run the binary safely in each OS:
-
-#### 🍏 macOS (Gatekeeper Quarantine)
-When downloaded via a web browser, macOS attaches the `com.apple.quarantine` attribute. To unblock and run:
-
-1. **Terminal (Recommended - 1 Command)**:
-   ```bash
-   tar -xzf solar-system-ascii-aarch64-apple-darwin.tar.gz
-   xattr -d com.apple.quarantine solar-system-ascii
-   chmod +x solar-system-ascii
-   ./solar-system-ascii --hd
-   ```
-2. **Finder (GUI)**:
-   - Extract the `.tar.gz`.
-   - **Right-Click** (or `Control + Click`) the `solar-system-ascii` file in Finder $\to$ select **Open** $\to$ click **Open** in the security confirmation dialog.
-   *(Or go to **System Settings** $\to$ **Privacy & Security** $\to$ scroll down and click **Open Anyway**).*
-
-> [!NOTE]
-> **Executable Icon on macOS**: By Unix/POSIX specification, standalone Mach-O command-line executables do not contain embedded icon resources, so the macOS Finder displays the generic terminal executable icon. On Windows, application icons are embedded directly into the `.exe` PE resource table.
-
-#### 🪟 Windows (Microsoft Defender SmartScreen)
-When downloaded from the internet, Windows attaches a `Zone.Identifier` stream and SmartScreen may display a blue dialog: *"Windows protected your PC"*.
-
-1. **From the SmartScreen Dialog**:
-   - Click **"More info"** ("Mais informações").
-   - Click **"Run anyway"** ("Executar assim mesmo").
-2. **PowerShell**:
-   ```powershell
-   Expand-Archive solar-system-ascii-x86_64-pc-windows-msvc.zip -DestinationPath .
-   Unblock-File .\solar-system-ascii.exe
-   .\solar-system-ascii.exe --hd
-   ```
-3. **File Explorer**:
-   - Right-click `solar-system-ascii.exe` $\to$ **Properties** $\to$ check the **"Unblock"** ("Desbloquear") box at the bottom $\to$ click **OK**.
-
-#### 🐧 Linux
-Extract and grant execution permissions:
-```bash
-tar -xzf solar-system-ascii-x86_64-unknown-linux-gnu.tar.gz
-chmod +x solar-system-ascii
-./solar-system-ascii --hd
-```
-
----
-
-### 🔨 Compiling from Source
-
-Building locally from source bypasses web download quarantine flags completely on all platforms:
+Building locally from source with Cargo (requires Rust 1.80+):
 
 ```bash
 # Clone the repository
@@ -343,8 +314,8 @@ cd solar-system-ascii
 cargo run --release
 ```
 
-#### Terminal Recommendations
-For the best visual fidelity and smooth 60 FPS rendering in 24-bit TrueColor ANSI Half-Block mode:
+### 🖥️ Recommended Terminals
+For the best visual fidelity and smooth 60 FPS in 24-bit TrueColor Half-Block mode:
 - **macOS**: Ghostty, Alacritty, Kitty, iTerm2, WezTerm, Terminal.app.
 - **Linux**: Ghostty, Alacritty, Kitty, WezTerm, GNOME Terminal, Foot.
 - **Windows**: Windows Terminal, WezTerm, Alacritty.
