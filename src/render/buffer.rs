@@ -97,8 +97,8 @@ impl FrameBuffer {
     /// Render internal grid into an optimized ANSI TrueColor string buffer.
     pub fn flush_to_string(&self) -> String {
         let mut out = String::with_capacity(self.cols * self.lines * 24);
-        // Move cursor to top-left
-        out.push_str("\x1b[H");
+        // Synchronized output (DEC Mode 2026) to prevent screen tearing on modern terminals
+        out.push_str("\x1b[?2026h\x1b[H");
 
         match self.mode {
             RenderMode::Ascii => {
@@ -199,6 +199,7 @@ impl FrameBuffer {
             }
         }
 
+        out.push_str("\x1b[?2026l");
         out
     }
 }

@@ -4,7 +4,7 @@
 > *Rendered directly in your terminal using 24-bit TrueColor ANSI Half-Block Raymarching — 100% CPU, zero GPU dependencies.*
 
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
-[![Release](https://img.shields.io/badge/release-v1.1.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
+[![Release](https://img.shields.io/badge/release-v1.2.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Terminal](https://img.shields.io/badge/terminal-TrueColor%2024--bit-purple.svg?style=flat-square)]()
 [![Performance](https://img.shields.io/badge/framerate-600%2B%20FPS-brightgreen.svg?style=flat-square)]()
@@ -226,19 +226,19 @@ Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.44$, and $u_2 = 0.17$. Photos
 | `9` | **Pluto & Charon** | Jump to the binary dwarf world and Tombaugh Regio nitrogen ice heart. |
 | `P` | **Asteroid Belt Worlds** | Jump to dwarf planet Ceres (Occator faculae) and protoplanet Vesta (Rheasilvia basin). |
 | `M` | **Closed-Loop Moon Cycle** | Cycle through all major natural satellites, with the final moon returning cleanly to its parent planet. |
-| `N` | **System Overview Altitude** | Smoothly pull camera back to overview altitudes framing all moon orbits of Jupiter, Saturn, Uranus, etc. |
+| `N` | **Toggle System Overview** | Toggle between close-up surface beauty angle and full planetary system overview altitude framing all moon orbits. |
 | `F` | **Align to Sun** | Rotate orbital perspective to frame the Sun directly on the limb alongside the target body. |
 | `V` | **Toggle Venus Radar / Optical** | Switches between Venus's thick cloud deck and Magellan Synthetic Aperture Radar surface topography. |
 | `R` | **Reset to Beauty Angle** | Instantly recenters the camera to the curated optimal aesthetic angle for the focused body. |
 | `L` | **Toggle Orbit Lines** | Turn Keplerian orbit trajectories on or off. |
 | `B` | **Toggle Half-Block / ASCII** | Switch between HD Half-Block (`▀`) and classic retro ASCII mode on the fly. |
 | `H` | **Toggle HUD Overlay** | Hide or show the astronomical telemetry header, breadcrumb trail, and contextual controls. |
-| `?` / `F1` | **Interactive Help Modal** | Display on-screen controls cheat sheet overlay. Dismiss with `?` or `Esc`. |
+| `?` / `F1` | **Interactive Help Modal** | Display on-screen controls cheat sheet overlay. Dismiss with `?`, `Esc`, or Left-Click. |
 | `Space` | **Pause / Resume** | Freeze simulation physics and orbital evolution. |
 | `T` | **Time Warp Presets** | Instant jump: **10 min/s** $\to$ **1 day/s** $\to$ **1 month/s** $\to$ **1 year/s** $\to$ **5 years/s** $\to$ **Real-time (1x)**. |
 | `\` / `\|` | **Reset Time Warp** | Reset simulation rate back to default **10 min/s** ($600\times$). |
 | `[` / `]` | **Fine Time Adjustment** | Halve (`[`) or double (`]`) time speed up to **10 years / second** ($315.360.000\times$). |
-| `Q` / `Esc` | **Quit** | Cleanly restore terminal mouse/cursor state and exit (or dismiss help modal). |
+| `Q` / `Esc` / `Ctrl+C` | **Quit** | Cleanly restore terminal mouse/cursor state and exit (or dismiss help modal). |
 
 ---
 

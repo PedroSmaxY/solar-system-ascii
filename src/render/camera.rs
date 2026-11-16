@@ -40,6 +40,10 @@ pub struct Camera {
     pub show_orbit_lines: bool,
     pub last_focused_planet: BodyId,
 
+    // Smooth camera inertia
+    pub vel_azimuth: f64,
+    pub vel_elevation: f64,
+
     // Free flight mode
     pub free_flight: bool,
     pub free_pos: Vec3,
@@ -126,6 +130,8 @@ impl Camera {
             transition: None,
             show_orbit_lines: true,
             last_focused_planet: BodyId::Earth,
+            vel_azimuth: 0.0,
+            vel_elevation: 0.0,
             free_flight: false,
             free_pos: Vec3::ZERO,
             free_yaw: 0.0,
@@ -307,12 +313,15 @@ impl Camera {
         to_pos: Vec3,
         duration_secs: f64,
     ) {
+        let end_view = self.saved_views[to_body.index()];
         if to_body == self.target_body && self.transition.is_none() {
-            return;
+            if (self.distance_km - end_view.distance_km).abs() < 10.0 {
+                return;
+            }
         }
 
-        // Only save current view state of the origin body if not already mid-flight
-        if self.transition.is_none() {
+        // Only save current view state of the origin body if transitioning to a different body
+        if self.transition.is_none() && to_body != self.target_body {
             let curr_idx = self.target_body.index();
             let start_view = BodyViewState {
                 azimuth: self.azimuth,
@@ -334,11 +343,43 @@ impl Camera {
             distance_km: self.distance_km,
         };
 
-        let end_view = self.saved_views[to_body.index()];
         let journey_dist_km = (to_pos - start_pos).length().max(10_000.0);
         let from_body = self.target_body;
 
         self.target_body = to_body;
+
+        self.transition = Some(CameraTransition {
+            from_body,
+            to_body,
+            from_pos: start_pos,
+            start_view,
+            end_view,
+            elapsed_secs: 0.0,
+            duration_secs: duration_secs.max(0.1),
+            journey_dist_km,
+        });
+    }
+
+    /// Transition to an explicit custom view state on a body (e.g. system overview toggle [N]).
+    pub fn transition_to_view(
+        &mut self,
+        to_body: BodyId,
+        from_pos: Vec3,
+        to_pos: Vec3,
+        end_view: BodyViewState,
+        duration_secs: f64,
+    ) {
+        self.cancel_transition();
+        let start_pos = from_pos;
+        let start_view = BodyViewState {
+            azimuth: self.azimuth,
+            elevation: self.elevation,
+            distance_km: self.distance_km,
+        };
+        let journey_dist_km = (to_pos - start_pos).length().max(10_000.0);
+        let from_body = self.target_body;
+        self.target_body = to_body;
+        self.saved_views[to_body.index()] = end_view;
 
         self.transition = Some(CameraTransition {
             from_body,
@@ -455,11 +496,25 @@ impl Camera {
         } else {
             // Keep camera target tracked to the current body
             self.target_pos = physics.get_body(self.target_body).position;
+
+            // Apply smooth orbital damping / inertia
+            if self.vel_azimuth.abs() > 1e-5 || self.vel_elevation.abs() > 1e-5 {
+                let decay = (-10.0 * dt).exp();
+                self.azimuth = (self.azimuth + self.vel_azimuth * dt * 10.0).rem_euclid(2.0 * PI);
+                self.elevation = (self.elevation + self.vel_elevation * dt * 10.0).clamp(-1.55, 1.55);
+                self.vel_azimuth *= decay;
+                self.vel_elevation *= decay;
+                let idx = self.target_body.index();
+                self.saved_views[idx].azimuth = self.azimuth;
+                self.saved_views[idx].elevation = self.elevation;
+            }
         }
     }
 
     pub fn zoom_in(&mut self) {
         self.cancel_transition();
+        self.vel_azimuth = 0.0;
+        self.vel_elevation = 0.0;
         let min_dist = match self.target_body {
             BodyId::Earth => 6_800.0, // ~430 km above surface (ISS orbit)
             BodyId::Mercury => 2_600.0, // ~160 km above surface (MESSENGER orbit)
@@ -502,6 +557,8 @@ impl Camera {
     /// Returns true if an automated transition to the top-down Solar System view should be started.
     pub fn zoom_out(&mut self) -> bool {
         self.cancel_transition();
+        self.vel_azimuth = 0.0;
+        self.vel_elevation = 0.0;
         self.distance_km = (self.distance_km * 1.14).min(3.5e10);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;
 
@@ -522,6 +579,8 @@ impl Camera {
         self.cancel_transition();
         self.azimuth = (self.azimuth + d_az).rem_euclid(2.0 * PI);
         self.elevation = (self.elevation + d_el).clamp(-1.55, 1.55);
+        self.vel_azimuth += d_az * 0.35;
+        self.vel_elevation += d_el * 0.35;
         let idx = self.target_body.index();
         self.saved_views[idx].azimuth = self.azimuth;
         self.saved_views[idx].elevation = self.elevation;
@@ -529,6 +588,8 @@ impl Camera {
 
     pub fn recenter(&mut self) {
         self.cancel_transition();
+        self.vel_azimuth = 0.0;
+        self.vel_elevation = 0.0;
         let def = Self::default_view(self.target_body);
         self.azimuth = def.azimuth;
         self.elevation = def.elevation;

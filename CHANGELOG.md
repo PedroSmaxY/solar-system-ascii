@@ -2,6 +2,44 @@
 
 All notable changes to **solar-system-ascii (AstroEngine)** will be documented in this file.
 
+## [1.2.0] - 2026-11-16
+
+### 🚀 UX, Cross-Platform Robustness & Terminal Polishing
+
+#### 🛡️ Terminal Safety & Cross-Platform Reliability
+- **Panic Hook Safety (`std::panic::set_hook`)**:
+  - Automatically resets terminal cursor visibility, exits alternate screen, disables mouse tracking, and disables raw mode if an unexpected panic occurs, preventing terminal bricking or frozen escape states.
+- **Raw Mode `Ctrl+C` & `Ctrl+D` Interception**:
+  - Captured POSIX/Windows control sequences directly within raw event loop to guarantee immediate, graceful terminal restoration and exit.
+- **Teardown Sequence Fix**:
+  - Inverted cleanup sequence to disable mouse capture *before* leaving the alternate screen buffer, eliminating stray mouse escape codes in Windows Terminal, tmux, and Linux consoles.
+- **Keyboard Auto-Repeat**:
+  - Added support for `KeyEventKind::Repeat` under Windows Terminal and Kitty keyboard protocols for uninterrupted keyboard orbiting.
+
+#### 🎯 Navigation & Workflow Polish
+- **P0 Fix: Sequential World Cycling (`[Tab]` / `[Shift+Tab]`)**:
+  - Fixed infinite loop trap on Mercury/Pluto by prioritizing world array membership over generic parent resolution. Cycles smoothly through all 12 celestial worlds (`Sun -> Mercury -> ... -> Pluto -> Vesta -> Sun`).
+- **P0 Fix: Bidirectional System Overview Toggle (`[N]`)**:
+  - Implemented dynamic toggle between default surface beauty angle and full orbital overview altitude for Earth ($600,000\text{ km}$), Mars ($45,000\text{ km}$), Ceres ($650,000,000\text{ km}$), Jupiter ($2,800,000\text{ km}$), Saturn ($1,800,000\text{ km}$), Uranus ($1,200,000\text{ km}$), Neptune ($1,500,000\text{ km}$), and Pluto ($35,000\text{ km}$).
+- **Mouse Drag Calibration**:
+  - Recalibrated mouse drag sensitivity to $-0.022$ azimuth / $+0.035$ elevation for natural 1:1 orbiting feel across high-DPI trackpads and mice.
+- **Mouse Click Modal Dismissal**:
+  - Left-clicking anywhere on the screen now dismisses the interactive Help Modal.
+- **Smooth Orbit Damping**:
+  - Added subtle exponential orbital velocity damping for keyboard panning (`A`/`D`/`W`/`S`), providing cinematic smoothness.
+
+#### 🎨 Visual Polish & Tear-Free Rendering
+- **DEC Mode 2026 Synchronized Output**:
+  - Enclosed ANSI output buffer with `\x1b[?2026h` ... `\x1b[?2026l` atomic sync markers, eliminating scanline tearing on modern terminals (Ghostty, Kitty, iTerm2, WezTerm, Windows Terminal).
+- **Text Backdrop Dimming**:
+  - Sub-pixel dimming on text row cells in Half-Block mode ensures HUD text and 3D labels remain razor-sharp and legible even when passing over the solar corona or bright planetary limbs.
+- **HUD UTF-8 & Responsive Layout**:
+  - Replaced byte length with `.chars().count()` for UTF-8 glyph calculation; redesigned compact controls bar to guarantee clean fit within standard $80 \times 24$ terminal windows.
+- **Clean Visual Showcase Artifacts**:
+  - Regenerated all gallery screenshots without raw-buffer HUD text artifacts (corner bars and colored text dashes).
+
+---
+
 ## [1.1.0] - 2026-11-16
 
 ### 🎮 UX & Navigation Overhaul & English Standardization

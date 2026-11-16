@@ -10,7 +10,10 @@ use crossterm::{
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io::{stdout, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+
+static PANIC_HOOK_SET: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TerminalEvent {
@@ -18,11 +21,13 @@ pub enum TerminalEvent {
     MouseScrollUp,
     MouseScrollDown,
     MouseDrag { dx: i32, dy: i32 },
+    MouseClick { col: u16, row: u16 },
 }
 
 pub struct TerminalManager {
     is_raw: bool,
     last_mouse_pos: Option<(u16, u16)>,
+    mouse_down_pos: Option<(u16, u16)>,
 }
 
 impl TerminalManager {
@@ -30,12 +35,24 @@ impl TerminalManager {
         Self {
             is_raw: false,
             last_mouse_pos: None,
+            mouse_down_pos: None,
         }
     }
 
     pub fn init(&mut self) {
         let _ = terminal::enable_raw_mode();
         self.is_raw = true;
+
+        if !PANIC_HOOK_SET.swap(true, Ordering::SeqCst) {
+            let default_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                let mut out = stdout();
+                let _ = execute!(out, DisableMouseCapture, cursor::Show, LeaveAlternateScreen);
+                let _ = out.flush();
+                let _ = terminal::disable_raw_mode();
+                default_hook(info);
+            }));
+        }
 
         let mut out = stdout();
         let _ = execute!(out, EnterAlternateScreen, cursor::Hide, EnableMouseCapture);
@@ -45,7 +62,7 @@ impl TerminalManager {
     pub fn restore(&mut self) {
         if self.is_raw {
             let mut out = stdout();
-            let _ = execute!(out, cursor::Show, LeaveAlternateScreen, DisableMouseCapture);
+            let _ = execute!(out, DisableMouseCapture, cursor::Show, LeaveAlternateScreen);
             let _ = out.flush();
             let _ = terminal::disable_raw_mode();
             self.is_raw = false;
@@ -63,7 +80,7 @@ impl TerminalManager {
         if let Ok(true) = event::poll(Duration::from_millis(0)) {
             match event::read() {
                 Ok(Event::Key(KeyEvent { code, modifiers, kind, .. })) => {
-                    if kind == KeyEventKind::Press {
+                    if matches!(kind, KeyEventKind::Press | KeyEventKind::Repeat) {
                         return Some(TerminalEvent::Key(code, modifiers));
                     }
                 }
@@ -73,13 +90,15 @@ impl TerminalManager {
                         MouseEventKind::ScrollDown => return Some(TerminalEvent::MouseScrollDown),
                         MouseEventKind::Down(MouseButton::Left) => {
                             self.last_mouse_pos = Some((column, row));
+                            self.mouse_down_pos = Some((column, row));
                         }
                         MouseEventKind::Drag(MouseButton::Left) => {
                             if let Some((last_c, last_r)) = self.last_mouse_pos {
                                 let dx = column as i32 - last_c as i32;
                                 let dy = row as i32 - last_r as i32;
                                 self.last_mouse_pos = Some((column, row));
-                                if dx != 0 || dy != 0 {
+                                if dx.abs() > 0 || dy.abs() > 0 {
+                                    self.mouse_down_pos = None;
                                     return Some(TerminalEvent::MouseDrag { dx, dy });
                                 }
                             } else {
@@ -88,22 +107,16 @@ impl TerminalManager {
                         }
                         MouseEventKind::Up(MouseButton::Left) => {
                             self.last_mouse_pos = None;
+                            if let Some((down_c, down_r)) = self.mouse_down_pos.take() {
+                                if down_c == column && down_r == row {
+                                    return Some(TerminalEvent::MouseClick { col: column, row });
+                                }
+                            }
                         }
                         _ => {}
                     }
                 }
                 _ => {}
-            }
-        }
-        None
-    }
-
-    pub fn poll_key() -> Option<KeyCode> {
-        if let Ok(true) = event::poll(Duration::from_millis(0)) {
-            if let Ok(Event::Key(KeyEvent { code, kind, .. })) = event::read() {
-                if kind == KeyEventKind::Press {
-                    return Some(code);
-                }
             }
         }
         None

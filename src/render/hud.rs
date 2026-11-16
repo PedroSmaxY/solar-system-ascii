@@ -145,7 +145,7 @@ impl Hud {
             }
         };
 
-        let dist_str = if camera.distance_km < 1_000_000.0 {
+        let dist_str = if camera.distance_km < 10_000_000.0 {
             format!("{:.0} km", camera.distance_km)
         } else {
             format!("{:.4} AU ({:.0} km)", camera.distance_km / 149_597_870.7, camera.distance_km)
@@ -175,10 +175,12 @@ impl Hud {
         // Top Header (Line 0)
         let title = format!("AstroEngine · {} · {}", target_name, dist_str);
         let status = format!("{} · {} · {:.0} FPS", mode_str, warp_str, fps);
+        let title_len = title.chars().count();
+        let status_len = status.chars().count();
 
-        if cols > title.len() + status.len() + 4 {
+        if cols > title_len + status_len + 4 {
             Self::draw_text(buffer, 1, 0, &title, [180, 215, 255]);
-            Self::draw_text(buffer, cols - status.len() - 1, 0, &status, [200, 215, 230]);
+            Self::draw_text(buffer, cols - status_len - 1, 0, &status, [200, 215, 230]);
         } else {
             Self::draw_text(buffer, 1, 0, &title, [180, 215, 255]);
         }
@@ -338,35 +340,35 @@ impl Hud {
             BodyId::Sun => {
                 if camera.distance_km > 5.0e7 {
                     (
-                        "[0/Z] Sun Close-up  [1-9] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  [Space] Pause  [?] Help",
-                        "[0] Close-up  [1-9] Worlds  [Tab] Next  [?] Help",
+                        "[0/Z] Sun Close-up  [1-9/P] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  [Space] Pause  [?] Help",
+                        "[0] Close-up  [1-9/P] Worlds  [Tab] Next  [?] Help",
                     )
                 } else {
                     (
-                        "[0/Z] Overview  [1-9] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  [R] Reset  [?] Help",
-                        "[0] Overview  [1-9] Worlds  [Tab] Next  [?] Help",
+                        "[0/Z] Overview  [1-9/P] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  [R] Reset  [?] Help",
+                        "[0] Overview  [1-9/P] Worlds  [Tab] Next  [?] Help",
                     )
                 }
             }
             BodyId::Venus => (
-                "[V] Radar Mode  [Tab] Next  [Bksp] Back  [1-9] Worlds  [+/-] Zoom  [Space] Pause  [?] Help",
-                "[V] Radar  [Tab] Next  [Bksp] Back  [?] Help",
+                "[V] Radar Mode  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  [Space] Pause  [?] Help",
+                "[V] Radar  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
             BodyId::Mercury => (
-                "[Tab] Next  [Bksp] Back  [1-9] Worlds  [R] Reset  [+/-] Zoom  [Space] Pause  [?] Help",
-                "[Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
+                "[Tab] Next  [Bksp] Back  [1-9/P] Worlds  [R] Reset  [+/-] Zoom  [Space] Pause  [?] Help",
+                "[Tab] Next  [1-9/P] Worlds  [+/-] Zoom  [?] Help",
             ),
             BodyId::Earth | BodyId::Moon => (
-                "[M] Moon Cycle  [Tab] Next  [Bksp] Back  [1-9] Worlds  [+/-] Zoom  [Space] Pause  [?] Help",
-                "[M] Moon  [Tab] Next  [Bksp] Back  [?] Help",
+                "[M] Moon Cycle  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  [?] Help",
+                "[M] Moon  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
             BodyId::Mars | BodyId::Phobos | BodyId::Deimos => (
-                "[M] Moons (Phobos/Deimos)  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
-                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
+                "[M] Moons (Phobos/Deimos)  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
+                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
             BodyId::Jupiter | BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto => (
-                "[M] Galilean Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
-                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
+                "[M] Galilean Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
+                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
             BodyId::Saturn
             | BodyId::Titan
@@ -374,8 +376,8 @@ impl Hud {
             | BodyId::Mimas
             | BodyId::Iapetus
             | BodyId::Rhea => (
-                "[M] Saturn Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
-                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
+                "[M] Saturn Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
+                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
             BodyId::Uranus
             | BodyId::Miranda
@@ -383,30 +385,32 @@ impl Hud {
             | BodyId::Umbriel
             | BodyId::Titania
             | BodyId::Oberon => (
-                "[M] Uranus Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
-                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
+                "[M] Uranus Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
+                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
             BodyId::Neptune | BodyId::Triton | BodyId::Proteus => (
-                "[M] Neptune Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
-                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
+                "[M] Neptune Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [?] Help",
+                "[M] Moons  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
             BodyId::Pluto | BodyId::Charon => (
-                "[M] Pluto/Charon  [Tab] Next  [Bksp] Back  [1-9] Worlds  [+/-] Zoom  [?] Help",
-                "[M] Charon  [Tab] Next  [Bksp] Back  [?] Help",
+                "[M] Pluto/Charon  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  [?] Help",
+                "[M] Charon  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
             BodyId::Ceres | BodyId::Vesta => (
-                "[M] Ceres/Vesta  [Tab] Next  [Bksp] Back  [1-9] Worlds  [+/-] Zoom  [?] Help",
-                "[M] Belt  [Tab] Next  [Bksp] Back  [?] Help",
+                "[M] Ceres/Vesta  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  [?] Help",
+                "[M] Belt  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
         };
 
         if lines > 1 {
-            if cols >= controls_full.len() + 2 {
+            let full_len = controls_full.chars().count();
+            let comp_len = controls_compact.chars().count();
+            if cols >= full_len + 2 {
                 Self::draw_text(buffer, 1, lines - 1, controls_full, [160, 195, 225]);
-            } else if cols >= controls_compact.len() + 2 {
+            } else if cols >= comp_len + 2 {
                 Self::draw_text(buffer, 1, lines - 1, controls_compact, [160, 195, 225]);
             } else if cols > 20 {
-                Self::draw_text(buffer, 1, lines - 1, "[Tab] Next  [1-9] Worlds  [?] Help", [160, 195, 225]);
+                Self::draw_text(buffer, 1, lines - 1, "[Tab] Next  [1-9/P] Worlds  [?] Help", [160, 195, 225]);
             }
         }
     }
@@ -425,11 +429,12 @@ impl Hud {
             "│ Moon Systems    [M] Cycle Moons & Return  [N] System View    │",
             "│ Ascend / Back   [Backspace] Moon -> Planet -> Solar System   │",
             "│ Solar Alignment [F] Align to Sun  [Z] Sun Close-up Toggle    │",
-            "│ Simulation      [Space] Pause  [T] Time Warp Scale  [\\] 1x   │",
+            "│ Features        [L] Orbit Lines  [V] Venus Radar Mode        │",
+            "│ Simulation      [Space] Pause  [T] Warp  [\\] 10 min/s        │",
             "│ Display         [B] ASCII / HD Half-Block  [H] Toggle HUD    │",
             "│ Recenter View   [R] Recenter Camera Perspective              │",
-            "│ Quit / Exit     [Q / Esc] Quit                               │",
-            "└────────────────── Press [?] or [Esc] to Close ───────────────┘",
+            "│ Quit / Exit     [Q / Esc / Ctrl+C] Quit                      │",
+            "└──────────── Press [?], [Esc], or Click to Close ─────────────┘",
         ];
         let modal_h = lines_text.len().min(lines.saturating_sub(2));
         if modal_w < 30 || modal_h < 6 {
@@ -487,6 +492,13 @@ impl Hud {
             let px = x + i;
             if px < buffer.cols {
                 buffer.set_pixel(px, v_y, Pixel::text(color[0], color[1], color[2], c));
+                // In HalfBlock mode, dim the bottom half-block cell to improve text legibility over bright planetary surfaces
+                if buffer.mode == RenderMode::HalfBlock && v_y + 1 < buffer.virtual_height() {
+                    let bot_idx = (v_y + 1) * buffer.cols + px;
+                    buffer.pixels[bot_idx].r /= 4;
+                    buffer.pixels[bot_idx].g /= 4;
+                    buffer.pixels[bot_idx].b /= 4;
+                }
             }
         }
     }

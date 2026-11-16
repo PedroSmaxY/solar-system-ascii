@@ -1,7 +1,6 @@
 use solar_system_ascii::physics::SolarSystemPhysics;
 use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode, Pixel};
 use solar_system_ascii::render::camera::Camera;
-use solar_system_ascii::render::hud::Hud;
 use solar_system_ascii::render::raycaster::Raycaster;
 
 fn main() {
@@ -17,7 +16,6 @@ fn main() {
     cam.distance_km = 1.95e10;
     buffer.pixels.fill(Pixel::BLACK);
     raycaster.render_frame(&mut buffer, &cam, &physics, 1, 0.0);
-    Hud::render(&mut buffer, &cam, &physics, 60.0, 1.0, false);
 
     let v_h = buffer.virtual_height();
     let mut ppm = format!("P6\n{} {}\n255\n", cols, v_h).into_bytes();

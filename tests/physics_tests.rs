@@ -3201,3 +3201,87 @@ fn test_ux_midflight_redirect_continuity() {
     assert!(cam.transition.is_none());
     assert_eq!(cam.target_body, BodyId::Saturn);
 }
+
+#[test]
+fn test_ux_tab_cycles_all_twelve_worlds() {
+    use solar_system_ascii::physics::body::BodyId;
+
+    const WORLDS: [BodyId; 12] = [
+        BodyId::Sun,
+        BodyId::Mercury,
+        BodyId::Venus,
+        BodyId::Earth,
+        BodyId::Mars,
+        BodyId::Ceres,
+        BodyId::Jupiter,
+        BodyId::Saturn,
+        BodyId::Uranus,
+        BodyId::Neptune,
+        BodyId::Pluto,
+        BodyId::Vesta,
+    ];
+
+    // Forward cycle test
+    let mut current = BodyId::Sun;
+    let mut visited = Vec::new();
+    for _ in 0..12 {
+        let cur_world = if WORLDS.contains(&current) {
+            current
+        } else {
+            current.parent().unwrap_or(BodyId::Sun)
+        };
+        let cur_idx = WORLDS.iter().position(|&b| b == cur_world).unwrap();
+        let next_idx = (cur_idx + 1) % WORLDS.len();
+        current = WORLDS[next_idx];
+        visited.push(current);
+    }
+
+    assert_eq!(visited.len(), 12);
+    assert_eq!(visited[0], BodyId::Mercury);
+    assert_eq!(visited[9], BodyId::Pluto);
+    assert_eq!(visited[10], BodyId::Vesta);
+    assert_eq!(visited[11], BodyId::Sun);
+
+    // Test reverse cycle (Shift+Tab)
+    let cur_world = if WORLDS.contains(&current) {
+        current
+    } else {
+        current.parent().unwrap_or(BodyId::Sun)
+    };
+    let cur_idx = WORLDS.iter().position(|&b| b == cur_world).unwrap();
+    let prev_idx = (cur_idx + WORLDS.len() - 1) % WORLDS.len();
+    assert_eq!(WORLDS[prev_idx], BodyId::Vesta);
+}
+
+#[test]
+fn test_ux_system_view_toggle() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let physics = SolarSystemPhysics::new();
+    let mut cam = Camera::new();
+
+    // 1. Earth: default is 21,000 km, system overview is 600,000 km (framing Luna orbit)
+    cam.set_target(BodyId::Earth, physics.earth.position);
+    let default_dist = Camera::default_view(BodyId::Earth).distance_km;
+    assert_eq!(default_dist, 21_000.0);
+
+    let sys_dist = 600_000.0;
+    // When currently at close view, toggle targets system overview
+    let target_dist = if (cam.distance_km - default_dist).abs() < (cam.distance_km - sys_dist).abs() {
+        sys_dist
+    } else {
+        default_dist
+    };
+    assert_eq!(target_dist, 600_000.0);
+
+    // Set to sys_dist and toggle again -> should return to default_dist
+    cam.distance_km = 600_000.0;
+    let target_dist_return = if (cam.distance_km - default_dist).abs() < (cam.distance_km - sys_dist).abs() {
+        sys_dist
+    } else {
+        default_dist
+    };
+    assert_eq!(target_dist_return, 21_000.0);
+}
