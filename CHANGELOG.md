@@ -1,6 +1,52 @@
 # Changelog
 
-All notable changes to **AstroEngine ASCII** will be documented in this file.
+All notable changes to **solar-system-ascii (AstroEngine)** will be documented in this file.
+
+## [1.1.0] - 2026-11-16
+
+### 🎮 UX & Navigation Overhaul & English Standardization
+
+#### 🖱️ Full Mouse & Interactive Navigation
+- **Terminal Mouse Capture**:
+  - Left-click drag to orbit camera around the targeted planet or star with smooth 1:1 direct manipulation.
+  - Mouse scroll wheel for continuous exponential zoom in and zoom out.
+- **Polar Elevation Clamping**:
+  - Orbital elevation strictly clamped to $[-1.55, +1.55]$ radians ($-88.8^\circ$ to $+88.8^\circ$), preventing camera inversion, gimbal lock, and disorienting 346° angular snap flips.
+- **Continuous Mid-Flight Redirects**:
+  - Retargeting during an active interplanetary transition now smoothly interpolates from the current dynamic position in space without jumping or corrupting the saved perspective views of origin planets.
+- **Hierarchical Ascension (`[Backspace]`)**:
+  - Intuitive one-key ascent up the celestial hierarchy: `Moon -> Parent Planet -> Solar System Overview`.
+- **Sequential World Cycling (`[Tab]` / `[Shift+Tab]`)**:
+  - Cycle sequentially forward and backward through all celestial worlds: `Sun -> Mercury -> Venus -> Earth -> Mars -> Ceres -> Vesta -> Jupiter -> Saturn -> Uranus -> Neptune -> Pluto -> Sun`.
+- **Closed-Loop Moon Cycling (`[M]`)**:
+  - Natural satellite navigation loops now return cleanly to their parent planets:
+    - Earth: `Earth -> Moon -> Earth`
+    - Mars: `Mars -> Phobos -> Deimos -> Mars`
+    - Ceres / Vesta: `Ceres -> Vesta -> Ceres`
+    - Jupiter: `Jupiter -> Io -> Europa -> Ganymede -> Callisto -> Jupiter`
+    - Saturn: `Saturn -> Titan -> Enceladus -> Mimas -> Iapetus -> Rhea -> Saturn`
+    - Uranus: `Uranus -> Miranda -> Ariel -> Umbriel -> Titania -> Oberon -> Uranus`
+    - Neptune: `Neptune -> Triton -> Proteus -> Neptune`
+    - Pluto: `Pluto -> Charon -> Pluto`
+- **Planetary System Overview (`[N]`)**:
+  - Smoothly transitions to curated system overview altitudes framing all satellite orbits for Mars, Jupiter, Saturn, Uranus, Neptune, and the Asteroid Belt.
+- **Interactive Help Modal (`[?]` / `[F1]`)**:
+  - Centered on-screen dialog overlay displaying comprehensive controls for mouse and keyboard navigation. Dismissible with `[?]` or `[Esc]`.
+- **Time Warp Reset (`[\]` / `[|]`)**:
+  - Immediate one-key reset back to default simulation rate ($10\text{ min/s}$, $600\times$).
+
+#### 🌐 Complete English Standardization
+- **HUD & Telemetry**:
+  - Standardized all HUD headers, breadcrumbs, and status labels to English (`Solar System › Jupiter › Europa (Moon 2/4)`, `Transit: Earth -> Mars`, `min/s`, `hr/s`, `days/s`, `months/s`, `years/s`).
+- **3D Celestial Labels**:
+  - Standardized all 3D billboards in raycaster and HUD to English: `[Sun]`, `[Mercury]`, `[Venus]`, `[Earth]`, `[Moon]`, `[Mars]`, `[Jupiter]`, `[Saturn]`, `[Uranus]`, `[Neptune]`, `[Pluto]`, `[Callisto]`, `[Ganymede]`, etc.
+- **CLI & Controls Bar**:
+  - Updated CLI `--help` with `--target pluto/charon` and modern English navigation controls.
+
+#### ⚡ Clean Build & Dependency Pruning
+- Pruned unused `rand` dependency from `Cargo.toml`, eliminating compiler warnings and speeding up dependency resolution.
+
+---
 
 ## [1.0.0] - 2026-11-15
 

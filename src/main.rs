@@ -56,6 +56,8 @@ fn main() {
                         "neptune" | "netuno" => target_body = Some(solar_system_ascii::physics::body::BodyId::Neptune),
                         "triton" | "tritao" => target_body = Some(solar_system_ascii::physics::body::BodyId::Triton),
                         "proteus" | "proteu" => target_body = Some(solar_system_ascii::physics::body::BodyId::Proteus),
+                        "pluto" | "plutao" => target_body = Some(solar_system_ascii::physics::body::BodyId::Pluto),
+                        "charon" | "caronte" => target_body = Some(solar_system_ascii::physics::body::BodyId::Charon),
                         _ => {}
                     }
                     i += 1;
@@ -86,33 +88,41 @@ fn main() {
                 }
             }
             "--help" | "-h" => {
-                println!("AstroEngine 3D - Real-time 3D Solar System & Earth Simulator");
+                println!("AstroEngine 3D - High-Precision Solar System Simulator in Pure Rust");
                 println!();
                 println!("Usage: solar-system-ascii [OPTIONS]");
                 println!();
                 println!("Options:");
                 println!("  --hd, --halfblock   Start in High-Definition Half-Block mode ('▀')");
                 println!("  --ascii             Start in standard ASCII mode (default)");
+                println!("  --target <BODY>     Start camera targeted on celestial body (e.g. earth, mars, jupiter)");
                 println!("  --frames <N>        Run for N frames and exit (benchmark mode)");
                 println!("  -h, --help          Print help information");
                 println!();
-                println!("Controls:");
-                println!("  [0/Tab]        Solar System Overview <-> Zoom into Sun (or jump back to planet)");
-                println!("  [1-8]          Jump to planet: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune");
-                println!("  [9]            Jump to Pluto");
-                println!("  [M]            Cycle natural moons of currently focused celestial body");
-                println!("  [V]            Toggle Venus Optical Clouds <-> Magellan SAR Radar");
-                println!("  [T]            Quick-cycle astronomical time warp presets (min/s, day/s, month/s, year/s)");
-                println!("  [[/]]          Fine decrease / increase time warp speed (up to 10 years/sec)");
-                println!("  [+/-]          Zoom In / Zoom Out (continuous exponential zoom)");
-                println!("  [WASD/Arrows]  Orbit camera around targeted planet or sun");
-                println!("  [R]            Reset camera to curated optimal beauty perspective");
-                println!("  [L]            Toggle elliptical planetary orbit path lines");
-                println!("  [P]            Toggle Main Asteroid Belt particle cloud");
-                println!("  [B]            Toggle render mode: ASCII <-> Half-Block TrueColor (HD)");
-                println!("  [H]            Toggle HUD telemetry overlay");
-                println!("  [Space]        Pause / Resume simulation");
-                println!("  [Q/Esc]        Quit");
+                println!("Navigation & Camera Controls:");
+                println!("  [Mouse Drag]        Left-click drag to orbit camera around target");
+                println!("  [Mouse Scroll]      Smooth exponential zoom in / out");
+                println!("  [WASD / Arrows]     Orbit camera (polar clamped [-89°, +89°])");
+                println!("  [+/-]               Zoom in / Zoom out");
+                println!("  [0 / Z]             Solar System Overview <-> Zoom into Sun photosphere");
+                println!("  [Tab / Shift+Tab]   Cycle sequentially through celestial worlds (Sun..Pluto)");
+                println!("  [Backspace]         Ascend hierarchy (Moon -> Planet -> Solar System)");
+                println!("  [1-9]               Direct jump: 1:Mercury, 2:Venus, 3:Earth, 4:Mars, 5:Jupiter, 6:Saturn, 7:Uranus, 8:Neptune, 9:Pluto");
+                println!("  [P]                 Jump to Ceres / Vesta (Main Asteroid Belt)");
+                println!("  [M]                 Cycle natural moons with loop returning to parent planet");
+                println!("  [N]                 System overview view framing all planetary moon orbits");
+                println!("  [F]                 Align camera to frame the Sun directly in view");
+                println!("  [R]                 Recenter camera to curated optimal beauty perspective");
+                println!("  [V]                 Toggle Venus Optical Clouds <-> Magellan SAR Radar");
+                println!("  [L]                 Toggle elliptical Keplerian orbit paths");
+                println!("  [B]                 Toggle render mode: ASCII <-> TrueColor HD Half-Block");
+                println!("  [H]                 Toggle HUD telemetry overlay");
+                println!("  [?] / [F1]          Toggle interactive on-screen Help Modal");
+                println!("  [Space]             Pause / Resume simulation");
+                println!("  [T]                 Cycle time warp (10 min/s, 1 day/s, 1 month/s, 1 year/s..)");
+                println!("  [\\ / |]             Reset time warp to default 10 min/s");
+                println!("  [[ / ]]             Fine decrease / increase time warp");
+                println!("  [Q / Esc]           Quit simulator (or dismiss help modal)");
                 return;
             }
             _ => {}

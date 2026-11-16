@@ -982,8 +982,8 @@ fn test_hud_label_proximity_and_range_culling() {
     buffer.pixels.fill(Pixel::BLACK);
     Hud::render(&mut buffer, &cam, &physics, 60.0, 600.0, false);
 
-    // Search buffer for string "[Terra]"
-    let mut found_terra = false;
+    // Search buffer for string "[Earth]"
+    let mut found_earth = false;
     for y in 0..rows {
         let mut line = String::new();
         for x in 0..cols {
@@ -994,20 +994,20 @@ fn test_hud_label_proximity_and_range_culling() {
                 line.push(' ');
             }
         }
-        if line.contains("[Terra]") {
-            found_terra = true;
+        if line.contains("[Earth]") {
+            found_earth = true;
             break;
         }
     }
-    assert!(!found_terra, "[Terra] label must be hidden when closely inspecting Earth");
+    assert!(!found_earth, "[Earth] label must be hidden when closely inspecting Earth");
 
     // 2. Zoomed out from Earth (100,000 km, > 10 * R_earth):
-    // [Terra] label must reappear!
+    // [Earth] label must reappear!
     cam.distance_km = 100_000.0;
     buffer.pixels.fill(Pixel::BLACK);
     Hud::render(&mut buffer, &cam, &physics, 60.0, 600.0, false);
 
-    let mut found_terra_zoomed = false;
+    let mut found_earth_zoomed = false;
     for y in 0..rows {
         let mut line = String::new();
         for x in 0..cols {
@@ -1018,12 +1018,12 @@ fn test_hud_label_proximity_and_range_culling() {
                 line.push(' ');
             }
         }
-        if line.contains("[Terra]") {
-            found_terra_zoomed = true;
+        if line.contains("[Earth]") {
+            found_earth_zoomed = true;
             break;
         }
     }
-    assert!(found_terra_zoomed, "[Terra] label must reappear when zooming out to system scale (> 10 * radius)");
+    assert!(found_earth_zoomed, "[Earth] label must reappear when zooming out to system scale (> 10 * radius)");
 }
 
 #[test]
@@ -3084,18 +3084,18 @@ fn test_hud_moon_labels_culling_at_solar_distance() {
     let text_solar = get_text(&buffer);
 
     // Major planets must be visible and uncluttered
-    assert!(text_solar.contains("[Júpiter]"), "Jupiter label must be cleanly visible in top-down view");
-    assert!(text_solar.contains("[Saturno]"), "Saturn label must be cleanly visible in top-down view");
-    assert!(text_solar.contains("[Urano]"), "Uranus label must be cleanly visible in top-down view");
-    assert!(text_solar.contains("[Netuno]"), "Neptune label must be cleanly visible in top-down view");
+    assert!(text_solar.contains("[Jupiter]"), "Jupiter label must be cleanly visible in top-down view");
+    assert!(text_solar.contains("[Saturn]"), "Saturn label must be cleanly visible in top-down view");
+    assert!(text_solar.contains("[Uranus]"), "Uranus label must be cleanly visible in top-down view");
+    assert!(text_solar.contains("[Neptune]"), "Neptune label must be cleanly visible in top-down view");
 
     // Moons must NOT be rendered at solar system distance (> millions of km)
-    assert!(!text_solar.contains("[Calisto]"), "Callisto label must be culled at solar distance");
+    assert!(!text_solar.contains("[Callisto]"), "Callisto label must be culled at solar distance");
     assert!(!text_solar.contains("[Oberon]"), "Oberon label must be culled at solar distance");
-    assert!(!text_solar.contains("[Reia]"), "Rhea label must be culled at solar distance");
-    assert!(!text_solar.contains("[Proteu]"), "Proteus label must be culled at solar distance");
-    assert!(!text_solar.contains("[Lua]"), "Moon label must be culled at solar distance");
-    assert!(!text_solar.contains("[Fobos]"), "Phobos label must be culled at solar distance");
+    assert!(!text_solar.contains("[Rhea]"), "Rhea label must be culled at solar distance");
+    assert!(!text_solar.contains("[Proteus]"), "Proteus label must be culled at solar distance");
+    assert!(!text_solar.contains("[Moon]"), "Moon label must be culled at solar distance");
+    assert!(!text_solar.contains("[Phobos]"), "Phobos label must be culled at solar distance");
 
     // 2. Focused on Jupiter at Planetary System distance (3,000,000 km)
     let mut cam_jup = Camera::new();
@@ -3105,10 +3105,99 @@ fn test_hud_moon_labels_culling_at_solar_distance() {
     Hud::render(&mut buffer, &cam_jup, &physics, 60.0, 1.0, false);
 
     let text_jup = get_text(&buffer);
-    let any_galilean = text_jup.contains("[Calisto]") || text_jup.contains("[Io]") || text_jup.contains("[Europa]") || text_jup.contains("[Ganímedes]");
+    let any_galilean = text_jup.contains("[Callisto]") || text_jup.contains("[Io]") || text_jup.contains("[Europa]") || text_jup.contains("[Ganymede]");
     assert!(any_galilean, "Galilean moons must be eligible for display when observing Jupiter system");
 
     // Moons of other distant planets (e.g. Uranus Oberon, Neptune Proteus) must NOT be visible!
     assert!(!text_jup.contains("[Oberon]"), "Oberon must NOT be visible when observing Jupiter");
-    assert!(!text_jup.contains("[Proteu]"), "Proteus must NOT be visible when observing Jupiter");
+    assert!(!text_jup.contains("[Proteus]"), "Proteus must NOT be visible when observing Jupiter");
+}
+
+#[test]
+fn test_ux_camera_polar_clamping() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::camera::Camera;
+
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Earth, Vec3::new(149_597_870.7, 0.0, 0.0));
+
+    // Severe positive elevation orbit (trying to go beyond North pole)
+    cam.orbit(0.0, 5.0);
+    assert!(cam.elevation <= 1.55);
+    assert!(cam.elevation >= -1.55);
+
+    // Severe negative elevation orbit (trying to go beyond South pole)
+    cam.orbit(0.0, -10.0);
+    assert!(cam.elevation >= -1.55);
+    assert!(cam.elevation <= 1.55);
+}
+
+#[test]
+fn test_ux_hierarchy_ascension_and_moon_loops() {
+    use solar_system_ascii::physics::body::BodyId;
+
+    // 1. Hierarchy ascension: Moons ascend to parent, planets ascend to Sun, Sun has no parent
+    assert_eq!(BodyId::Moon.parent(), Some(BodyId::Earth));
+    assert_eq!(BodyId::Phobos.parent(), Some(BodyId::Mars));
+    assert_eq!(BodyId::Deimos.parent(), Some(BodyId::Mars));
+    assert_eq!(BodyId::Io.parent(), Some(BodyId::Jupiter));
+    assert_eq!(BodyId::Europa.parent(), Some(BodyId::Jupiter));
+    assert_eq!(BodyId::Titan.parent(), Some(BodyId::Saturn));
+    assert_eq!(BodyId::Miranda.parent(), Some(BodyId::Uranus));
+    assert_eq!(BodyId::Triton.parent(), Some(BodyId::Neptune));
+    assert_eq!(BodyId::Charon.parent(), Some(BodyId::Pluto));
+
+    assert_eq!(BodyId::Earth.parent(), Some(BodyId::Sun));
+    assert_eq!(BodyId::Mars.parent(), Some(BodyId::Sun));
+    assert_eq!(BodyId::Jupiter.parent(), Some(BodyId::Sun));
+    assert_eq!(BodyId::Saturn.parent(), Some(BodyId::Sun));
+    assert_eq!(BodyId::Uranus.parent(), Some(BodyId::Sun));
+    assert_eq!(BodyId::Neptune.parent(), Some(BodyId::Sun));
+    assert_eq!(BodyId::Pluto.parent(), Some(BodyId::Sun));
+    assert_eq!(BodyId::Ceres.parent(), Some(BodyId::Sun));
+    assert_eq!(BodyId::Vesta.parent(), Some(BodyId::Sun));
+    assert_eq!(BodyId::Sun.parent(), None);
+}
+
+#[test]
+fn test_ux_midflight_redirect_continuity() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Earth, physics.earth.position);
+
+    // Initial view of Earth
+    let earth_view = cam.saved_views[BodyId::Earth.index()];
+
+    // 1. Start transition Earth -> Mars
+    cam.start_transition(BodyId::Mars, physics.earth.position, physics.mars.position, 2.0);
+    assert_eq!(cam.target_body, BodyId::Mars);
+
+    // Update 50% into flight
+    cam.update(1.0, &physics);
+    assert!(cam.transition.is_some());
+    let mid_flight_pos = cam.target_pos;
+    assert!(mid_flight_pos != physics.earth.position);
+    assert!(mid_flight_pos != physics.mars.position);
+
+    // 2. Mid-flight redirect to Saturn!
+    cam.start_transition(BodyId::Saturn, mid_flight_pos, physics.saturn.position, 2.0);
+    assert_eq!(cam.target_body, BodyId::Saturn);
+
+    // Verify Earth saved view was NOT overwritten with corrupted mid-flight altitude!
+    assert_eq!(cam.saved_views[BodyId::Earth.index()], earth_view);
+
+    // Check transition starts smoothly from mid_flight_pos
+    let trans = cam.transition.as_ref().unwrap();
+    assert_eq!(trans.from_pos, mid_flight_pos);
+    assert_eq!(trans.to_body, BodyId::Saturn);
+
+    // Fly to completion
+    cam.update(2.0, &physics);
+    assert!(cam.transition.is_none());
+    assert_eq!(cam.target_body, BodyId::Saturn);
 }

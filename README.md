@@ -4,7 +4,7 @@
 > *Rendered directly in your terminal using 24-bit TrueColor ANSI Half-Block Raymarching — 100% CPU, zero GPU dependencies.*
 
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
-[![Release](https://img.shields.io/badge/release-v1.0.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
+[![Release](https://img.shields.io/badge/release-v1.1.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Terminal](https://img.shields.io/badge/terminal-TrueColor%2024--bit-purple.svg?style=flat-square)]()
 [![Performance](https://img.shields.io/badge/framerate-600%2B%20FPS-brightgreen.svg?style=flat-square)]()
@@ -210,27 +210,35 @@ Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.44$, and $u_2 = 0.17$. Photos
 
 ---
 
-## 🎮 Controls
+## 🎮 Controls & Navigation
 
-| Key | Action | Description |
+| Control | Action | Description |
 | :---: | :---: | :--- |
-| `0` / `Z` | **Top-Down Orrery $\leftrightarrow$ Sun Close-up** | Smoothly dives from interplanetary view down to $2.800.000\text{ km}$ from the Sun, and back. |
+| **Mouse Drag** | **Orbit Camera** | Left-click and drag in any direction to smoothly orbit around the targeted celestial body. |
+| **Mouse Scroll** | **Continuous Zoom** | Scroll up to zoom in close to surface features; scroll down to zoom out to interplanetary scale. |
+| `W` / `S` or `↑` / `↓` | **Camera Pitch (Tilt)** | Orbit camera elevation up and down (polar clamped strictly between $-89^\circ$ and $+89^\circ$). |
+| `A` / `D` or `←` / `→` | **Camera Yaw (Orbit)** | Orbit camera azimuth continuously $360^\circ$ around the target. |
+| `+` / `-` | **Exponential Zoom** | Fine exponential zoom in / out. Zooming out far enough automatically returns to the Orrery overview. |
+| `Tab` / `Shift+Tab` | **Sequential World Cycle** | Step sequentially forward and backward across all worlds (`Sun -> Mercury -> Venus -> Earth -> Mars -> Ceres -> Vesta -> Jupiter -> Saturn -> Uranus -> Neptune -> Pluto -> Sun`). |
+| `Backspace` | **Ascend Hierarchy** | Intuitive celestial ascent: `Moon -> Parent Planet -> Solar System Overview`. |
+| `0` / `Z` | **Solar System $\leftrightarrow$ Sun** | Seamless dive from interplanetary overview to $2.800.000\text{ km}$ solar photosphere close-up, and back. |
 | `1` – `8` | **Planetary Jumps** | Mercury (`1`), Venus (`2`), Earth (`3`), Mars (`4`), Jupiter (`5`), Saturn (`6`), Uranus (`7`), Neptune (`8`). |
-| `9` | **Pluto & Charon** | Jump to the Kuiper Belt dwarf binary system. |
-| `Tab` | **Cycle Focus Target** | Step forward through Sun, all planets, asteroids, and moons. |
-| `M` | **Cycle Moons / Asteroids** | Cycles moons of the focused planet (e.g. Galilean moons around Jupiter, Titan/Enceladus around Saturn, Phobos/Deimos around Mars, Ceres/Vesta in the belt). |
+| `9` | **Pluto & Charon** | Jump to the binary dwarf world and Tombaugh Regio nitrogen ice heart. |
+| `P` | **Asteroid Belt Worlds** | Jump to dwarf planet Ceres (Occator faculae) and protoplanet Vesta (Rheasilvia basin). |
+| `M` | **Closed-Loop Moon Cycle** | Cycle through all major natural satellites, with the final moon returning cleanly to its parent planet. |
+| `N` | **System Overview Altitude** | Smoothly pull camera back to overview altitudes framing all moon orbits of Jupiter, Saturn, Uranus, etc. |
+| `F` | **Align to Sun** | Rotate orbital perspective to frame the Sun directly on the limb alongside the target body. |
 | `V` | **Toggle Venus Radar / Optical** | Switches between Venus's thick cloud deck and Magellan Synthetic Aperture Radar surface topography. |
-| `T` | **Time Warp Presets** | Instant jump: **10 min/s** $\to$ **1 day/s** $\to$ **1 month/s** $\to$ **1 year/s** $\to$ **5 years/s** $\to$ **Real-time (1x)**. |
-| `[` / `]` | **Fine Time Adjustment** | Halve (`[`) or double (`]`) time speed up to **10 years / second** ($315.360.000\times$). |
+| `R` | **Reset to Beauty Angle** | Instantly recenters the camera to the curated optimal aesthetic angle for the focused body. |
 | `L` | **Toggle Orbit Lines** | Turn Keplerian orbit trajectories on or off. |
-| `P` | **Toggle Asteroid Particles** | Turn the 3,500-particle asteroid belt on or off. |
-| `R` | **Reset to Beauty Angle** | Instantly recenters the camera to the optimal curated aesthetic angle for the focused body. |
-| `+` / `-` | **Continuous Exponential Zoom** | Smooth zoom in / zoom out. Zooming out far enough automatically returns to the Orrery overview. |
-| `W` / `S` | **Camera Pitch (Tilt)** | Orbit camera elevation up and down. |
-| `A` / `D` | **Camera Yaw (Orbit)** | Orbit camera azimuth around the target. |
 | `B` | **Toggle Half-Block / ASCII** | Switch between HD Half-Block (`▀`) and classic retro ASCII mode on the fly. |
-| `Space` | **Pause / Resume** | Freeze simulation physics and time evolution. |
-| `Q` / `Esc` | **Quit** | Cleanly restore terminal cursor and exit. |
+| `H` | **Toggle HUD Overlay** | Hide or show the astronomical telemetry header, breadcrumb trail, and contextual controls. |
+| `?` / `F1` | **Interactive Help Modal** | Display on-screen controls cheat sheet overlay. Dismiss with `?` or `Esc`. |
+| `Space` | **Pause / Resume** | Freeze simulation physics and orbital evolution. |
+| `T` | **Time Warp Presets** | Instant jump: **10 min/s** $\to$ **1 day/s** $\to$ **1 month/s** $\to$ **1 year/s** $\to$ **5 years/s** $\to$ **Real-time (1x)**. |
+| `\` / `\|` | **Reset Time Warp** | Reset simulation rate back to default **10 min/s** ($600\times$). |
+| `[` / `]` | **Fine Time Adjustment** | Halve (`[`) or double (`]`) time speed up to **10 years / second** ($315.360.000\times$). |
+| `Q` / `Esc` | **Quit** | Cleanly restore terminal mouse/cursor state and exit (or dismiss help modal). |
 
 ---
 

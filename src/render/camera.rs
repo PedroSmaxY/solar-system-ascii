@@ -20,6 +20,7 @@ pub struct BodyViewState {
 pub struct CameraTransition {
     pub from_body: BodyId,
     pub to_body: BodyId,
+    pub from_pos: Vec3,
     pub start_view: BodyViewState,
     pub end_view: BodyViewState,
     pub elapsed_secs: f64,
@@ -310,21 +311,39 @@ impl Camera {
             return;
         }
 
-        // Save current view state of the body being left
-        let curr_idx = self.target_body.index();
+        // Only save current view state of the origin body if not already mid-flight
+        if self.transition.is_none() {
+            let curr_idx = self.target_body.index();
+            let start_view = BodyViewState {
+                azimuth: self.azimuth,
+                elevation: self.elevation,
+                distance_km: self.distance_km,
+            };
+            self.saved_views[curr_idx] = start_view;
+        }
+
+        let start_pos = if self.transition.is_some() {
+            self.target_pos
+        } else {
+            from_pos
+        };
+
         let start_view = BodyViewState {
             azimuth: self.azimuth,
             elevation: self.elevation,
             distance_km: self.distance_km,
         };
-        self.saved_views[curr_idx] = start_view;
 
         let end_view = self.saved_views[to_body.index()];
-        let journey_dist_km = (to_pos - from_pos).length().max(10_000.0);
+        let journey_dist_km = (to_pos - start_pos).length().max(10_000.0);
+        let from_body = self.target_body;
+
+        self.target_body = to_body;
 
         self.transition = Some(CameraTransition {
-            from_body: self.target_body,
+            from_body,
             to_body,
+            from_pos: start_pos,
             start_view,
             end_view,
             elapsed_secs: 0.0,
@@ -335,7 +354,7 @@ impl Camera {
 
     /// Smoothly toggle between close-up view of the Sun and the full Solar System Orrery view.
     pub fn toggle_sun_zoom(&mut self) {
-        if self.target_body != BodyId::Sun {
+        if self.target_body != BodyId::Sun && self.transition.is_none() {
             return;
         }
         self.cancel_transition();
@@ -363,6 +382,7 @@ impl Camera {
         self.transition = Some(CameraTransition {
             from_body: BodyId::Sun,
             to_body: BodyId::Sun,
+            from_pos: Vec3::ZERO,
             start_view,
             end_view,
             elapsed_secs: 0.0,
@@ -392,9 +412,8 @@ impl Camera {
             let s = progress * progress * progress * (progress * (progress * 6.0 - 15.0) + 10.0);
 
             // Interpolate target focal position between moving bodies
-            let from_pos = physics.get_body(trans.from_body).position;
             let to_pos = physics.get_body(trans.to_body).position;
-            self.target_pos = from_pos * (1.0 - s) + to_pos * s;
+            self.target_pos = trans.from_pos * (1.0 - s) + to_pos * s;
 
             // Shortest circular angular arc for azimuth
             let d_az = ((trans.end_view.azimuth - trans.start_view.azimuth + PI).rem_euclid(2.0 * PI)) - PI;
@@ -502,7 +521,7 @@ impl Camera {
     pub fn orbit(&mut self, d_az: f64, d_el: f64) {
         self.cancel_transition();
         self.azimuth = (self.azimuth + d_az).rem_euclid(2.0 * PI);
-        self.elevation = (self.elevation + d_el).rem_euclid(2.0 * PI);
+        self.elevation = (self.elevation + d_el).clamp(-1.55, 1.55);
         let idx = self.target_body.index();
         self.saved_views[idx].azimuth = self.azimuth;
         self.saved_views[idx].elevation = self.elevation;

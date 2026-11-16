@@ -6,10 +6,25 @@ use crate::render::buffer::{FrameBuffer, RenderMode};
 use crate::render::camera::Camera;
 use crate::render::hud::Hud;
 use crate::render::raycaster::Raycaster;
-use crate::terminal::TerminalManager;
-use crossterm::event::KeyCode;
+use crate::terminal::{TerminalEvent, TerminalManager};
+use crossterm::event::{KeyCode, KeyModifiers};
 use std::io::{stdout, Write};
 use std::time::{Duration, Instant};
+
+const WORLDS: [BodyId; 12] = [
+    BodyId::Sun,
+    BodyId::Mercury,
+    BodyId::Venus,
+    BodyId::Earth,
+    BodyId::Mars,
+    BodyId::Ceres,
+    BodyId::Vesta,
+    BodyId::Jupiter,
+    BodyId::Saturn,
+    BodyId::Uranus,
+    BodyId::Neptune,
+    BodyId::Pluto,
+];
 
 pub struct App {
     term: TerminalManager,
@@ -22,6 +37,7 @@ pub struct App {
     sim_time: f64,
     tick: u64,
     pub show_hud: bool,
+    pub show_help: bool,
 }
 
 impl App {
@@ -40,6 +56,7 @@ impl App {
             sim_time: 0.0,
             tick: 0,
             show_hud: true,
+            show_help: false,
         }
     }
 
@@ -73,329 +90,310 @@ impl App {
         loop {
             let frame_start = Instant::now();
 
-            // Handle non-blocking keyboard input
-            while let Some(key) = TerminalManager::poll_key() {
-                match key {
-                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => return,
-                    KeyCode::Char('+') | KeyCode::Char('=') => self.camera.zoom_in(),
-                    KeyCode::Char('-') | KeyCode::Char('_') => {
+            // Handle non-blocking keyboard and mouse input
+            while let Some(evt) = self.term.poll_event() {
+                match evt {
+                    TerminalEvent::MouseScrollUp => {
+                        self.camera.zoom_in();
+                    }
+                    TerminalEvent::MouseScrollDown => {
                         if self.camera.zoom_out() {
                             let from_pos = self.physics.get_body(self.camera.target_body).position;
                             let to_pos = self.physics.sun.position;
                             self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.8);
                         }
                     }
-                    KeyCode::Tab => {
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        if self.camera.target_body == BodyId::Sun {
-                            let dest = self.camera.last_focused_planet;
-                            let to_pos = self.physics.get_body(dest).position;
-                            self.camera.start_transition(dest, from_pos, to_pos, 1.5);
-                        } else {
-                            self.camera.last_focused_planet = self.camera.target_body;
-                            let to_pos = self.physics.sun.position;
-                            self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.5);
+                    TerminalEvent::MouseDrag { dx, dy } => {
+                        self.camera.orbit(dx as f64 * -0.005, dy as f64 * -0.004);
+                    }
+                    TerminalEvent::Key(key, modifiers) => {
+                        match key {
+                            KeyCode::Char('q') | KeyCode::Char('Q') => return,
+                            KeyCode::Esc => {
+                                if self.show_help {
+                                    self.show_help = false;
+                                } else {
+                                    return;
+                                }
+                            }
+                            KeyCode::Char('?') | KeyCode::F(1) => {
+                                self.show_help = !self.show_help;
+                            }
+                            KeyCode::Backspace => {
+                                if self.show_help {
+                                    self.show_help = false;
+                                } else if self.camera.target_body == BodyId::Sun {
+                                    if self.camera.distance_km < 5.0e7 {
+                                        self.camera.toggle_sun_zoom();
+                                    }
+                                } else if let Some(parent) = self.camera.target_body.parent() {
+                                    let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                    let to_pos = self.physics.get_body(parent).position;
+                                    self.camera.start_transition(parent, from_pos, to_pos, 1.3);
+                                }
+                            }
+                            KeyCode::Tab | KeyCode::BackTab => {
+                                let is_backtab = key == KeyCode::BackTab || modifiers.contains(KeyModifiers::SHIFT);
+                                let cur_world = self.camera.target_body.parent().unwrap_or(self.camera.target_body);
+                                let cur_idx = WORLDS.iter().position(|&b| b == cur_world).unwrap_or(0);
+                                let next_idx = if is_backtab {
+                                    (cur_idx + WORLDS.len() - 1) % WORLDS.len()
+                                } else {
+                                    (cur_idx + 1) % WORLDS.len()
+                                };
+                                let dest = WORLDS[next_idx];
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.get_body(dest).position;
+                                if dest != BodyId::Sun {
+                                    self.camera.last_focused_planet = dest;
+                                }
+                                self.camera.start_transition(dest, from_pos, to_pos, 1.4);
+                            }
+                            KeyCode::Char('+') | KeyCode::Char('=') => self.camera.zoom_in(),
+                            KeyCode::Char('-') | KeyCode::Char('_') => {
+                                if self.camera.zoom_out() {
+                                    let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                    let to_pos = self.physics.sun.position;
+                                    self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.8);
+                                }
+                            }
+                            KeyCode::Char('l') | KeyCode::Char('L') => {
+                                self.camera.show_orbit_lines = !self.camera.show_orbit_lines;
+                            }
+                            KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('A') => {
+                                self.camera.orbit(-0.08, 0.0);
+                            }
+                            KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('D') => {
+                                self.camera.orbit(0.08, 0.0);
+                            }
+                            KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('W') => {
+                                self.camera.orbit(0.0, 0.06);
+                            }
+                            KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('S') => {
+                                self.camera.orbit(0.0, -0.06);
+                            }
+                            KeyCode::Char('0') => {
+                                if self.camera.target_body == BodyId::Sun {
+                                    self.camera.toggle_sun_zoom();
+                                } else {
+                                    self.camera.last_focused_planet = self.camera.target_body;
+                                    let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                    let to_pos = self.physics.sun.position;
+                                    self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.5);
+                                }
+                            }
+                            KeyCode::Char('z') | KeyCode::Char('Z') => {
+                                if self.camera.target_body == BodyId::Sun {
+                                    self.camera.toggle_sun_zoom();
+                                }
+                            }
+                            KeyCode::Char('1') => {
+                                self.camera.last_focused_planet = BodyId::Mercury;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.mercury.position;
+                                self.camera.start_transition(BodyId::Mercury, from_pos, to_pos, 1.3);
+                            }
+                            KeyCode::Char('2') => {
+                                self.camera.last_focused_planet = BodyId::Venus;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.venus.position;
+                                self.camera.start_transition(BodyId::Venus, from_pos, to_pos, 1.2);
+                            }
+                            KeyCode::Char('3') => {
+                                self.camera.last_focused_planet = BodyId::Earth;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.earth.position;
+                                self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.2);
+                            }
+                            KeyCode::Char('4') => {
+                                self.camera.last_focused_planet = BodyId::Mars;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.mars.position;
+                                self.camera.start_transition(BodyId::Mars, from_pos, to_pos, 1.3);
+                            }
+                            KeyCode::Char('5') => {
+                                self.camera.last_focused_planet = BodyId::Jupiter;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.jupiter.position;
+                                self.camera.start_transition(BodyId::Jupiter, from_pos, to_pos, 1.5);
+                            }
+                            KeyCode::Char('6') => {
+                                self.camera.last_focused_planet = BodyId::Saturn;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.saturn.position;
+                                self.camera.start_transition(BodyId::Saturn, from_pos, to_pos, 1.6);
+                            }
+                            KeyCode::Char('7') => {
+                                self.camera.last_focused_planet = BodyId::Uranus;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.uranus.position;
+                                self.camera.start_transition(BodyId::Uranus, from_pos, to_pos, 1.7);
+                            }
+                            KeyCode::Char('8') => {
+                                self.camera.last_focused_planet = BodyId::Neptune;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.neptune.position;
+                                self.camera.start_transition(BodyId::Neptune, from_pos, to_pos, 1.8);
+                            }
+                            KeyCode::Char('9') => {
+                                self.camera.last_focused_planet = BodyId::Pluto;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.pluto.position;
+                                self.camera.start_transition(BodyId::Pluto, from_pos, to_pos, 1.8);
+                            }
+                            KeyCode::Char('p') | KeyCode::Char('P') => {
+                                self.camera.last_focused_planet = BodyId::Ceres;
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.ceres.position;
+                                self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.4);
+                            }
+                            KeyCode::Char('m') | KeyCode::Char('M') => {
+                                let (from_body, to_body, dur) = match self.camera.target_body {
+                                    BodyId::Earth => (BodyId::Earth, BodyId::Moon, 1.0),
+                                    BodyId::Moon => (BodyId::Moon, BodyId::Earth, 1.0),
+                                    BodyId::Mars => (BodyId::Mars, BodyId::Phobos, 1.0),
+                                    BodyId::Phobos => (BodyId::Phobos, BodyId::Deimos, 1.0),
+                                    BodyId::Deimos => (BodyId::Deimos, BodyId::Mars, 1.0),
+                                    BodyId::Ceres => (BodyId::Ceres, BodyId::Vesta, 1.2),
+                                    BodyId::Vesta => (BodyId::Vesta, BodyId::Ceres, 1.2),
+                                    BodyId::Jupiter => (BodyId::Jupiter, BodyId::Io, 1.1),
+                                    BodyId::Io => (BodyId::Io, BodyId::Europa, 1.1),
+                                    BodyId::Europa => (BodyId::Europa, BodyId::Ganymede, 1.1),
+                                    BodyId::Ganymede => (BodyId::Ganymede, BodyId::Callisto, 1.1),
+                                    BodyId::Callisto => (BodyId::Callisto, BodyId::Jupiter, 1.2),
+                                    BodyId::Saturn => (BodyId::Saturn, BodyId::Titan, 1.2),
+                                    BodyId::Titan => (BodyId::Titan, BodyId::Enceladus, 1.1),
+                                    BodyId::Enceladus => (BodyId::Enceladus, BodyId::Mimas, 1.0),
+                                    BodyId::Mimas => (BodyId::Mimas, BodyId::Iapetus, 1.3),
+                                    BodyId::Iapetus => (BodyId::Iapetus, BodyId::Rhea, 1.2),
+                                    BodyId::Rhea => (BodyId::Rhea, BodyId::Saturn, 1.3),
+                                    BodyId::Uranus => (BodyId::Uranus, BodyId::Miranda, 1.1),
+                                    BodyId::Miranda => (BodyId::Miranda, BodyId::Ariel, 1.1),
+                                    BodyId::Ariel => (BodyId::Ariel, BodyId::Umbriel, 1.1),
+                                    BodyId::Umbriel => (BodyId::Umbriel, BodyId::Titania, 1.1),
+                                    BodyId::Titania => (BodyId::Titania, BodyId::Oberon, 1.1),
+                                    BodyId::Oberon => (BodyId::Oberon, BodyId::Uranus, 1.3),
+                                    BodyId::Neptune => (BodyId::Neptune, BodyId::Triton, 1.2),
+                                    BodyId::Triton => (BodyId::Triton, BodyId::Proteus, 1.0),
+                                    BodyId::Proteus => (BodyId::Proteus, BodyId::Neptune, 1.2),
+                                    BodyId::Pluto => (BodyId::Pluto, BodyId::Charon, 1.1),
+                                    BodyId::Charon => (BodyId::Charon, BodyId::Pluto, 1.1),
+                                    _ => (self.camera.target_body, self.camera.target_body, 0.0),
+                                };
+                                if from_body != to_body {
+                                    let from_pos = self.physics.get_body(from_body).position;
+                                    let to_pos = self.physics.get_body(to_body).position;
+                                    self.camera.start_transition(to_body, from_pos, to_pos, dur);
+                                }
+                            }
+                            KeyCode::Char('n') | KeyCode::Char('N') => {
+                                match self.camera.target_body {
+                                    BodyId::Mars | BodyId::Phobos | BodyId::Deimos => {
+                                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                        let to_pos = self.physics.mars.position;
+                                        self.camera.saved_views[BodyId::Mars.index()].distance_km = 45_000.0;
+                                        self.camera.saved_views[BodyId::Mars.index()].elevation = 0.35;
+                                        self.camera.start_transition(BodyId::Mars, from_pos, to_pos, 1.1);
+                                    }
+                                    BodyId::Ceres | BodyId::Vesta => {
+                                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                        let to_pos = self.physics.ceres.position;
+                                        self.camera.saved_views[BodyId::Ceres.index()].distance_km = 650_000_000.0;
+                                        self.camera.saved_views[BodyId::Ceres.index()].elevation = 0.55;
+                                        self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.2);
+                                    }
+                                    BodyId::Jupiter | BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto => {
+                                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                        let to_pos = self.physics.jupiter.position;
+                                        self.camera.saved_views[BodyId::Jupiter.index()].distance_km = 2_800_000.0;
+                                        self.camera.saved_views[BodyId::Jupiter.index()].elevation = 0.35;
+                                        self.camera.start_transition(BodyId::Jupiter, from_pos, to_pos, 1.2);
+                                    }
+                                    BodyId::Saturn
+                                    | BodyId::Titan
+                                    | BodyId::Enceladus
+                                    | BodyId::Mimas
+                                    | BodyId::Iapetus
+                                    | BodyId::Rhea => {
+                                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                        let to_pos = self.physics.saturn.position;
+                                        self.camera.saved_views[BodyId::Saturn.index()].distance_km = 1_800_000.0;
+                                        self.camera.saved_views[BodyId::Saturn.index()].elevation = 0.42;
+                                        self.camera.start_transition(BodyId::Saturn, from_pos, to_pos, 1.3);
+                                    }
+                                    BodyId::Uranus
+                                    | BodyId::Miranda
+                                    | BodyId::Ariel
+                                    | BodyId::Umbriel
+                                    | BodyId::Titania
+                                    | BodyId::Oberon => {
+                                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                        let to_pos = self.physics.uranus.position;
+                                        self.camera.saved_views[BodyId::Uranus.index()].distance_km = 1_200_000.0;
+                                        self.camera.saved_views[BodyId::Uranus.index()].elevation = 0.55;
+                                        self.camera.start_transition(BodyId::Uranus, from_pos, to_pos, 1.3);
+                                    }
+                                    BodyId::Neptune | BodyId::Triton | BodyId::Proteus => {
+                                        let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                        let to_pos = self.physics.neptune.position;
+                                        self.camera.saved_views[BodyId::Neptune.index()].distance_km = 1_500_000.0;
+                                        self.camera.saved_views[BodyId::Neptune.index()].elevation = 0.40;
+                                        self.camera.start_transition(BodyId::Neptune, from_pos, to_pos, 1.3);
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            KeyCode::Char('v') | KeyCode::Char('V') => {
+                                if self.camera.target_body == BodyId::Venus {
+                                    self.raycaster.venus_shader.radar_mode = !self.raycaster.venus_shader.radar_mode;
+                                }
+                            }
+                            KeyCode::Char('f') | KeyCode::Char('F') => {
+                                self.camera.align_to_sun(self.physics.sun.position);
+                            }
+                            KeyCode::Char('h') | KeyCode::Char('H') => {
+                                self.show_hud = !self.show_hud;
+                            }
+                            KeyCode::Char('r') | KeyCode::Char('R') => {
+                                self.camera.recenter();
+                            }
+                            KeyCode::Char('b') | KeyCode::Char('B') => {
+                                let new_mode = match self.buffer.mode {
+                                    RenderMode::Ascii => RenderMode::HalfBlock,
+                                    RenderMode::HalfBlock => RenderMode::Ascii,
+                                };
+                                self.buffer.set_mode(new_mode);
+                            }
+                            KeyCode::Char(' ') => {
+                                self.paused = !self.paused;
+                            }
+                            KeyCode::Char('t') | KeyCode::Char('T') => {
+                                self.time_warp = if self.time_warp < 1000.0 {
+                                    86_400.0
+                                } else if self.time_warp < 100_000.0 {
+                                    2_592_000.0
+                                } else if self.time_warp < 10_000_000.0 {
+                                    31_536_000.0
+                                } else if self.time_warp < 100_000_000.0 {
+                                    157_680_000.0
+                                } else if self.time_warp < 250_000_000.0 {
+                                    1.0
+                                } else {
+                                    600.0
+                                };
+                            }
+                            KeyCode::Char('\\') | KeyCode::Char('|') => {
+                                self.time_warp = 600.0;
+                            }
+                            KeyCode::Char('[') | KeyCode::Char(',') => {
+                                self.time_warp = (self.time_warp * 0.5).max(1.0);
+                            }
+                            KeyCode::Char(']') | KeyCode::Char('.') => {
+                                self.time_warp = (self.time_warp * 2.0).min(315_360_000.0);
+                            }
+                            _ => {}
                         }
                     }
-                    KeyCode::Char('l') | KeyCode::Char('L') => {
-                        self.camera.show_orbit_lines = !self.camera.show_orbit_lines;
-                    }
-                    KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('A') => {
-                        self.camera.orbit(-0.08, 0.0);
-                    }
-                    KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('D') => {
-                        self.camera.orbit(0.08, 0.0);
-                    }
-                    KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('W') => {
-                        self.camera.orbit(0.0, 0.06);
-                    }
-                    KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('S') => {
-                        self.camera.orbit(0.0, -0.06);
-                    }
-                    KeyCode::Char('0') => {
-                        if self.camera.target_body == BodyId::Sun {
-                            self.camera.toggle_sun_zoom();
-                        } else {
-                            self.camera.last_focused_planet = self.camera.target_body;
-                            let from_pos = self.physics.get_body(self.camera.target_body).position;
-                            let to_pos = self.physics.sun.position;
-                            self.camera.start_transition(BodyId::Sun, from_pos, to_pos, 1.5);
-                        }
-                    }
-                    KeyCode::Char('z') | KeyCode::Char('Z') => {
-                        if self.camera.target_body == BodyId::Sun {
-                            self.camera.toggle_sun_zoom();
-                        }
-                    }
-                    KeyCode::Char('1') => {
-                        self.camera.last_focused_planet = BodyId::Mercury;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.mercury.position;
-                        self.camera.start_transition(BodyId::Mercury, from_pos, to_pos, 1.3);
-                    }
-                    KeyCode::Char('2') => {
-                        self.camera.last_focused_planet = BodyId::Venus;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.venus.position;
-                        self.camera.start_transition(BodyId::Venus, from_pos, to_pos, 1.2);
-                    }
-                    KeyCode::Char('3') => {
-                        self.camera.last_focused_planet = BodyId::Earth;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.earth.position;
-                        self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.2);
-                    }
-                    KeyCode::Char('4') => {
-                        self.camera.last_focused_planet = BodyId::Mars;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.mars.position;
-                        self.camera.start_transition(BodyId::Mars, from_pos, to_pos, 1.3);
-                    }
-                    KeyCode::Char('5') => {
-                        self.camera.last_focused_planet = BodyId::Jupiter;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.jupiter.position;
-                        self.camera.start_transition(BodyId::Jupiter, from_pos, to_pos, 1.5);
-                    }
-                    KeyCode::Char('6') => {
-                        self.camera.last_focused_planet = BodyId::Saturn;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.saturn.position;
-                        self.camera.start_transition(BodyId::Saturn, from_pos, to_pos, 1.6);
-                    }
-                    KeyCode::Char('7') => {
-                        self.camera.last_focused_planet = BodyId::Uranus;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.uranus.position;
-                        self.camera.start_transition(BodyId::Uranus, from_pos, to_pos, 1.7);
-                    }
-                    KeyCode::Char('8') => {
-                        self.camera.last_focused_planet = BodyId::Neptune;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.neptune.position;
-                        self.camera.start_transition(BodyId::Neptune, from_pos, to_pos, 1.8);
-                    }
-                    KeyCode::Char('9') => {
-                        self.camera.last_focused_planet = BodyId::Pluto;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.pluto.position;
-                        self.camera.start_transition(BodyId::Pluto, from_pos, to_pos, 1.8);
-                    }
-                    KeyCode::Char('p') | KeyCode::Char('P') => {
-                        self.camera.last_focused_planet = BodyId::Ceres;
-                        let from_pos = self.physics.get_body(self.camera.target_body).position;
-                        let to_pos = self.physics.ceres.position;
-                        self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.4);
-                    }
-                    KeyCode::Char('m') | KeyCode::Char('M') => {
-                        if self.camera.target_body == BodyId::Earth {
-                            let from_pos = self.physics.earth.position;
-                            let to_pos = self.physics.moon.position;
-                            self.camera.start_transition(BodyId::Moon, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Moon {
-                            let from_pos = self.physics.moon.position;
-                            let to_pos = self.physics.earth.position;
-                            self.camera.start_transition(BodyId::Earth, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Mars {
-                            let from_pos = self.physics.mars.position;
-                            let to_pos = self.physics.phobos.position;
-                            self.camera.start_transition(BodyId::Phobos, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Phobos {
-                            let from_pos = self.physics.phobos.position;
-                            let to_pos = self.physics.deimos.position;
-                            self.camera.start_transition(BodyId::Deimos, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Deimos {
-                            let from_pos = self.physics.deimos.position;
-                            let to_pos = self.physics.phobos.position;
-                            self.camera.start_transition(BodyId::Phobos, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Ceres {
-                            let from_pos = self.physics.ceres.position;
-                            let to_pos = self.physics.vesta.position;
-                            self.camera.start_transition(BodyId::Vesta, from_pos, to_pos, 1.2);
-                        } else if self.camera.target_body == BodyId::Vesta {
-                            let from_pos = self.physics.vesta.position;
-                            let to_pos = self.physics.ceres.position;
-                            self.camera.start_transition(BodyId::Ceres, from_pos, to_pos, 1.2);
-                        } else if self.camera.target_body == BodyId::Jupiter {
-                            let from_pos = self.physics.jupiter.position;
-                            let to_pos = self.physics.io.position;
-                            self.camera.start_transition(BodyId::Io, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Io {
-                            let from_pos = self.physics.io.position;
-                            let to_pos = self.physics.europa.position;
-                            self.camera.start_transition(BodyId::Europa, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Europa {
-                            let from_pos = self.physics.europa.position;
-                            let to_pos = self.physics.ganymede.position;
-                            self.camera.start_transition(BodyId::Ganymede, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Ganymede {
-                            let from_pos = self.physics.ganymede.position;
-                            let to_pos = self.physics.callisto.position;
-                            self.camera.start_transition(BodyId::Callisto, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Callisto {
-                            let from_pos = self.physics.callisto.position;
-                            let to_pos = self.physics.io.position;
-                            self.camera.start_transition(BodyId::Io, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Saturn {
-                            let from_pos = self.physics.saturn.position;
-                            let to_pos = self.physics.titan.position;
-                            self.camera.start_transition(BodyId::Titan, from_pos, to_pos, 1.2);
-                        } else if self.camera.target_body == BodyId::Titan {
-                            let from_pos = self.physics.titan.position;
-                            let to_pos = self.physics.enceladus.position;
-                            self.camera.start_transition(BodyId::Enceladus, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Enceladus {
-                            let from_pos = self.physics.enceladus.position;
-                            let to_pos = self.physics.mimas.position;
-                            self.camera.start_transition(BodyId::Mimas, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Mimas {
-                            let from_pos = self.physics.mimas.position;
-                            let to_pos = self.physics.iapetus.position;
-                            self.camera.start_transition(BodyId::Iapetus, from_pos, to_pos, 1.3);
-                        } else if self.camera.target_body == BodyId::Iapetus {
-                            let from_pos = self.physics.iapetus.position;
-                            let to_pos = self.physics.rhea.position;
-                            self.camera.start_transition(BodyId::Rhea, from_pos, to_pos, 1.2);
-                        } else if self.camera.target_body == BodyId::Rhea {
-                            let from_pos = self.physics.rhea.position;
-                            let to_pos = self.physics.titan.position;
-                            self.camera.start_transition(BodyId::Titan, from_pos, to_pos, 1.2);
-                        } else if self.camera.target_body == BodyId::Uranus {
-                            let from_pos = self.physics.uranus.position;
-                            let to_pos = self.physics.miranda.position;
-                            self.camera.start_transition(BodyId::Miranda, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Miranda {
-                            let from_pos = self.physics.miranda.position;
-                            let to_pos = self.physics.ariel.position;
-                            self.camera.start_transition(BodyId::Ariel, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Ariel {
-                            let from_pos = self.physics.ariel.position;
-                            let to_pos = self.physics.umbriel.position;
-                            self.camera.start_transition(BodyId::Umbriel, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Umbriel {
-                            let from_pos = self.physics.umbriel.position;
-                            let to_pos = self.physics.titania.position;
-                            self.camera.start_transition(BodyId::Titania, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Titania {
-                            let from_pos = self.physics.titania.position;
-                            let to_pos = self.physics.oberon.position;
-                            self.camera.start_transition(BodyId::Oberon, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Oberon {
-                            let from_pos = self.physics.oberon.position;
-                            let to_pos = self.physics.miranda.position;
-                            self.camera.start_transition(BodyId::Miranda, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Neptune {
-                            let from_pos = self.physics.neptune.position;
-                            let to_pos = self.physics.triton.position;
-                            self.camera.start_transition(BodyId::Triton, from_pos, to_pos, 1.2);
-                        } else if self.camera.target_body == BodyId::Triton {
-                            let from_pos = self.physics.triton.position;
-                            let to_pos = self.physics.proteus.position;
-                            self.camera.start_transition(BodyId::Proteus, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Proteus {
-                            let from_pos = self.physics.proteus.position;
-                            let to_pos = self.physics.triton.position;
-                            self.camera.start_transition(BodyId::Triton, from_pos, to_pos, 1.2);
-                        } else if self.camera.target_body == BodyId::Pluto {
-                            let from_pos = self.physics.pluto.position;
-                            let to_pos = self.physics.charon.position;
-                            self.camera.start_transition(BodyId::Charon, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Charon {
-                            let from_pos = self.physics.charon.position;
-                            let to_pos = self.physics.pluto.position;
-                            self.camera.start_transition(BodyId::Pluto, from_pos, to_pos, 1.1);
-                        }
-                    }
-                    KeyCode::Char('n') | KeyCode::Char('N') => {
-                        if self.camera.target_body == BodyId::Mars || self.camera.target_body == BodyId::Phobos {
-                            let from_pos = self.physics.get_body(self.camera.target_body).position;
-                            let to_pos = self.physics.deimos.position;
-                            self.camera.start_transition(BodyId::Deimos, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Deimos {
-                            let from_pos = self.physics.deimos.position;
-                            let to_pos = self.physics.phobos.position;
-                            self.camera.start_transition(BodyId::Phobos, from_pos, to_pos, 1.0);
-                        } else if self.camera.target_body == BodyId::Ceres || self.camera.target_body == BodyId::Vesta {
-                            self.camera.distance_km = 650_000_000.0;
-                            self.camera.elevation = 0.55;
-                        } else if self.camera.target_body == BodyId::Jupiter {
-                            self.camera.distance_km = 2_800_000.0;
-                            self.camera.elevation = 0.35;
-                        } else if matches!(self.camera.target_body, BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto) {
-                            let from_pos = self.physics.get_body(self.camera.target_body).position;
-                            let to_pos = self.physics.jupiter.position;
-                            self.camera.start_transition(BodyId::Jupiter, from_pos, to_pos, 1.1);
-                        } else if self.camera.target_body == BodyId::Saturn {
-                            self.camera.distance_km = 1_800_000.0;
-                            self.camera.elevation = 0.42;
-                        } else if matches!(self.camera.target_body, BodyId::Titan | BodyId::Enceladus | BodyId::Mimas | BodyId::Iapetus | BodyId::Rhea) {
-                            let from_pos = self.physics.get_body(self.camera.target_body).position;
-                            let to_pos = self.physics.saturn.position;
-                            self.camera.start_transition(BodyId::Saturn, from_pos, to_pos, 1.3);
-                        } else if self.camera.target_body == BodyId::Uranus {
-                            self.camera.distance_km = 1_200_000.0;
-                            self.camera.elevation = 0.55;
-                        } else if matches!(self.camera.target_body, BodyId::Miranda | BodyId::Ariel | BodyId::Umbriel | BodyId::Titania | BodyId::Oberon) {
-                            let from_pos = self.physics.get_body(self.camera.target_body).position;
-                            let to_pos = self.physics.uranus.position;
-                            self.camera.start_transition(BodyId::Uranus, from_pos, to_pos, 1.3);
-                        } else if self.camera.target_body == BodyId::Neptune {
-                            self.camera.distance_km = 1_500_000.0;
-                            self.camera.elevation = 0.40;
-                        } else if matches!(self.camera.target_body, BodyId::Triton | BodyId::Proteus) {
-                            let from_pos = self.physics.get_body(self.camera.target_body).position;
-                            let to_pos = self.physics.neptune.position;
-                            self.camera.start_transition(BodyId::Neptune, from_pos, to_pos, 1.3);
-                        }
-                    }
-                    KeyCode::Char('v') | KeyCode::Char('V') => {
-                        if self.camera.target_body == BodyId::Venus {
-                            self.raycaster.venus_shader.radar_mode = !self.raycaster.venus_shader.radar_mode;
-                        }
-                    }
-                    KeyCode::Char('f') | KeyCode::Char('F') => {
-                        self.camera.align_to_sun(self.physics.sun.position);
-                    }
-                    KeyCode::Char('h') | KeyCode::Char('H') => {
-                        self.show_hud = !self.show_hud;
-                    }
-                    KeyCode::Char('r') | KeyCode::Char('R') => {
-                        self.camera.recenter();
-                    }
-                    KeyCode::Char('b') | KeyCode::Char('B') => {
-                        let new_mode = match self.buffer.mode {
-                            RenderMode::Ascii => RenderMode::HalfBlock,
-                            RenderMode::HalfBlock => RenderMode::Ascii,
-                        };
-                        self.buffer.set_mode(new_mode);
-                    }
-                    KeyCode::Char(' ') => {
-                        self.paused = !self.paused;
-                    }
-                    KeyCode::Char('t') | KeyCode::Char('T') => {
-                        // Quick cycle through astronomical time warp scales:
-                        // 10 min/s (600x) -> 1 day/s (86,400x) -> 1 month/s (2,592,000x) -> 1 year/s (31,536,000x) -> 5 years/s (157,680,000x) -> Realtime (1x)
-                        self.time_warp = if self.time_warp < 1000.0 {
-                            86_400.0
-                        } else if self.time_warp < 100_000.0 {
-                            2_592_000.0
-                        } else if self.time_warp < 10_000_000.0 {
-                            31_536_000.0
-                        } else if self.time_warp < 100_000_000.0 {
-                            157_680_000.0
-                        } else if self.time_warp < 250_000_000.0 {
-                            1.0
-                        } else {
-                            600.0
-                        };
-                    }
-                    KeyCode::Char('[') | KeyCode::Char(',') => {
-                        self.time_warp = (self.time_warp * 0.5).max(1.0);
-                    }
-                    KeyCode::Char(']') | KeyCode::Char('.') => {
-                        self.time_warp = (self.time_warp * 2.0).min(315_360_000.0);
-                    }
-                    _ => {}
                 }
             }
 
@@ -440,6 +438,11 @@ impl App {
                     self.time_warp,
                     self.paused,
                 );
+            }
+
+            // Interactive Help Modal
+            if self.show_help {
+                Hud::render_help_modal(&mut self.buffer);
             }
 
             // Flush frame buffer to terminal

@@ -1,6 +1,6 @@
 [package]
 name = "solar-system-ascii"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["PedroSmaxY <pedrohenrique.nv@icloud.com>"]
 description = "solar-system-ascii (AstroEngine) - Real-time 3D Solar System simulator in TrueColor ANSI Half-Block raymarching"
@@ -11,7 +11,6 @@ categories = ["command-line-utilities", "science", "simulation", "rendering"]
 
 [dependencies]
 crossterm = "0.28"
-rand = "0.8"
 rayon = "1.10"
 
 [target.'cfg(windows)'.build-dependencies]

@@ -97,6 +97,73 @@ impl BodyId {
             BodyId::Charon => 31,
         }
     }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            BodyId::Sun => "Sun",
+            BodyId::Mercury => "Mercury",
+            BodyId::Venus => "Venus",
+            BodyId::Earth => "Earth",
+            BodyId::Moon => "Moon",
+            BodyId::Mars => "Mars",
+            BodyId::Phobos => "Phobos",
+            BodyId::Deimos => "Deimos",
+            BodyId::Ceres => "Ceres",
+            BodyId::Vesta => "Vesta",
+            BodyId::Jupiter => "Jupiter",
+            BodyId::Io => "Io",
+            BodyId::Europa => "Europa",
+            BodyId::Ganymede => "Ganymede",
+            BodyId::Callisto => "Callisto",
+            BodyId::Saturn => "Saturn",
+            BodyId::Titan => "Titan",
+            BodyId::Enceladus => "Enceladus",
+            BodyId::Mimas => "Mimas",
+            BodyId::Iapetus => "Iapetus",
+            BodyId::Rhea => "Rhea",
+            BodyId::Uranus => "Uranus",
+            BodyId::Miranda => "Miranda",
+            BodyId::Ariel => "Ariel",
+            BodyId::Umbriel => "Umbriel",
+            BodyId::Titania => "Titania",
+            BodyId::Oberon => "Oberon",
+            BodyId::Neptune => "Neptune",
+            BodyId::Triton => "Triton",
+            BodyId::Proteus => "Proteus",
+            BodyId::Pluto => "Pluto",
+            BodyId::Charon => "Charon",
+        }
+    }
+
+    pub fn parent(self) -> Option<BodyId> {
+        match self {
+            BodyId::Sun => None,
+            BodyId::Mercury
+            | BodyId::Venus
+            | BodyId::Earth
+            | BodyId::Mars
+            | BodyId::Ceres
+            | BodyId::Vesta
+            | BodyId::Jupiter
+            | BodyId::Saturn
+            | BodyId::Uranus
+            | BodyId::Neptune
+            | BodyId::Pluto => Some(BodyId::Sun),
+            BodyId::Moon => Some(BodyId::Earth),
+            BodyId::Phobos | BodyId::Deimos => Some(BodyId::Mars),
+            BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto => Some(BodyId::Jupiter),
+            BodyId::Titan | BodyId::Enceladus | BodyId::Mimas | BodyId::Iapetus | BodyId::Rhea => {
+                Some(BodyId::Saturn)
+            }
+            BodyId::Miranda
+            | BodyId::Ariel
+            | BodyId::Umbriel
+            | BodyId::Titania
+            | BodyId::Oberon => Some(BodyId::Uranus),
+            BodyId::Triton | BodyId::Proteus => Some(BodyId::Neptune),
+            BodyId::Charon => Some(BodyId::Pluto),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

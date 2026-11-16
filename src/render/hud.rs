@@ -95,9 +95,9 @@ impl Hud {
             };
             if trans.from_body == BodyId::Sun && trans.to_body == BodyId::Sun {
                 if trans.end_view.distance_km < trans.start_view.distance_km {
-                    "Zoom: Sol Close-up".to_string()
+                    "Zoom: Sun Close-up".to_string()
                 } else {
-                    "Zoom: Visão do Sistema".to_string()
+                    "Zoom: Solar System Overview".to_string()
                 }
             } else {
                 format!("Transit: {} -> {}", from, to)
@@ -106,42 +106,42 @@ impl Hud {
             match camera.target_body {
                 BodyId::Sun => {
                     if camera.distance_km > 5.0e7 {
-                        "Solar System Overview (Sol)".to_string()
+                        "Solar System Overview".to_string()
                     } else {
-                        "Sun (Sol · Close-up)".to_string()
+                        "Sun (Photosphere Close-up)".to_string()
                     }
                 }
-                BodyId::Mercury => "Mercury (Mercúrio)".to_string(),
-                BodyId::Venus => "Venus (Vênus)".to_string(),
-                BodyId::Earth => "Earth (Terra)".to_string(),
-                BodyId::Moon => "Moon (Luna)".to_string(),
-                BodyId::Mars => "Mars (Marte)".to_string(),
-                BodyId::Phobos => "Phobos (Fobos)".to_string(),
-                BodyId::Deimos => "Deimos".to_string(),
-                BodyId::Ceres => "Ceres (Dwarf Planet)".to_string(),
-                BodyId::Vesta => "Vesta (Protoplanet)".to_string(),
-                BodyId::Jupiter => "Jupiter (Gas Giant)".to_string(),
-                BodyId::Io => "Io (Volcanic Moon)".to_string(),
-                BodyId::Europa => "Europa (Ice Ocean Moon)".to_string(),
-                BodyId::Ganymede => "Ganymede (Largest Moon)".to_string(),
-                BodyId::Callisto => "Callisto (Cratered Moon)".to_string(),
-                BodyId::Saturn => "Saturn (Ringed Planet)".to_string(),
-                BodyId::Titan => "Titan (Hazy Giant Moon)".to_string(),
-                BodyId::Enceladus => "Enceladus (Geyser Ice Moon)".to_string(),
-                BodyId::Mimas => "Mimas (Herschel Crater Moon)".to_string(),
-                BodyId::Iapetus => "Iapetus (Yin-Yang Moon)".to_string(),
-                BodyId::Rhea => "Rhea (Cratered Ice Moon)".to_string(),
-                BodyId::Uranus => "Uranus (Ice Giant, 97.8° Tilt)".to_string(),
-                BodyId::Miranda => "Miranda (Verona Rupes Scarp)".to_string(),
-                BodyId::Ariel => "Ariel (Bright Rift Moon)".to_string(),
-                BodyId::Umbriel => "Umbriel (Wunda Crater Moon)".to_string(),
-                BodyId::Titania => "Titania (Largest Uranian Moon)".to_string(),
-                BodyId::Oberon => "Oberon (Cratered Mountain Moon)".to_string(),
-                BodyId::Neptune => "Neptune (Great Dark Spot)".to_string(),
-                BodyId::Triton => "Triton (Retrograde Cryo Moon)".to_string(),
-                BodyId::Proteus => "Proteus (Polyhedral Moon)".to_string(),
-                BodyId::Pluto => "Pluto (Tombaugh Regio Heart)".to_string(),
-                BodyId::Charon => "Charon (Serenity Chasma Moon)".to_string(),
+                BodyId::Mercury => "Solar System › Mercury".to_string(),
+                BodyId::Venus => "Solar System › Venus".to_string(),
+                BodyId::Earth => "Solar System › Earth".to_string(),
+                BodyId::Moon => "Solar System › Earth › Moon".to_string(),
+                BodyId::Mars => "Solar System › Mars".to_string(),
+                BodyId::Phobos => "Solar System › Mars › Phobos (Moon 1/2)".to_string(),
+                BodyId::Deimos => "Solar System › Mars › Deimos (Moon 2/2)".to_string(),
+                BodyId::Ceres => "Solar System › Asteroids › Ceres (Dwarf Planet)".to_string(),
+                BodyId::Vesta => "Solar System › Asteroids › Vesta (Protoplanet)".to_string(),
+                BodyId::Jupiter => "Solar System › Jupiter".to_string(),
+                BodyId::Io => "Solar System › Jupiter › Io (Moon 1/4)".to_string(),
+                BodyId::Europa => "Solar System › Jupiter › Europa (Moon 2/4)".to_string(),
+                BodyId::Ganymede => "Solar System › Jupiter › Ganymede (Moon 3/4)".to_string(),
+                BodyId::Callisto => "Solar System › Jupiter › Callisto (Moon 4/4)".to_string(),
+                BodyId::Saturn => "Solar System › Saturn".to_string(),
+                BodyId::Titan => "Solar System › Saturn › Titan (Moon 1/5)".to_string(),
+                BodyId::Enceladus => "Solar System › Saturn › Enceladus (Moon 2/5)".to_string(),
+                BodyId::Mimas => "Solar System › Saturn › Mimas (Moon 3/5)".to_string(),
+                BodyId::Iapetus => "Solar System › Saturn › Iapetus (Moon 4/5)".to_string(),
+                BodyId::Rhea => "Solar System › Saturn › Rhea (Moon 5/5)".to_string(),
+                BodyId::Uranus => "Solar System › Uranus (97.8° Tilt)".to_string(),
+                BodyId::Miranda => "Solar System › Uranus › Miranda (Moon 1/5)".to_string(),
+                BodyId::Ariel => "Solar System › Uranus › Ariel (Moon 2/5)".to_string(),
+                BodyId::Umbriel => "Solar System › Uranus › Umbriel (Moon 3/5)".to_string(),
+                BodyId::Titania => "Solar System › Uranus › Titania (Moon 4/5)".to_string(),
+                BodyId::Oberon => "Solar System › Uranus › Oberon (Moon 5/5)".to_string(),
+                BodyId::Neptune => "Solar System › Neptune".to_string(),
+                BodyId::Triton => "Solar System › Neptune › Triton (Moon 1/2)".to_string(),
+                BodyId::Proteus => "Solar System › Neptune › Proteus (Moon 2/2)".to_string(),
+                BodyId::Pluto => "Solar System › Kuiper Belt › Pluto".to_string(),
+                BodyId::Charon => "Solar System › Kuiper Belt › Charon".to_string(),
             }
         };
 
@@ -165,11 +165,11 @@ impl Hud {
         } else if time_warp < 86400.0 {
             format!("{:.1} hr/s", time_warp / 3600.0)
         } else if time_warp < 2_592_000.0 {
-            format!("{:.1} dias/s", time_warp / 86400.0)
+            format!("{:.1} days/s", time_warp / 86400.0)
         } else if time_warp < 31_536_000.0 {
-            format!("{:.1} meses/s", time_warp / 2_592_000.0)
+            format!("{:.1} months/s", time_warp / 2_592_000.0)
         } else {
-            format!("{:.1} anos/s", time_warp / 31_536_000.0)
+            format!("{:.1} years/s", time_warp / 31_536_000.0)
         };
 
         // Top Header (Line 0)
@@ -183,7 +183,7 @@ impl Hud {
             Self::draw_text(buffer, 1, 0, &title, [180, 215, 255]);
         }
 
-        // 3D Celestial Body Labels ([Sol], [Terra], [Lua]) with elegant offsets
+        // 3D Celestial Body Labels ([Sun], [Earth], [Moon]) with elegant offsets
         let cam_pos = camera.position();
         let (sin_az, cos_az) = camera.azimuth.sin_cos();
         let (sin_el, cos_el) = camera.elevation.sin_cos();
@@ -202,42 +202,42 @@ impl Hud {
 
         // Major celestial bodies (Sun, Planets, Asteroid Belt Dwarfs) - always prioritized
         let major_bodies = [
-            (BodyId::Sun, physics.sun.position, physics.sun.radius_km, "[Sol]", [255, 220, 90]),
-            (BodyId::Mercury, physics.mercury.position, physics.mercury.radius_km, "[Mercúrio]", [225, 185, 140]),
-            (BodyId::Venus, physics.venus.position, physics.venus.radius_km, "[Vênus]", [240, 225, 175]),
-            (BodyId::Earth, physics.earth.position, physics.earth.radius_km, "[Terra]", [120, 205, 255]),
-            (BodyId::Mars, physics.mars.position, physics.mars.radius_km, "[Marte]", [225, 115, 65]),
+            (BodyId::Sun, physics.sun.position, physics.sun.radius_km, "[Sun]", [255, 220, 90]),
+            (BodyId::Mercury, physics.mercury.position, physics.mercury.radius_km, "[Mercury]", [225, 185, 140]),
+            (BodyId::Venus, physics.venus.position, physics.venus.radius_km, "[Venus]", [240, 225, 175]),
+            (BodyId::Earth, physics.earth.position, physics.earth.radius_km, "[Earth]", [120, 205, 255]),
+            (BodyId::Mars, physics.mars.position, physics.mars.radius_km, "[Mars]", [225, 115, 65]),
             (BodyId::Ceres, physics.ceres.position, physics.ceres.radius_km, "[Ceres]", [200, 205, 215]),
             (BodyId::Vesta, physics.vesta.position, physics.vesta.radius_km, "[Vesta]", [220, 210, 190]),
-            (BodyId::Jupiter, physics.jupiter.position, physics.jupiter.radius_km, "[Júpiter]", [235, 195, 150]),
-            (BodyId::Saturn, physics.saturn.position, physics.saturn.radius_km, "[Saturno]", [235, 205, 140]),
-            (BodyId::Uranus, physics.uranus.position, physics.uranus.radius_km, "[Urano]", [160, 215, 225]),
-            (BodyId::Neptune, physics.neptune.position, physics.neptune.radius_km, "[Netuno]", [90, 145, 245]),
-            (BodyId::Pluto, physics.pluto.position, physics.pluto.radius_km, "[Plutão]", [220, 195, 175]),
+            (BodyId::Jupiter, physics.jupiter.position, physics.jupiter.radius_km, "[Jupiter]", [235, 195, 150]),
+            (BodyId::Saturn, physics.saturn.position, physics.saturn.radius_km, "[Saturn]", [235, 205, 140]),
+            (BodyId::Uranus, physics.uranus.position, physics.uranus.radius_km, "[Uranus]", [160, 215, 225]),
+            (BodyId::Neptune, physics.neptune.position, physics.neptune.radius_km, "[Neptune]", [90, 145, 245]),
+            (BodyId::Pluto, physics.pluto.position, physics.pluto.radius_km, "[Pluto]", [220, 195, 175]),
         ];
 
         // Natural Satellites / Moons - only rendered within their planetary system's proximity (LOD)
         let moons = [
-            (BodyId::Moon, physics.moon.position, physics.moon.radius_km, "[Lua]", [210, 215, 225], physics.earth.position, 6_000_000.0),
-            (BodyId::Phobos, physics.phobos.position, physics.phobos.radius_km, "[Fobos]", [160, 155, 150], physics.mars.position, 1_500_000.0),
+            (BodyId::Moon, physics.moon.position, physics.moon.radius_km, "[Moon]", [210, 215, 225], physics.earth.position, 6_000_000.0),
+            (BodyId::Phobos, physics.phobos.position, physics.phobos.radius_km, "[Phobos]", [160, 155, 150], physics.mars.position, 1_500_000.0),
             (BodyId::Deimos, physics.deimos.position, physics.deimos.radius_km, "[Deimos]", [175, 160, 145], physics.mars.position, 1_500_000.0),
             (BodyId::Io, physics.io.position, physics.io.radius_km, "[Io]", [240, 215, 80], physics.jupiter.position, 40_000_000.0),
             (BodyId::Europa, physics.europa.position, physics.europa.radius_km, "[Europa]", [215, 225, 235], physics.jupiter.position, 40_000_000.0),
-            (BodyId::Ganymede, physics.ganymede.position, physics.ganymede.radius_km, "[Ganímedes]", [185, 175, 165], physics.jupiter.position, 40_000_000.0),
-            (BodyId::Callisto, physics.callisto.position, physics.callisto.radius_km, "[Calisto]", [150, 145, 140], physics.jupiter.position, 40_000_000.0),
-            (BodyId::Titan, physics.titan.position, physics.titan.radius_km, "[Titã]", [230, 160, 60], physics.saturn.position, 55_000_000.0),
-            (BodyId::Enceladus, physics.enceladus.position, physics.enceladus.radius_km, "[Encélado]", [245, 250, 255], physics.saturn.position, 55_000_000.0),
+            (BodyId::Ganymede, physics.ganymede.position, physics.ganymede.radius_km, "[Ganymede]", [185, 175, 165], physics.jupiter.position, 40_000_000.0),
+            (BodyId::Callisto, physics.callisto.position, physics.callisto.radius_km, "[Callisto]", [150, 145, 140], physics.jupiter.position, 40_000_000.0),
+            (BodyId::Titan, physics.titan.position, physics.titan.radius_km, "[Titan]", [230, 160, 60], physics.saturn.position, 55_000_000.0),
+            (BodyId::Enceladus, physics.enceladus.position, physics.enceladus.radius_km, "[Enceladus]", [245, 250, 255], physics.saturn.position, 55_000_000.0),
             (BodyId::Mimas, physics.mimas.position, physics.mimas.radius_km, "[Mimas]", [200, 200, 205], physics.saturn.position, 55_000_000.0),
-            (BodyId::Iapetus, physics.iapetus.position, physics.iapetus.radius_km, "[Jápeto]", [170, 160, 150], physics.saturn.position, 55_000_000.0),
-            (BodyId::Rhea, physics.rhea.position, physics.rhea.radius_km, "[Reia]", [210, 215, 220], physics.saturn.position, 55_000_000.0),
+            (BodyId::Iapetus, physics.iapetus.position, physics.iapetus.radius_km, "[Iapetus]", [170, 160, 150], physics.saturn.position, 55_000_000.0),
+            (BodyId::Rhea, physics.rhea.position, physics.rhea.radius_km, "[Rhea]", [210, 215, 220], physics.saturn.position, 55_000_000.0),
             (BodyId::Miranda, physics.miranda.position, physics.miranda.radius_km, "[Miranda]", [190, 195, 200], physics.uranus.position, 25_000_000.0),
             (BodyId::Ariel, physics.ariel.position, physics.ariel.radius_km, "[Ariel]", [215, 220, 225], physics.uranus.position, 25_000_000.0),
             (BodyId::Umbriel, physics.umbriel.position, physics.umbriel.radius_km, "[Umbriel]", [140, 140, 145], physics.uranus.position, 25_000_000.0),
-            (BodyId::Titania, physics.titania.position, physics.titania.radius_km, "[Titânia]", [185, 185, 190], physics.uranus.position, 25_000_000.0),
+            (BodyId::Titania, physics.titania.position, physics.titania.radius_km, "[Titania]", [185, 185, 190], physics.uranus.position, 25_000_000.0),
             (BodyId::Oberon, physics.oberon.position, physics.oberon.radius_km, "[Oberon]", [175, 175, 180], physics.uranus.position, 25_000_000.0),
-            (BodyId::Triton, physics.triton.position, physics.triton.radius_km, "[Tritão]", [215, 225, 235], physics.neptune.position, 25_000_000.0),
-            (BodyId::Proteus, physics.proteus.position, physics.proteus.radius_km, "[Proteu]", [130, 130, 135], physics.neptune.position, 25_000_000.0),
-            (BodyId::Charon, physics.charon.position, physics.charon.radius_km, "[Caronte]", [185, 175, 170], physics.pluto.position, 2_000_000.0),
+            (BodyId::Triton, physics.triton.position, physics.triton.radius_km, "[Triton]", [215, 225, 235], physics.neptune.position, 25_000_000.0),
+            (BodyId::Proteus, physics.proteus.position, physics.proteus.radius_km, "[Proteus]", [130, 130, 135], physics.neptune.position, 25_000_000.0),
+            (BodyId::Charon, physics.charon.position, physics.charon.radius_km, "[Charon]", [185, 175, 170], physics.pluto.position, 2_000_000.0),
         ];
 
         let mut occupied_regions: Vec<(usize, usize, usize)> = Vec::new(); // (row_y, x_start, x_end)
@@ -338,35 +338,35 @@ impl Hud {
             BodyId::Sun => {
                 if camera.distance_km > 5.0e7 {
                     (
-                        "[0/Z] Zoom no Sol  [1-9] Planetas  [Tab] Planeta  [T] Tempo  [L] Órbitas  [+/-] Zoom  [Space] Pausa",
-                        "[0] Zoom no Sol  [1-9] Planetas  [T] Tempo  [+/-] Zoom",
+                        "[0/Z] Sun Close-up  [1-9] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  [Space] Pause  [?] Help",
+                        "[0] Close-up  [1-9] Worlds  [Tab] Next  [?] Help",
                     )
                 } else {
                     (
-                        "[0/Z] Visão do Sistema  [1-9] Planetas  [Tab] Planeta  [T] Tempo  [L] Órbitas  [R] Reset  [+/-] Zoom",
-                        "[0] Visão Geral  [1-9] Planetas  [T] Tempo  [+/-] Zoom",
+                        "[0/Z] Overview  [1-9] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  [R] Reset  [?] Help",
+                        "[0] Overview  [1-9] Worlds  [Tab] Next  [?] Help",
                     )
                 }
             }
             BodyId::Venus => (
-                "[Tab] Geral  [1-9] Planetas  [V] Radar Magellan  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [V] Radar  [R] Reset  [+/-] Zoom",
+                "[V] Radar Mode  [Tab] Next  [Bksp] Back  [1-9] Worlds  [+/-] Zoom  [Space] Pause  [?] Help",
+                "[V] Radar  [Tab] Next  [Bksp] Back  [?] Help",
             ),
             BodyId::Mercury => (
-                "[Tab] Geral  [1-9] Planetas  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [1-9] Planetas  [R] Reset  [+/-] Zoom",
+                "[Tab] Next  [Bksp] Back  [1-9] Worlds  [R] Reset  [+/-] Zoom  [Space] Pause  [?] Help",
+                "[Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
             ),
             BodyId::Earth | BodyId::Moon => (
-                "[Tab] Geral  [1-9] Planetas  [M] Terra/Lua  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [M] Lua  [R] Reset  [+/-] Zoom",
+                "[M] Moon Cycle  [Tab] Next  [Bksp] Back  [1-9] Worlds  [+/-] Zoom  [Space] Pause  [?] Help",
+                "[M] Moon  [Tab] Next  [Bksp] Back  [?] Help",
             ),
             BodyId::Mars | BodyId::Phobos | BodyId::Deimos => (
-                "[Tab] Geral  [1-9] Planetas  [M] Luas (Fobos/Deimos)  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+                "[M] Moons (Phobos/Deimos)  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
+                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
             ),
             BodyId::Jupiter | BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto => (
-                "[Tab] Geral  [1-9] Planetas  [M] Luas Galileanas  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+                "[M] Galilean Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
+                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
             ),
             BodyId::Saturn
             | BodyId::Titan
@@ -374,8 +374,8 @@ impl Hud {
             | BodyId::Mimas
             | BodyId::Iapetus
             | BodyId::Rhea => (
-                "[Tab] Geral  [1-9] Planetas  [M] Luas de Saturno  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+                "[M] Saturn Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
+                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
             ),
             BodyId::Uranus
             | BodyId::Miranda
@@ -383,20 +383,20 @@ impl Hud {
             | BodyId::Umbriel
             | BodyId::Titania
             | BodyId::Oberon => (
-                "[Tab] Geral  [1-9] Planetas  [M] Luas de Urano  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+                "[M] Uranus Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
+                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
             ),
             BodyId::Neptune | BodyId::Triton | BodyId::Proteus => (
-                "[Tab] Geral  [1-9] Planetas  [M] Luas (Tritão/Proteu)  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [M] Luas  [R] Reset  [+/-] Zoom",
+                "[M] Neptune Moons  [N] System  [Tab] Next  [Bksp] Back  [1-9] Worlds  [?] Help",
+                "[M] Moons  [Tab] Next  [Bksp] Back  [?] Help",
             ),
             BodyId::Pluto | BodyId::Charon => (
-                "[Tab] Geral  [1-9] Planetas  [M] Plutão/Caronte  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [M] Caronte  [R] Reset  [+/-] Zoom",
+                "[M] Pluto/Charon  [Tab] Next  [Bksp] Back  [1-9] Worlds  [+/-] Zoom  [?] Help",
+                "[M] Charon  [Tab] Next  [Bksp] Back  [?] Help",
             ),
             BodyId::Ceres | BodyId::Vesta => (
-                "[Tab] Geral  [1-9] Planetas  [M] Ceres/Vesta  [R] Reset  [+/-] Zoom  [WASD] Orbitar  [Space] Pausa",
-                "[Tab] Geral  [M] Ceres/Vesta  [R] Reset  [+/-] Zoom",
+                "[M] Ceres/Vesta  [Tab] Next  [Bksp] Back  [1-9] Worlds  [+/-] Zoom  [?] Help",
+                "[M] Belt  [Tab] Next  [Bksp] Back  [?] Help",
             ),
         };
 
@@ -406,8 +406,74 @@ impl Hud {
             } else if cols >= controls_compact.len() + 2 {
                 Self::draw_text(buffer, 1, lines - 1, controls_compact, [160, 195, 225]);
             } else if cols > 20 {
-                Self::draw_text(buffer, 1, lines - 1, "[Tab] Geral  [1-9] Planetas", [160, 195, 225]);
+                Self::draw_text(buffer, 1, lines - 1, "[Tab] Next  [1-9] Worlds  [?] Help", [160, 195, 225]);
             }
+        }
+    }
+
+    /// Centered interactive Help Modal displaying full keyboard and mouse controls.
+    pub fn render_help_modal(buffer: &mut FrameBuffer) {
+        let cols = buffer.cols;
+        let lines = buffer.lines;
+        let modal_w = 64.min(cols.saturating_sub(4));
+        let lines_text = [
+            "┌───────────────── AstroEngine 3D Navigation ──────────────────┐",
+            "│ Orbit & Look    [W/A/S/D] or [Arrows] or Left-Click Drag     │",
+            "│ Zoom In / Out   [+] / [-] or Mouse Scroll Wheel              │",
+            "│ Solar System    [0] Overview  [Tab / Shift+Tab] Cycle Worlds │",
+            "│ Direct Target   [1-9] Mercury..Pluto  [P] Ceres/Vesta        │",
+            "│ Moon Systems    [M] Cycle Moons & Return  [N] System View    │",
+            "│ Ascend / Back   [Backspace] Moon -> Planet -> Solar System   │",
+            "│ Solar Alignment [F] Align to Sun  [Z] Sun Close-up Toggle    │",
+            "│ Simulation      [Space] Pause  [T] Time Warp Scale  [\\] 1x   │",
+            "│ Display         [B] ASCII / HD Half-Block  [H] Toggle HUD    │",
+            "│ Recenter View   [R] Recenter Camera Perspective              │",
+            "│ Quit / Exit     [Q / Esc] Quit                               │",
+            "└────────────────── Press [?] or [Esc] to Close ───────────────┘",
+        ];
+        let modal_h = lines_text.len().min(lines.saturating_sub(2));
+        if modal_w < 30 || modal_h < 6 {
+            return;
+        }
+
+        let start_x = (cols - modal_w) / 2;
+        let start_y = (lines - modal_h) / 2;
+
+        // Draw solid dark background box to occlude background geometry
+        for dy in 0..modal_h {
+            let cur_y = start_y + dy;
+            let v_y0 = match buffer.mode {
+                RenderMode::Ascii => cur_y,
+                RenderMode::HalfBlock => cur_y * 2,
+            };
+            let v_y1 = match buffer.mode {
+                RenderMode::Ascii => cur_y,
+                RenderMode::HalfBlock => cur_y * 2 + 1,
+            };
+            for x in 0..modal_w {
+                let px = start_x + x;
+                if px < buffer.cols {
+                    buffer.set_pixel(px, v_y0, Pixel::rgb(12, 16, 26));
+                    if buffer.mode == RenderMode::HalfBlock {
+                        buffer.set_pixel(px, v_y1, Pixel::rgb(12, 16, 26));
+                    }
+                }
+            }
+        }
+
+        // Draw framed text
+        for (idx, line) in lines_text.iter().enumerate() {
+            if idx >= modal_h {
+                break;
+            }
+            let y = start_y + idx;
+            let trimmed: String = line.chars().take(modal_w).collect();
+            let color = if idx == 0 || idx == lines_text.len() - 1 {
+                [100, 180, 255]
+            } else {
+                [220, 230, 245]
+            };
+            Self::draw_text(buffer, start_x, y, &trimmed, color);
         }
     }
 
