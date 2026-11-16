@@ -32,7 +32,7 @@ Download the ready-to-run binary for your operating system from **[GitHub Releas
 | :--- | :--- | :--- |
 | **macOS Apple Silicon (M1–M4)** | [`solar-system-ascii-aarch64-apple-darwin.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && xattr -d com.apple.quarantine solar-system-ascii && ./solar-system-ascii --hd` |
 | **macOS Intel** | [`solar-system-ascii-x86_64-apple-darwin.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && xattr -d com.apple.quarantine solar-system-ascii && ./solar-system-ascii --hd` |
-| **Windows x64** | [`solar-system-ascii-x86_64-pc-windows-msvc.zip`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | Extrair `.zip` $\to$ Duplo clique em `solar-system-ascii.exe` |
+| **Windows x64** | [`solar-system-ascii-x86_64-pc-windows-msvc.zip`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | Extract `.zip` $\to$ Double-click `solar-system-ascii.exe` |
 | **Linux x64 / ARM64** | [`solar-system-ascii-*-linux-gnu.tar.gz`](https://github.com/PedroSmaxY/solar-system-ascii/releases/latest) | `tar -xzf solar-system-ascii-*.tar.gz && chmod +x solar-system-ascii && ./solar-system-ascii --hd` |
 
 > [!TIP]
