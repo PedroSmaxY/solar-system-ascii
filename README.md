@@ -23,7 +23,7 @@
   <img src="assets/screenshots/saturn_rings_shadows.png" alt="Saturn System" width="48%" />
   <img src="assets/screenshots/jupiter_great_red_spot.png" alt="Jupiter System" width="48%" />
   <br />
-  <em>Left: Saturn with Cassini & Encke divisions, oblate spheroid geometry, and reciprocal ring-globe shadows.<br />Right: Jupiter with fluid vorticity cloud bands, Great Red Spot, and Galilean satellites.</em>
+  <em>Left: Saturn with Cassini & Encke divisions, oblate spheroid geometry, and reciprocal ring-globe shadows.<br />Right: Jupiter with authentic NASA Cassini/Juno cloud bands, Great Red Spot, and Galilean satellites.</em>
 </p>
 
 <p align="center">
@@ -89,22 +89,28 @@ AstroEngine features two distinct terminal rendering pipelines that can be toggl
 ## 🌟 Highlights
 
 - **Complete Astronomical Solar System**:
-  - **The Sun**: Dynamic solar plasma turbulence, convective granulation cells, cooler sunspots ($T \approx 4200\text{ K}$), limb darkening, coronal helmet streamers, and magnetic flare loop reconnections.
+  - **The Sun**: Dynamic solar plasma granulation (tetrahedral cellular harmonics), limb darkening (Eddington-Barbier law), active region sunspots (Umbra/Penumbra in Spörer belt), coronal helmet streamers, and magnetic loop prominences.
   - **Terrestrial Planets**: Mercury (cratered Caloris Basin), Venus (dual-layer optical atmosphere vs Magellan synthetic radar), Earth (realistic continents, night-side city lights, cloud shadows, atmosphere glow), Luna (tidal synchronization), and Mars (Olympus Mons, Valles Marineris canyon network, butterscotch atmosphere, Phobos & Deimos).
   - **Main Asteroid Belt**: Over 3,500 Keplerian particles with Kirkwood gaps, plus dwarf planets **Ceres** (Occator crater bright salt faculae) and **Vesta** (Rheasilvia impact basin).
-  - **Gas Giants**: Jupiter (Navier-Stokes fluid dynamics, Great Red Spot counter-rotation, 4 Galilean moons: Io, Europa, Ganymede, Callisto), Saturn (oblate spheroid geometry, high-density ring system with Cassini & Encke divisions, ring shadows, and major moons: Titan, Enceladus, Mimas, Rhea, Iapetus).
-  - **Ice Giants & Trans-Neptunian Worlds**: Uranus ($97.8^\circ$ retrograde tilt, vertical rings, 5 major moons), Neptune (azure methane absorption, Great Dark Spot, retrograde cryovolcanic Triton), and **Pluto & Charon** (nitrogen ice heart Sputnik Planitia).
-  - **Deep Space Probes**: Real-time telemetry for **Voyager 1** and **Voyager 2** cruising beyond the heliopause into interstellar space ($> 130\text{–}160\text{ AU}$).
+  - **Gas Giants**: Jupiter (authentic NASA Cassini/Juno 1024x512 texture mapping, Minnaert atmospheric limb darkening, differential zonal drift, Great Red Spot at -22° S, 4 Galilean moons: Io, Europa, Ganymede, Callisto, and 91 minor moons swarm), Saturn (oblate spheroid geometry with polar flattening $f = 0.09796$, high-density ring system with Cassini & Encke divisions, reciprocal globe-ring shadows, 5 major moons: Titan, Enceladus, Mimas, Rhea, Iapetus, and 141 minor moons swarm).
+  - **Ice Giants & Trans-Neptunian Worlds**: Uranus ($97.8^\circ$ retrograde tilt, vertical rings, 5 major moons: Miranda, Ariel, Umbriel, Titania, Oberon, and 23 minor moons swarm), Neptune (azure methane absorption, Great Dark Spot, retrograde cryovolcanic Triton, Proteus, and 14 minor moons swarm), and **Pluto & Charon** (nitrogen ice heart Sputnik Planitia).
+  - **Deep Space Probes**: Real-time telemetry for **Voyager 1** and **Voyager 2** cruising beyond the heliopause into interstellar space ($> 130\text{–}160\text{ AU}$), with dynamic ephemeris propagation into future decades (e.g. year 2040+).
+- **Live Wall-Clock Synchronization (`LIVE 1.0x`)**:
+  - Automatically initializes synchronized to the user's system clock (`SystemTime::now()` converted to J2000 epoch).
+  - Earth's diurnal rotation is synchronized to real-world solar noon ($\lambda_{\text{subsolar}} = [0.5 - f_{\text{UTC}}] \times 2\pi$), aligning daylit continents and nocturnal city lights with actual Earth time.
+- **Cinematic Startup Dive & Cubic Time Rewind**:
+  - Starts with an oblique dive from the Inner Solar System Orrery ($5.5\times 10^8\text{ km}$) to Earth ($21{,}000\text{ km}$) with fast-lock focal tracking, decelerating from warp ($\sim 129{,}601\times$) to live time over 3.0 seconds.
+  - Pressing `[J]` or `[\]` performs a continuous 1.3-second cubic rewind/forward animation (`⏪ REWIND TO LIVE` / `⏩ SYNC TO LIVE`). Touching any key or mouse instantly snaps time to live (0 ms latency).
+- **Progressive Moon LOD & Photometric Fade-Out**:
+  - Individual angular LOD culling per moon ($55 \times a$ for HUD labels, $80 \times a$ for orbits) with smooth photometric brightness fade-out, eliminating pop-out culling.
 - **Deep Sky Celestial Sphere**:
   - Real star catalog with spectral classification (Sirius, Canopus, Alpha Centauri, Arcturus, Vega, Betelgeuse, Rigel).
   - Authentic constellations (Orion, Ursa Major, Scorpius, Cassiopeia, Crux) and deep-sky nebulae (Orion Nebula, Carina, Magellanic Clouds).
 - **Sub-Pixel ANSI Half-Block Engine**:
   - Emits Unicode Upper Half Blocks (`▀`, `U+2580`) pairing TrueColor foreground `\x1b[38;2;R;G;Bm` (upper pixel) with TrueColor background `\x1b[48;2;R;G;Bm` (lower pixel).
   - Effectively doubles vertical resolution to $160 \times 100$ or $320 \times 200$, delivering razor-sharp planetary contours inside standard terminal emulators.
-- **Hierarchical Astronomical LOD**:
-  - Smart Hill sphere distance culling: natural satellites automatically hide their tags at interplanetary distances, leaving clean planetary labels that never overlap.
 - **Extreme Timewarp Navigation**:
-  - Seamlessly accelerate time from real-time ($1\times$) up to **10 years / second** ($315.360.000\times$) to watch outer planet orbits and resonance cycles in action.
+  - Logarithmic preset cycling (`[T]`): `1.0x -> 10 min/s -> 1 hr/s -> 1 day/s -> 1 mo/s -> 1 yr/s -> 1.0x`, with fine adjustment up to **10 years / second** ($315.360.000\times$).
 
 ---
 
@@ -202,11 +208,11 @@ The optical thickness across the atmospheric limb is integrated through an expon
 ---
 
 ### 6. Solar Photosphere Limb Darkening & Convection
-The Sun is an active plasma emitter rather than an externally lit sphere. Its radiance is modeled using the solar quadratic limb darkening law:
+The Sun is an active plasma emitter rather than an externally lit sphere. Its radiance is modeled using the solar quadratic limb darkening law (Eddington-Barbier approximation):
 
 $$I(\mu) = I_0 \left(1 - u_1(1 - \mu) - u_2(1 - \mu)^2\right)$$
 
-Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.44$, and $u_2 = 0.17$. Photospheric convection granules ($1000\text{ km}$ scale cells) and magnetic coronal loop arcades are evaluated via 3D divergence-free curl noise.
+Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.45$, and $u_2 = 0.22$. Photospheric convection granules ($1000\text{ km}$ scale cells) are evaluated via rotated non-separable tetrahedral cellular wave harmonics (granulation), Spörer tropical magnetic belt active sunspots (Umbra core $4,000\text{ K}$, Penumbra $5,500\text{ K}$, and bright faculae), and volumetric coronal plasma loops ($1.0\text{–}2.2\,R_\odot$).
 
 ---
 
@@ -240,7 +246,7 @@ Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.44$, and $u_2 = 0.17$. Photos
 | `?` / `F1` / `/` | **Interactive Help Modal** | Display on-screen controls cheat sheet overlay. Dismiss with `?`, `/`, `Esc`, or Left-Click. |
 | `Space` | **Pause / Resume** | Freeze simulation physics and orbital evolution. |
 | `T` | **Time Warp Presets** | Progressive warp cycling: **Real-time (1.0x)** $\to$ **10 min/s** $\to$ **1 hr/s** $\to$ **1 day/s** $\to$ **1 mo/s** $\to$ **1 yr/s** $\to$ **1.0x**. |
-| `J` / `\` | **Return / Rewind to Live Time** | Smooth 1.3-second cubic rewind/forward to current system wall-clock date/time and **1.0x** real-time speed. |
+| `J` / `\` | **Rewind / Sync to Live Time** | Smooth 1.3-second cubic rewind/forward to current system wall-clock date/time and **1.0x** real-time speed. Any keypress or mouse touch instantly snaps to live. |
 | `[` / `]` | **Fine Time Adjustment** | Halve (`[`) or double (`]`) time speed up to **10 years / second** ($315.360.000\times$). |
 | `Q` / `Esc` / `Ctrl+C` | **Quit** | Cleanly restore terminal mouse/cursor state and exit (or dismiss help modal). |
 
@@ -266,7 +272,7 @@ Benchmarks measured on standard hardware:
 
 ## 📦 Installation & Pre-built Binaries
 
-Pre-compiled standalone binaries with **zero runtime dependencies** are available for direct download on the **[GitHub Releases](https://github.com/PedroSmaxY/solar-system-ascii/releases/tag/v1.0.0)** page:
+Pre-compiled standalone binaries with **zero runtime dependencies** are available for direct download on the **[GitHub Releases](https://github.com/PedroSmaxY/solar-system-ascii/releases)** page:
 
 - **Windows x64**: `solar-system-ascii-x86_64-pc-windows-msvc.zip` *(includes embedded application icon)*
 - **macOS Apple Silicon (M1/M2/M3/M4)**: `solar-system-ascii-aarch64-apple-darwin.tar.gz`
@@ -275,9 +281,58 @@ Pre-compiled standalone binaries with **zero runtime dependencies** are availabl
 - **Linux x86_64 (musl static)**: `solar-system-ascii-x86_64-unknown-linux-musl.tar.gz`
 - **Linux ARM64**: `solar-system-ascii-aarch64-unknown-linux-gnu.tar.gz`
 
-### Compiling from Source
+---
 
-Ensure you have a modern Rust toolchain (1.80+) installed:
+### 🛡️ How to Run & Security Unblocking
+
+Because AstroEngine is a free open-source project distributed without expensive commercial developer certificates ($99/year Apple Developer, $300+/year Microsoft EV), modern operating systems flag binaries downloaded directly from the web with security warnings (Gatekeeper on macOS and SmartScreen on Windows). Here is how to run the binary safely in each OS:
+
+#### 🍏 macOS (Gatekeeper Quarantine)
+When downloaded via a web browser, macOS attaches the `com.apple.quarantine` attribute. To unblock and run:
+
+1. **Terminal (Recommended - 1 Command)**:
+   ```bash
+   tar -xzf solar-system-ascii-aarch64-apple-darwin.tar.gz
+   xattr -d com.apple.quarantine solar-system-ascii
+   chmod +x solar-system-ascii
+   ./solar-system-ascii --hd
+   ```
+2. **Finder (GUI)**:
+   - Extract the `.tar.gz`.
+   - **Right-Click** (or `Control + Click`) the `solar-system-ascii` file in Finder $\to$ select **Open** $\to$ click **Open** in the security confirmation dialog.
+   *(Or go to **System Settings** $\to$ **Privacy & Security** $\to$ scroll down and click **Open Anyway**).*
+
+> [!NOTE]
+> **Executable Icon on macOS**: By Unix/POSIX specification, standalone Mach-O command-line executables do not contain embedded icon resources, so the macOS Finder displays the generic terminal executable icon. On Windows, application icons are embedded directly into the `.exe` PE resource table.
+
+#### 🪟 Windows (Microsoft Defender SmartScreen)
+When downloaded from the internet, Windows attaches a `Zone.Identifier` stream and SmartScreen may display a blue dialog: *"Windows protected your PC"*.
+
+1. **From the SmartScreen Dialog**:
+   - Click **"More info"** ("Mais informações").
+   - Click **"Run anyway"** ("Executar assim mesmo").
+2. **PowerShell**:
+   ```powershell
+   Expand-Archive solar-system-ascii-x86_64-pc-windows-msvc.zip -DestinationPath .
+   Unblock-File .\solar-system-ascii.exe
+   .\solar-system-ascii.exe --hd
+   ```
+3. **File Explorer**:
+   - Right-click `solar-system-ascii.exe` $\to$ **Properties** $\to$ check the **"Unblock"** ("Desbloquear") box at the bottom $\to$ click **OK**.
+
+#### 🐧 Linux
+Extract and grant execution permissions:
+```bash
+tar -xzf solar-system-ascii-x86_64-unknown-linux-gnu.tar.gz
+chmod +x solar-system-ascii
+./solar-system-ascii --hd
+```
+
+---
+
+### 🔨 Compiling from Source
+
+Building locally from source bypasses web download quarantine flags completely on all platforms:
 
 ```bash
 # Clone the repository
@@ -289,7 +344,7 @@ cargo run --release
 ```
 
 #### Terminal Recommendations
-For the best visual experience, run in a terminal supporting 24-bit TrueColor ANSI:
+For the best visual fidelity and smooth 60 FPS rendering in 24-bit TrueColor ANSI Half-Block mode:
 - **macOS**: Ghostty, Alacritty, Kitty, iTerm2, WezTerm, Terminal.app.
 - **Linux**: Ghostty, Alacritty, Kitty, WezTerm, GNOME Terminal, Foot.
 - **Windows**: Windows Terminal, WezTerm, Alacritty.
