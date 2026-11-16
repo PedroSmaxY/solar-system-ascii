@@ -131,6 +131,53 @@ pub const VOYAGER_1_VEL_KM_S: f64 = 17.0;
 pub const VOYAGER_2_VEC_KM: Vec3 = Vec3::new(8.78e9, -1.53e10, -1.04e10);
 pub const VOYAGER_2_VEL_KM_S: f64 = 15.4;
 
+/// Seconds between Unix Epoch (1970-01-01 00:00:00 UTC) and J2000.0 (2000-01-01 12:00:00 UTC):
+/// Exactly 10,957.5 days * 86,400 s/day = 946_728_000.0 s
+pub const UNIX_TO_J2000_SECS: f64 = 946_728_000.0;
+
+/// Return current real-world timestamp as seconds from J2000.0 epoch.
+pub fn current_j2000_seconds() -> f64 {
+    let now_unix = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_secs_f64())
+        .unwrap_or(0.0);
+    now_unix - UNIX_TO_J2000_SECS
+}
+
+/// Convert simulation seconds (from J2000.0 epoch) to Gregorian UTC datetime strings.
+/// Returns (full: "YYYY-MM-DD HH:MM:SS UTC", compact: "YYYY-MM-DD HH:MM UTC").
+/// Pure integer civil calendar algorithm (O(1), zero external dependencies).
+pub fn format_utc_datetime(sim_time: f64) -> (String, String) {
+    let unix_secs = (sim_time + UNIX_TO_J2000_SECS).round() as i64;
+    let (days, secs_of_day) = if unix_secs >= 0 {
+        (unix_secs / 86400, (unix_secs % 86400) as u32)
+    } else {
+        let d = (unix_secs - 86399) / 86400;
+        let s = (unix_secs - d * 86400) as u32;
+        (d, s)
+    };
+
+    let hour = secs_of_day / 3600;
+    let min = (secs_of_day % 3600) / 60;
+    let sec = secs_of_day % 60;
+
+    // Howard Hinnant Euclidean affine civil date algorithm
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u32;
+    let yoe = (doe - doe / 1020 + doe / 1461 - doe / 36524) / 365;
+    let y = (yoe as i64) + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = if m <= 2 { y + 1 } else { y };
+
+    let full = format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC", year, m, d, hour, min, sec);
+    let compact = format!("{:04}-{:02}-{:02} {:02}:{:02} UTC", year, m, d, hour, min);
+    (full, compact)
+}
+
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]
 pub struct KeplerOrbit {

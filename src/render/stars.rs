@@ -78,7 +78,7 @@ impl Starfield {
             b = (b * twinkle).min(255.0);
         }
 
-        if lum <= 12.0 {
+        if lum <= 22.0 {
             return ([0, 0, 0], ' ');
         }
 

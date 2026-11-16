@@ -97,21 +97,23 @@ impl Hud {
                 BodyId::Pluto => "Solar System › Kuiper Belt › Pluto".to_string(),
                 BodyId::Charon => "Solar System › Kuiper Belt › Charon".to_string(),
                 BodyId::Voyager1 => {
+                    let v1_au = (physics.voyager1.position - physics.sun.position).length() / crate::physics::ephemeris::AU_KM;
                     if camera.is_golden_record_view() {
                         "Solar System › Interstellar Space › Voyager 1 (Golden Record 3m)".to_string()
                     } else if camera.is_pale_blue_dot_view(physics.earth.position) {
                         "Solar System › Interstellar Space › Voyager 1 (Pale Blue Dot)".to_string()
                     } else {
-                        "Solar System › Interstellar Space › Voyager 1 (163.5 AU)".to_string()
+                        format!("Solar System › Interstellar Space › Voyager 1 ({:.1} AU)", v1_au)
                     }
                 }
                 BodyId::Voyager2 => {
+                    let v2_au = (physics.voyager2.position - physics.sun.position).length() / crate::physics::ephemeris::AU_KM;
                     if camera.is_golden_record_view() {
                         "Solar System › Interstellar Space › Voyager 2 (Golden Record 3m)".to_string()
                     } else if camera.is_pale_blue_dot_view(physics.earth.position) {
                         "Solar System › Interstellar Space › Voyager 2 (Pale Blue Dot)".to_string()
                     } else {
-                        "Solar System › Interstellar Space › Voyager 2 (136.8 AU)".to_string()
+                        format!("Solar System › Interstellar Space › Voyager 2 ({:.1} AU)", v2_au)
                     }
                 }
             }
@@ -132,6 +134,8 @@ impl Hud {
 
         let warp_str = if paused {
             "PAUSED".to_string()
+        } else if (time_warp - 1.0).abs() < 1e-3 {
+            "LIVE (1.0x)".to_string()
         } else if time_warp < 60.0 {
             format!("{:.1}x", time_warp)
         } else if time_warp < 3600.0 {
@@ -146,17 +150,22 @@ impl Hud {
             format!("{:.1} years/s", time_warp / 31_536_000.0)
         };
 
-        let sim_days = physics.sim_time / 86400.0;
-        let date_str = if sim_days.abs() < 365.25 {
-            format!("T+ {:.1}d", sim_days)
+        let (date_full, date_compact) = if physics.sim_time.abs() > 86400.0 * 365.25 * 5.0 {
+            crate::physics::ephemeris::format_utc_datetime(physics.sim_time)
         } else {
-            format!("T+ {:.2}y", sim_days / 365.25)
+            let sim_days = physics.sim_time / 86400.0;
+            let rel = if sim_days.abs() < 365.25 {
+                format!("T+ {:.1}d", sim_days)
+            } else {
+                format!("T+ {:.2}y", sim_days / 365.25)
+            };
+            (rel.clone(), rel)
         };
 
         // Top Header (Line 0)
         let title_full = format!("AstroEngine · {} · {}", target_name, dist_str);
-        let status_full = format!("{} · {} · {} · {:.0} FPS", date_str, mode_str, warp_str, fps);
-        let status_compact = format!("{} · {} · {:.0} FPS", date_str, warp_str, fps);
+        let status_full = format!("{} · {} · {} · {:.0} FPS", date_full, mode_str, warp_str, fps);
+        let status_compact = format!("{} · {} · {:.0} FPS", date_compact, warp_str, fps);
         let status_min = format!("{} · {:.0} FPS", warp_str, fps);
 
         let title_len = title_full.chars().count();
@@ -188,7 +197,7 @@ impl Hud {
         }
 
         // Welcome Callout (Line 1) during the first 6 seconds of simulation at Earth
-        if physics.sim_time <= 3600.0 && !paused && camera.target_body == BodyId::Earth && lines > 4 {
+        if (physics.sim_time <= 3600.0 || physics.step_count <= 360) && !paused && camera.target_body == BodyId::Earth && lines > 4 {
             let welcome = "✦ Welcome to AstroEngine 3D · Press [0] Solar System Orrery  [1-9] Planets  [M] Moons  [Y] Voyagers  [?] Help ✦";
             let w_len = welcome.chars().count();
             if cols >= w_len + 2 {
@@ -327,11 +336,13 @@ impl Hud {
         let at_voyager = camera.target_body == BodyId::Voyager1
             || camera.target_body == BodyId::Voyager2;
         if at_voyager {
+            let pbd_earth_au = (physics.earth.position - cam_pos).length() / crate::physics::ephemeris::AU_KM;
+            let pbd_label = format!("◉ [Earth · Pale Blue Dot ({:.1} AU)]", pbd_earth_au);
             place_label(
                 BodyId::Earth,
                 physics.earth.position,
                 physics.earth.radius_km,
-                "◉ [Earth · Pale Blue Dot (163.5 AU)]",
+                &pbd_label,
                 [135, 225, 255],
             );
         }
@@ -354,9 +365,13 @@ impl Hud {
 
         // Interstellar Probes Telemetry (Voyager 1 & Voyager 2 visible in deep space zoom)
         if camera.distance_km > 3.0e9 {
+            let v1_au = (physics.voyager1.position - physics.sun.position).length() / crate::physics::ephemeris::AU_KM;
+            let v2_au = (physics.voyager2.position - physics.sun.position).length() / crate::physics::ephemeris::AU_KM;
+            let v1_str = format!("[Voyager 1 ({:.1} AU)]", v1_au);
+            let v2_str = format!("[Voyager 2 ({:.1} AU)]", v2_au);
             let probes = [
-                (BodyId::Voyager1, physics.voyager1.position, physics.voyager1.radius_km, "[Voyager 1 (163.5 AU)]", [130, 215, 255]),
-                (BodyId::Voyager2, physics.voyager2.position, physics.voyager2.radius_km, "[Voyager 2 (136.8 AU)]", [110, 195, 240]),
+                (BodyId::Voyager1, physics.voyager1.position, physics.voyager1.radius_km, v1_str.as_str(), [130, 215, 255]),
+                (BodyId::Voyager2, physics.voyager2.position, physics.voyager2.radius_km, v2_str.as_str(), [110, 195, 240]),
             ];
             for &(id, pos, rad, label, color) in &probes {
                 place_label(id, pos, rad, label, color);
@@ -371,40 +386,41 @@ impl Hud {
         let f_str = if camera.is_pale_blue_dot_view(physics.earth.position) { "[F] Craft View" } else { "[F] Pale Blue Dot" };
         let v_str = if venus_radar { "[V] Optical Clouds" } else { "[V] Radar View" };
         let space_str = if paused { "[Space] Resume" } else { "[Space] Pause" };
+        let warp_ctrl = if (time_warp - 1.0).abs() > 1e-3 { "[T] Warp  [J] Live" } else { "[T] Warp" };
 
         let sun_n_str = if camera.is_in_system_view() { "[N] Inner Orrery" } else { "[N] Heliosphere" };
         let (mut controls_full, mut controls_compact) = match camera.target_body {
             BodyId::Sun => {
                 if camera.distance_km > 5.0e7 {
                     (
-                        format!("{}  [1-9/P] Worlds  [Y] Voyagers  {}  [Tab] Next  [T] Warp  {}  [?] Help", zero_str, sun_n_str, space_str),
+                        format!("{}  [1-9/P] Worlds  [Y] Voyagers  {}  [Tab] Next  {}  {}  [?] Help", zero_str, sun_n_str, warp_ctrl, space_str),
                         format!("{}  [1-9/P] Worlds  [Y] Voyagers  [Tab] Next  [?] Help", zero_str),
                     )
                 } else {
                     (
-                        format!("{}  [1-9/P] Worlds  [Tab] Next  [Bksp] Back  [T] Warp  {}  [?] Help", zero_str, space_str),
+                        format!("{}  [1-9/P] Worlds  [Tab] Next  [Bksp] Back  {}  {}  [?] Help", zero_str, warp_ctrl, space_str),
                         format!("{}  [1-9/P] Worlds  [Tab] Next  [?] Help", zero_str),
                     )
                 }
             }
             BodyId::Venus => (
-                format!("{}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  {}  [?] Help", v_str, space_str),
+                format!("{}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  {}  [?] Help", v_str, warp_ctrl, space_str),
                 format!("{}  [Tab] Next  [1-9/P] Worlds  [?] Help", v_str),
             ),
             BodyId::Mercury => (
-                format!("[Tab] Next  [Bksp] Back  [1-9/P] Worlds  [R] Reset  [+/-] Zoom  {}  [?] Help", space_str),
+                format!("[Tab] Next  [Bksp] Back  [1-9/P] Worlds  [R] Reset  {}  {}  [?] Help", warp_ctrl, space_str),
                 "[Tab] Next  [1-9/P] Worlds  [+/-] Zoom  [?] Help".to_string(),
             ),
             BodyId::Earth | BodyId::Moon => (
-                format!("[M] Moon Cycle  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Moon Cycle  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  {}  [?] Help", n_str, warp_ctrl, space_str),
                 format!("[M] Moon  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Mars | BodyId::Phobos | BodyId::Deimos => (
-                format!("[M] Moons (Phobos/Deimos)  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Moons (Phobos/Deimos)  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  {}  [?] Help", n_str, warp_ctrl, space_str),
                 format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Jupiter | BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto => (
-                format!("[M] Galilean Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Galilean Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  {}  [?] Help", n_str, warp_ctrl, space_str),
                 format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Saturn
@@ -413,7 +429,7 @@ impl Hud {
             | BodyId::Mimas
             | BodyId::Iapetus
             | BodyId::Rhea => (
-                format!("[M] Saturn Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Saturn Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  {}  [?] Help", n_str, warp_ctrl, space_str),
                 format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Uranus
@@ -422,27 +438,27 @@ impl Hud {
             | BodyId::Umbriel
             | BodyId::Titania
             | BodyId::Oberon => (
-                format!("[M] Uranus Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Uranus Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  {}  [?] Help", n_str, warp_ctrl, space_str),
                 format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Neptune | BodyId::Triton | BodyId::Proteus => (
-                format!("[M] Neptune Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Neptune Moons  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  {}  [?] Help", n_str, warp_ctrl, space_str),
                 format!("[M] Moons  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Pluto | BodyId::Charon => (
-                format!("[M] Pluto/Charon  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Pluto/Charon  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  {}  [?] Help", n_str, warp_ctrl, space_str),
                 format!("[M] Charon  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Ceres | BodyId::Vesta => (
-                format!("[M] Ceres/Vesta  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  [?] Help", n_str, space_str),
+                format!("[M] Ceres/Vesta  {}  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  {}  {}  [?] Help", n_str, warp_ctrl, space_str),
                 format!("[M] Belt  {}  [Tab] Next  [?] Help", n_comp),
             ),
             BodyId::Voyager1 => (
-                format!("{}  {}  [Y] Voyager 2  [Bksp] Overview  {}  [?] Help", z_str, f_str, space_str),
+                format!("{}  {}  [Y] Voyager 2  [Bksp] Overview  {}  {}  [?] Help", z_str, f_str, warp_ctrl, space_str),
                 format!("{}  {}  [Y] V2", z_str, f_str),
             ),
             BodyId::Voyager2 => (
-                format!("{}  {}  [Y] Voyager 1  [Bksp] Overview  {}  [?] Help", z_str, f_str, space_str),
+                format!("{}  {}  [Y] Voyager 1  [Bksp] Overview  {}  {}  [?] Help", z_str, f_str, warp_ctrl, space_str),
                 format!("{}  {}  [Y] V1", z_str, f_str),
             ),
         };
@@ -482,7 +498,7 @@ impl Hud {
             "│ Ascend / Back   [Backspace] Moon -> Planet -> Solar System   │",
             "│ Solar Alignment [F] Align to Sun  [Z] Sun Close-up Toggle    │",
             "│ Features        [L] Orbit Lines  [V] Venus Radar Mode        │",
-            "│ Simulation      [Space] Pause  [T] Warp  [,/.] Fine  [\\] 10m │",
+            "│ Simulation     [Space] Pause  [T] Warp  [J] Live  [,/.] Fine │",
             "│ Display         [B] ASCII / HD Half-Block  [H] Toggle HUD    │",
             "│ Recenter View   [R] Recenter Camera Perspective              │",
             "│ Quit / Exit     [Q / Esc / Ctrl+C] Quit                      │",

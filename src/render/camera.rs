@@ -323,6 +323,23 @@ impl Camera {
         }
     }
 
+    /// Calculate dynamically adapted beauty angle based on real-world Sun direction.
+    /// Ensures camera always frames ~75% daylit crescent/disk and ~25% terminator regardless of orbital epoch.
+    pub fn sunlit_beauty_view(body: BodyId, body_pos: Vec3, sun_pos: Vec3) -> BodyViewState {
+        let mut def = Self::default_view(body);
+        if body == BodyId::Sun || body == BodyId::Voyager1 || body == BodyId::Voyager2 {
+            return def;
+        }
+        let to_sun = sun_pos - body_pos;
+        if to_sun.length_squared() >= 1.0 {
+            let sun_dir = to_sun.normalize();
+            let sun_az = sun_dir.x.atan2(sun_dir.z);
+            // Position camera ~32 deg (0.55 rad) offset from sub-solar meridian towards evening terminator
+            def.azimuth = (sun_az + std::f64::consts::PI - 0.55).rem_euclid(2.0 * std::f64::consts::PI);
+        }
+        def
+    }
+
     /// Calculate exact world azimuth and elevation to frame a target on Voyager given a local probe direction vector.
     pub fn voyager_view(target_pos: Vec3, sun_pos: Vec3, local_dir: Vec3, distance_km: f64) -> BodyViewState {
         let mat = VoyagerShader::orientation_matrix(target_pos, sun_pos);

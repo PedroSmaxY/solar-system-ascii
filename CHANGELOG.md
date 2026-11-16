@@ -2,6 +2,35 @@
 
 All notable changes to **solar-system-ascii (AstroEngine)** will be documented in this file.
 
+## [1.7.0] - 2026-11-16
+
+### ⏱️ Real-Time Astronomical Ephemeris Synchronization & HalfBlock Kernel PTY Pipe Overflow Fix
+
+#### ⚡ HalfBlock (`--hd`) Kernel Pipe Overflow Resolution
+- **PTY Buffer Cliff Fix (66 KB $\to$ 17.7 KB / 44.3 KB)**:
+  - Eliminated terminal emulator stutter and dropped frames in HalfBlock mode (`--hd`) caused by ANSI payload exceeding the OS kernel PTY pipe buffer limit of 65,536 bytes (64 KB).
+  - **Chebyshev TrueColor Epsilon ($\Delta \le 3$)**: Suppressed redundant ANSI 24-bit TrueColor sequences when neighboring color channels vary imperceptibly ($\Delta \le 3$), compressing smooth gradients by 30–50%.
+  - **Starfield Diffuse Cutoff Elevation**: Raised Milky Way diffuse glow threshold from `lum <= 12.0` to `lum <= 22.0`, collapsing faint sky background to pure black space while preserving all sharp stars (`lum > 30.0`).
+  - **Distance LOD Culling**: Culled the Asteroid Belt when closely viewing inner planets ($r < 100\times 10^6\text{ km}$), and culled distant minor moon swarms (Jovian, Saturnian, Uranian, Neptunian) when observing outside their planetary systems.
+  - Slashes uncompressed frame payload from **65,980 bytes down to 17,720 bytes (-73.1%)** on standard 80x24 terminals, and safely caps high-res 120x40 frames at 44.3 KB, completely preventing kernel I/O blocking.
+
+#### 🕒 Live Wall-Clock Synchronization (`LIVE 1.0x`)
+- **System Time Synchronization**:
+  - The simulation automatically initializes at real-world `1.0x` speed synchronized to the exact year, month, day, hour, minute, and second of the user's system clock (`SystemTime::now()` converted to J2000 epoch).
+  - **UTC Solar Noon Diurnal Earth Alignment**: Earth's diurnal rotation angle is mathematically synchronized to real-world solar noon ($\lambda_{\text{subsolar}} = [0.5 - f_{\text{UTC}}] \times 2\pi$), aligning daylit continents and nocturnal city lights with actual Earth time.
+  - **Sunlit Beauty View**: Default camera perspective dynamically aligns with the subsolar meridian, guaranteeing that Earth opens on its sunlit face rather than dark night.
+  - **Zero-Dependency $O(1)$ Civil Calendar Converter**: Formats live Gregorian civil timestamps (e.g. `2026-11-16 22:30:00 UTC`) directly in HUD Line 0.
+
+#### 🛰️ Dynamic Perpetual Interstellar Ephemeris
+- **Future-Proof Propagation (e.g. Year 2040 / 2100)**:
+  - Voyager 1 and Voyager 2 trajectories continuously propagate outward into interstellar space. If opened in 2040, Voyager 1 is dynamically positioned at 213.7 AU and Voyager 2 at 182.3 AU.
+  - Dynamic HUD telemetry: `format!("[Voyager 1 ({:.1} AU)]", v1_au)` and `format!("◉ [Earth · Pale Blue Dot ({:.1} AU)]", pbd_earth_au)`.
+
+#### 🎮 Refined Controls & Time-Warp Navigation
+- **`[J]` / `[\]` Return to Live Time**: Instantly snaps simulation back to current system wall-clock time and 1.0x real-time.
+- **Logarithmic Time-Warp Scaling (`[T]`)**: Progressive warp cycling starting cleanly from live: `1.0x -> 600.0x (10 min/s) -> 3600.0x (1 hr/s) -> 86400.0x (1 day/s) -> 2592000.0x (1 mo/s) -> 31536000.0x (1 yr/s) -> 1.0x`.
+- **Dynamic Contextual HUD Footer**: Displays `[T] Warp  [J] Live` whenever running faster than real-time.
+
 ## [1.6.0] - 2026-11-16
 
 ### 🚀 Zero-Allocation Terminal I/O, HalfBlock (`--hd`) Ultra-Optimization & Voyager Discoverability

@@ -59,9 +59,15 @@ pub struct SolarSystemPhysics {
     pub voyager1: CelestialBody,
     pub voyager2: CelestialBody,
     pub sim_time: f64,
+    pub step_count: u64,
 }
 
 impl SolarSystemPhysics {
+    /// Return current system wall clock time as seconds from J2000.0 epoch.
+    pub fn current_j2000_seconds() -> f64 {
+        crate::physics::ephemeris::current_j2000_seconds()
+    }
+
     pub fn new() -> Self {
         Self {
             sun: CelestialBody::new_sun(),
@@ -104,12 +110,14 @@ impl SolarSystemPhysics {
             voyager1: CelestialBody::new_voyager1(),
             voyager2: CelestialBody::new_voyager2(),
             sim_time: 0.0,
+            step_count: 0,
         }
     }
 
     /// Update physics state for time t (seconds).
     pub fn update(&mut self, t: f64) {
         self.sim_time = t;
+        self.step_count = self.step_count.saturating_add(1);
         // 1. Sun remains at origin in heliocentric reference
         self.sun.position = Vec3::ZERO;
         self.sun.rotation_angle = (t * (TWO_PI / self.sun.rotation_period_secs)).rem_euclid(TWO_PI);
@@ -130,7 +138,13 @@ impl SolarSystemPhysics {
         if let Some(ref orb) = self.earth.orbit {
             self.earth.position = orb.calculate_position(t);
         }
-        self.earth.rotation_angle = (t * (TWO_PI / self.earth.rotation_period_secs)).rem_euclid(TWO_PI);
+        // Solar-synchronized UTC diurnal rotation: aligns real-world solar noon with UTC time
+        let unix_secs = t + crate::physics::ephemeris::UNIX_TO_J2000_SECS;
+        let day_fraction = unix_secs.rem_euclid(86400.0) / 86400.0;
+        let subsolar_lon = (0.5 - day_fraction) * TWO_PI;
+        let sun_to_earth = self.earth.position - self.sun.position;
+        let orbital_angle = sun_to_earth.x.atan2(sun_to_earth.z);
+        self.earth.rotation_angle = (orbital_angle + subsolar_lon).rem_euclid(TWO_PI);
 
         // 5. Moon orbits Earth (hierarchical relative offset)
         if let Some(ref orb) = self.moon.orbit {
@@ -329,12 +343,18 @@ impl SolarSystemPhysics {
         }
 
         // 33. Voyager 1 Interstellar Probe (~17.0 km/s asymptotic hyperbolic escape)
+        const VOYAGER_REF_EPOCH_SECS: f64 = 848_138_400.0; // Reference epoch: 2026-11-16 (163.5 AU)
+        let dt_v = if t > 400_000_000.0 {
+            t - VOYAGER_REF_EPOCH_SECS
+        } else {
+            t
+        };
         let v1_dir = VOYAGER_1_VEC_KM.normalize();
-        self.voyager1.position = VOYAGER_1_VEC_KM + v1_dir * (VOYAGER_1_VEL_KM_S * t);
+        self.voyager1.position = VOYAGER_1_VEC_KM + v1_dir * (VOYAGER_1_VEL_KM_S * dt_v);
 
         // 34. Voyager 2 Interstellar Probe (~15.4 km/s asymptotic hyperbolic escape)
         let v2_dir = VOYAGER_2_VEC_KM.normalize();
-        self.voyager2.position = VOYAGER_2_VEC_KM + v2_dir * (VOYAGER_2_VEL_KM_S * t);
+        self.voyager2.position = VOYAGER_2_VEC_KM + v2_dir * (VOYAGER_2_VEL_KM_S * dt_v);
     }
 
     pub fn get_body(&self, id: BodyId) -> &CelestialBody {

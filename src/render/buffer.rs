@@ -76,6 +76,15 @@ fn push_color_seq(buf: &mut Vec<u8>, prefix: &[u8], color: [u8; 3]) {
     buf.push(b'm');
 }
 
+#[inline(always)]
+fn color_diff_exceeds(c1: [u8; 3], c2: [u8; 3], thresh: u32) -> bool {
+    (c1[0] as i32 - c2[0] as i32).abs() as u32 > thresh
+        || (c1[1] as i32 - c2[1] as i32).abs() as u32 > thresh
+        || (c1[2] as i32 - c2[2] as i32).abs() as u32 > thresh
+}
+
+const ANSI_COLOR_EPSILON: u32 = 3;
+
 impl FrameBuffer {
     pub fn new(cols: usize, lines: usize, mode: RenderMode) -> Self {
         let height = match mode {
@@ -218,10 +227,18 @@ impl FrameBuffer {
 
                         // 3. Otimização quando fg == bg (ambas as metades têm a mesma cor exata)
                         if fg == bg {
-                            if curr_bg == Some(bg) {
+                            let bg_matches = match curr_bg {
+                                Some(c) => !color_diff_exceeds(c, bg, ANSI_COLOR_EPSILON),
+                                None => false,
+                            };
+                            let fg_matches = match curr_fg {
+                                Some(c) => !color_diff_exceeds(c, fg, ANSI_COLOR_EPSILON),
+                                None => false,
+                            };
+                            if bg_matches {
                                 self.byte_buffer.push(b' ');
                                 continue;
-                            } else if curr_fg == Some(fg) {
+                            } else if fg_matches {
                                 self.byte_buffer.extend_from_slice("█".as_bytes());
                                 continue;
                             } else {
@@ -233,11 +250,20 @@ impl FrameBuffer {
                         }
 
                         // 4. Normal Half-Block '▀': foreground é topo, background é base
-                        if curr_fg != Some(fg) {
+                        let need_fg = match curr_fg {
+                            Some(c) => color_diff_exceeds(c, fg, ANSI_COLOR_EPSILON),
+                            None => true,
+                        };
+                        if need_fg {
                             push_color_seq(&mut self.byte_buffer, b"\x1b[38;2;", fg);
                             curr_fg = Some(fg);
                         }
-                        if curr_bg != Some(bg) {
+
+                        let need_bg = match curr_bg {
+                            Some(c) => color_diff_exceeds(c, bg, ANSI_COLOR_EPSILON),
+                            None => true,
+                        };
+                        if need_bg {
                             push_color_seq(&mut self.byte_buffer, b"\x1b[48;2;", bg);
                             curr_bg = Some(bg);
                         }

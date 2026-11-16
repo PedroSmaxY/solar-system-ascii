@@ -1541,7 +1541,6 @@ impl Raycaster {
                 }
             });
 
-        // 6. Keplerian Asteroid Belt field rendering pass
         let cam_pos = camera.position();
         let (sin_az, cos_az) = camera.azimuth.sin_cos();
         let (sin_el, cos_el) = camera.elevation.sin_cos();
@@ -1557,189 +1556,206 @@ impl Raycaster {
         let tan_half_fov_y = (camera.fov_y_rad * 0.5).tan();
         let tan_half_fov_x = tan_half_fov_y * screen_aspect;
 
-        for i in 0..physics.asteroid_field.particles.len() {
-            let p_pos = physics.asteroid_field.calculate_position(i, elapsed);
-            let to_p = p_pos - cam_pos;
-            let dist = to_p.length();
-            if dist < 1.0 {
-                continue;
-            }
-            let dir = to_p / dist;
-            let f_dot = dir.dot(f);
-            if f_dot <= 0.05 {
-                continue;
-            }
+        // 6. Keplerian Asteroid Belt field rendering pass (rendered in Orrery overview, Ceres/Vesta, or deep space)
+        let cam_dist_sun = (cam_pos - sun_pos).length();
+        let render_asteroids = cam_dist_sun >= 100_000_000.0
+            || camera.target_body == BodyId::Sun
+            || camera.target_body == BodyId::Ceres
+            || camera.target_body == BodyId::Vesta;
 
-            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
-            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+        if render_asteroids {
+            for i in 0..physics.asteroid_field.particles.len() {
+                let p_pos = physics.asteroid_field.calculate_position(i, elapsed);
+                let to_p = p_pos - cam_pos;
+                let dist = to_p.length();
+                if dist < 1.0 {
+                    continue;
+                }
+                let dir = to_p / dist;
+                let f_dot = dir.dot(f);
+                if f_dot <= 0.05 {
+                    continue;
+                }
 
-            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
-                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
-                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+                let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+                let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
 
-                if px < cols && py < v_height {
-                    let pixel_idx = py * cols + px;
-                    // Only draw over background space/starfield (never occlude illuminated planets or nightside)
-                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
-                        let particle = &physics.asteroid_field.particles[i];
-                        let brightness = (particle.radius_km / 12.0).clamp(0.65, 1.35);
-                        let base_gray = (165.0 * brightness) as u8;
-                        let ast_r = base_gray.saturating_add(15);
-                        let ast_g = base_gray.saturating_add(10);
-                        let ast_b = base_gray;
+                if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                    let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                    let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
 
-                        let ch = if particle.radius_km > 10.0 {
-                            '*'
-                        } else if particle.radius_km > 4.0 {
-                            '+'
-                        } else {
-                            '.'
-                        };
-                        buffer.pixels[pixel_idx] = Pixel::new(ast_r, ast_g, ast_b, ch);
+                    if px < cols && py < v_height {
+                        let pixel_idx = py * cols + px;
+                        // Only draw over background space/starfield (never occlude illuminated planets or nightside)
+                        if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                            let particle = &physics.asteroid_field.particles[i];
+                            let brightness = (particle.radius_km / 12.0).clamp(0.65, 1.35);
+                            let base_gray = (165.0 * brightness) as u8;
+                            let ast_r = base_gray.saturating_add(15);
+                            let ast_g = base_gray.saturating_add(10);
+                            let ast_b = base_gray;
+
+                            let ch = if particle.radius_km > 10.0 {
+                                '*'
+                            } else if particle.radius_km > 4.0 {
+                                '+'
+                            } else {
+                                '.'
+                            };
+                            buffer.pixels[pixel_idx] = Pixel::new(ast_r, ast_g, ast_b, ch);
+                        }
                     }
                 }
             }
         }
 
-        // 7. Analytical Jovian Minor Moons swarm pass (91 minor moons)
-        for i in 0..physics.jovian_swarm.count() {
-            let p_pos = physics.jovian_swarm.calculate_position(i, jupiter_pos, elapsed);
-            let to_p = p_pos - cam_pos;
-            let dist = to_p.length();
-            if dist < 1.0 {
-                continue;
-            }
-            let dir = to_p / dist;
-            let f_dot = dir.dot(f);
-            if f_dot <= 0.05 {
-                continue;
-            }
+        // 7. Analytical Jovian Minor Moons swarm pass (91 minor moons within Jovian system)
+        if (cam_pos - jupiter_pos).length() <= 45_000_000.0 {
+            for i in 0..physics.jovian_swarm.count() {
+                let p_pos = physics.jovian_swarm.calculate_position(i, jupiter_pos, elapsed);
+                let to_p = p_pos - cam_pos;
+                let dist = to_p.length();
+                if dist < 1.0 {
+                    continue;
+                }
+                let dir = to_p / dist;
+                let f_dot = dir.dot(f);
+                if f_dot <= 0.05 {
+                    continue;
+                }
 
-            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
-            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+                let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+                let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
 
-            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
-                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
-                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+                if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                    let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                    let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
 
-                if px < cols && py < v_height {
-                    let pixel_idx = py * cols + px;
-                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
-                        let moon = &physics.jovian_swarm.moons[i];
-                        let (r_col, g_col, b_col, ch) = match moon.group {
-                            crate::physics::jovian_swarm::JovianMoonGroup::Amalthea => (240, 185, 135, '*'),
-                            crate::physics::jovian_swarm::JovianMoonGroup::Himalia => (185, 205, 225, '+'),
-                            _ => (155, 155, 165, '.'),
-                        };
-                        buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                    if px < cols && py < v_height {
+                        let pixel_idx = py * cols + px;
+                        if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                            let moon = &physics.jovian_swarm.moons[i];
+                            let (r_col, g_col, b_col, ch) = match moon.group {
+                                crate::physics::jovian_swarm::JovianMoonGroup::Amalthea => (240, 185, 135, '*'),
+                                crate::physics::jovian_swarm::JovianMoonGroup::Himalia => (185, 205, 225, '+'),
+                                _ => (155, 155, 165, '.'),
+                            };
+                            buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                        }
                     }
                 }
             }
         }
 
-        // 8. Analytical Saturnian Minor Moons swarm pass (141 minor moons)
-        for i in 0..physics.saturnian_swarm.count() {
-            let p_pos = physics.saturnian_swarm.calculate_position(i, saturn_pos, elapsed);
-            let to_p = p_pos - cam_pos;
-            let dist = to_p.length();
-            if dist < 1.0 {
-                continue;
-            }
-            let dir = to_p / dist;
-            let f_dot = dir.dot(f);
-            if f_dot <= 0.05 {
-                continue;
-            }
+        // 8. Analytical Saturnian Minor Moons swarm pass (141 minor moons within Saturnian system)
+        if (cam_pos - saturn_pos).length() <= 55_000_000.0 {
+            for i in 0..physics.saturnian_swarm.count() {
+                let p_pos = physics.saturnian_swarm.calculate_position(i, saturn_pos, elapsed);
+                let to_p = p_pos - cam_pos;
+                let dist = to_p.length();
+                if dist < 1.0 {
+                    continue;
+                }
+                let dir = to_p / dist;
+                let f_dot = dir.dot(f);
+                if f_dot <= 0.05 {
+                    continue;
+                }
 
-            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
-            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+                let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+                let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
 
-            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
-                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
-                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+                if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                    let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                    let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
 
-                if px < cols && py < v_height {
-                    let pixel_idx = py * cols + px;
-                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
-                        let moon = &physics.saturnian_swarm.moons[i];
-                        let (r_col, g_col, b_col, ch) = match moon.group {
-                            crate::physics::saturnian_swarm::SaturnianMoonGroup::RingShepherd => (245, 225, 185, '*'),
-                            crate::physics::saturnian_swarm::SaturnianMoonGroup::TrojanIntermediate => (215, 225, 245, '+'),
-                            _ => (160, 160, 170, '.'),
-                        };
-                        buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                    if px < cols && py < v_height {
+                        let pixel_idx = py * cols + px;
+                        if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                            let moon = &physics.saturnian_swarm.moons[i];
+                            let (r_col, g_col, b_col, ch) = match moon.group {
+                                crate::physics::saturnian_swarm::SaturnianMoonGroup::RingShepherd => (245, 225, 185, '*'),
+                                crate::physics::saturnian_swarm::SaturnianMoonGroup::TrojanIntermediate => (215, 225, 245, '+'),
+                                _ => (160, 160, 170, '.'),
+                            };
+                            buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                        }
                     }
                 }
             }
         }
 
-        // 9. Analytical Uranian Minor Moons swarm pass (23 minor moons)
-        for i in 0..physics.uranian_swarm.count() {
-            let p_pos = physics.uranian_swarm.calculate_position(i, uranus_pos, elapsed);
-            let to_p = p_pos - cam_pos;
-            let dist = to_p.length();
-            if dist < 1.0 {
-                continue;
-            }
-            let dir = to_p / dist;
-            let f_dot = dir.dot(f);
-            if f_dot <= 0.05 {
-                continue;
-            }
+        // 9. Analytical Uranian Minor Moons swarm pass (23 minor moons within Uranian system)
+        if (cam_pos - uranus_pos).length() <= 25_000_000.0 {
+            for i in 0..physics.uranian_swarm.count() {
+                let p_pos = physics.uranian_swarm.calculate_position(i, uranus_pos, elapsed);
+                let to_p = p_pos - cam_pos;
+                let dist = to_p.length();
+                if dist < 1.0 {
+                    continue;
+                }
+                let dir = to_p / dist;
+                let f_dot = dir.dot(f);
+                if f_dot <= 0.05 {
+                    continue;
+                }
 
-            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
-            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+                let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+                let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
 
-            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
-                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
-                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+                if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                    let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                    let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
 
-                if px < cols && py < v_height {
-                    let pixel_idx = py * cols + px;
-                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
-                        let moon = &physics.uranian_swarm.moons[i];
-                        let (r_col, g_col, b_col, ch) = match moon.group {
-                            crate::physics::uranian_swarm::UranianMoonGroup::InnerShepherd => (200, 240, 245, '*'),
-                            crate::physics::uranian_swarm::UranianMoonGroup::InnerPortia => (180, 225, 235, '+'),
-                            _ => (150, 160, 170, '.'),
-                        };
-                        buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                    if px < cols && py < v_height {
+                        let pixel_idx = py * cols + px;
+                        if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                            let moon = &physics.uranian_swarm.moons[i];
+                            let (r_col, g_col, b_col, ch) = match moon.group {
+                                crate::physics::uranian_swarm::UranianMoonGroup::InnerShepherd => (200, 240, 245, '*'),
+                                crate::physics::uranian_swarm::UranianMoonGroup::InnerPortia => (180, 225, 235, '+'),
+                                _ => (150, 160, 170, '.'),
+                            };
+                            buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                        }
                     }
                 }
             }
         }
 
-        // 10. Analytical Neptunian Minor Moons swarm pass (14 minor moons)
-        for i in 0..physics.neptunian_swarm.count() {
-            let p_pos = physics.neptunian_swarm.calculate_position(i, neptune_pos, elapsed);
-            let to_p = p_pos - cam_pos;
-            let dist = to_p.length();
-            if dist < 1.0 {
-                continue;
-            }
-            let dir = to_p / dist;
-            let f_dot = dir.dot(f);
-            if f_dot <= 0.05 {
-                continue;
-            }
+        // 10. Analytical Neptunian Minor Moons swarm pass (14 minor moons within Neptunian system)
+        if (cam_pos - neptune_pos).length() <= 25_000_000.0 {
+            for i in 0..physics.neptunian_swarm.count() {
+                let p_pos = physics.neptunian_swarm.calculate_position(i, neptune_pos, elapsed);
+                let to_p = p_pos - cam_pos;
+                let dist = to_p.length();
+                if dist < 1.0 {
+                    continue;
+                }
+                let dir = to_p / dist;
+                let f_dot = dir.dot(f);
+                if f_dot <= 0.05 {
+                    continue;
+                }
 
-            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
-            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+                let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+                let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
 
-            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
-                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
-                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+                if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                    let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                    let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
 
-                if px < cols && py < v_height {
-                    let pixel_idx = py * cols + px;
-                    if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
-                        let moon = &physics.neptunian_swarm.moons[i];
-                        let (r_col, g_col, b_col, ch) = match moon.group {
-                            crate::physics::neptunian_swarm::NeptunianMoonGroup::InnerRegular => (160, 195, 255, '*'),
-                            crate::physics::neptunian_swarm::NeptunianMoonGroup::Nereid => (210, 225, 255, '+'),
-                            _ => (155, 160, 175, '.'),
-                        };
-                        buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                    if px < cols && py < v_height {
+                        let pixel_idx = py * cols + px;
+                        if !buffer.hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                            let moon = &physics.neptunian_swarm.moons[i];
+                            let (r_col, g_col, b_col, ch) = match moon.group {
+                                crate::physics::neptunian_swarm::NeptunianMoonGroup::InnerRegular => (160, 195, 255, '*'),
+                                crate::physics::neptunian_swarm::NeptunianMoonGroup::Nereid => (210, 225, 255, '+'),
+                                _ => (155, 160, 175, '.'),
+                            };
+                            buffer.pixels[pixel_idx] = Pixel::new(r_col, g_col, b_col, ch);
+                        }
                     }
                 }
             }

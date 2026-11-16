@@ -46,19 +46,28 @@ impl App {
         let (cols, lines) = TerminalManager::size();
         let buffer = FrameBuffer::new(cols, lines, initial_mode);
 
-        Self {
+        let mut app = Self {
             term: TerminalManager::new(),
             physics: SolarSystemPhysics::new(),
             raycaster: Raycaster::new(),
             camera: Camera::new(),
             buffer,
-            time_warp: 600.0, // Initial time warp: 1 sec = 10 min (visible smooth rotation)
+            time_warp: 1.0, // Initial time warp: 1.0x Live Real-Time
             paused: false,
             sim_time: 0.0,
             tick: 0,
             show_hud: true,
             show_help: false,
-        }
+        };
+        app.sync_to_live_time();
+        app
+    }
+
+    /// Synchronize simulation time to current wall-clock system time (LIVE 1.0x).
+    pub fn sync_to_live_time(&mut self) {
+        self.sim_time = SolarSystemPhysics::current_j2000_seconds();
+        self.time_warp = 1.0;
+        self.physics.update(self.sim_time);
     }
 
     pub fn set_target(&mut self, body: BodyId) {
@@ -70,19 +79,17 @@ impl App {
     pub fn start_cinematic_intro(&mut self) {
         self.camera.target_body = BodyId::Earth;
         self.camera.target_pos = self.physics.earth.position;
-        self.camera.distance_km = 58_000.0;
-        self.camera.azimuth = 1.45;
+
+        let end_view = Camera::sunlit_beauty_view(BodyId::Earth, self.physics.earth.position, self.physics.sun.position);
+        self.camera.azimuth = (end_view.azimuth - 0.85).rem_euclid(2.0 * std::f64::consts::PI);
         self.camera.elevation = 0.48;
+        self.camera.distance_km = 58_000.0;
 
         let start_view = crate::render::camera::BodyViewState {
             azimuth: self.camera.azimuth,
             elevation: self.camera.elevation,
             distance_km: self.camera.distance_km,
         };
-        let mut end_view = Camera::default_view(BodyId::Earth);
-        end_view.distance_km = 21_000.0;
-        end_view.azimuth = 2.30;
-        end_view.elevation = 0.28;
 
         self.camera.transition = Some(crate::render::camera::CameraTransition {
             from_body: BodyId::Earth,
@@ -473,22 +480,22 @@ impl App {
                                 self.paused = !self.paused;
                             }
                             KeyCode::Char('t') | KeyCode::Char('T') => {
-                                self.time_warp = if self.time_warp < 1000.0 {
-                                    86_400.0
-                                } else if self.time_warp < 100_000.0 {
-                                    2_592_000.0
+                                self.time_warp = if self.time_warp < 2.0 {
+                                    600.0 // 10 min/s
+                                } else if self.time_warp < 1000.0 {
+                                    3600.0 // 1 hr/s
+                                } else if self.time_warp < 50_000.0 {
+                                    86_400.0 // 1 day/s
+                                } else if self.time_warp < 1_000_000.0 {
+                                    2_592_000.0 // 1 mo/s
                                 } else if self.time_warp < 10_000_000.0 {
-                                    31_536_000.0
-                                } else if self.time_warp < 100_000_000.0 {
-                                    157_680_000.0
-                                } else if self.time_warp < 250_000_000.0 {
-                                    1.0
+                                    31_536_000.0 // 1 yr/s
                                 } else {
-                                    600.0
+                                    1.0 // Return to 1x Live
                                 };
                             }
-                            KeyCode::Char('\\') | KeyCode::Char('|') => {
-                                self.time_warp = 600.0;
+                            KeyCode::Char('j') | KeyCode::Char('J') | KeyCode::Char('\\') | KeyCode::Char('|') => {
+                                self.sync_to_live_time();
                             }
                             KeyCode::Char('[') | KeyCode::Char(',') => {
                                 self.time_warp = (self.time_warp * 0.5).max(1.0);

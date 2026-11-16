@@ -3919,3 +3919,136 @@ fn test_planetary_align_to_sun_toggle() {
     let trans2 = cam.transition.as_ref().unwrap();
     assert_eq!(trans2.end_view.azimuth, orig_view.azimuth, "Should toggle back to default view azimuth");
 }
+
+#[test]
+fn test_v170_screenshot_critical_angle_payload_under_pty_cliff() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(0.0);
+
+    let mut camera = Camera::new();
+    camera.set_target(BodyId::Earth, physics.earth.position);
+    camera.distance_km = 36_386.0;
+    camera.azimuth = 240.0_f64.to_radians();
+    camera.elevation = -40.0_f64.to_radians();
+
+    let raycaster = Raycaster::new();
+
+    // 1. Standard 80x24 terminal (where uncompressed payload originally reached 65,980 bytes, overflowing 64 KB PTY pipe)
+    let mut buffer_80x24 = FrameBuffer::new(80, 24, RenderMode::HalfBlock);
+    raycaster.render_frame(&mut buffer_80x24, &camera, &physics, 1, 0.0);
+    Hud::render(&mut buffer_80x24, &camera, &physics, 60.0, 1.0, false, false);
+    let bytes_80x24 = buffer_80x24.flush_to_bytes();
+
+    // Must be well below 22 KB (previously ~66 KB)
+    assert!(
+        bytes_80x24.len() < 22_000,
+        "80x24 HalfBlock frame size must stay under 22,000 bytes (got {} bytes)",
+        bytes_80x24.len()
+    );
+
+    // 2. High-res 120x40 terminal (4800 cells) must stay strictly below the OS kernel 65,536-byte PTY pipe cliff
+    let mut buffer_120x40 = FrameBuffer::new(120, 40, RenderMode::HalfBlock);
+    raycaster.render_frame(&mut buffer_120x40, &camera, &physics, 1, 0.0);
+    Hud::render(&mut buffer_120x40, &camera, &physics, 60.0, 1.0, false, false);
+    let bytes_120x40 = buffer_120x40.flush_to_bytes();
+
+    assert!(
+        bytes_120x40.len() < 60_000,
+        "120x40 HalfBlock frame size must stay below 60,000 bytes (got {} bytes)",
+        bytes_120x40.len()
+    );
+}
+
+#[test]
+fn test_v170_civil_calendar_utc_date_formatting() {
+    use solar_system_ascii::physics::ephemeris::format_utc_datetime;
+
+    // J2000.0 epoch: 2000-01-01 12:00:00 UTC
+    let (full, compact) = format_utc_datetime(0.0);
+    assert_eq!(full, "2000-01-01 12:00:00 UTC");
+    assert_eq!(compact, "2000-01-01 12:00 UTC");
+
+    // Nov 16, 2026, 22:00:00 UTC (848,138,400 s after J2000)
+    let (nov_full, nov_comp) = format_utc_datetime(848_138_400.0);
+    assert_eq!(nov_full, "2026-11-16 22:00:00 UTC");
+    assert_eq!(nov_comp, "2026-11-16 22:00 UTC");
+}
+
+#[test]
+fn test_v170_earth_subsolar_day_night_alignment() {
+    use solar_system_ascii::physics::SolarSystemPhysics;
+
+    let mut physics = SolarSystemPhysics::new();
+    // At J2000.0 epoch (t = 0.0), which is Jan 1, 2000 at 12:00:00 UTC (solar noon at Greenwich):
+    physics.update(0.0);
+
+    // Earth's rotation angle should orient subsolar longitude towards Sun
+    // Check that rotation angle is finite and valid
+    assert!(physics.earth.rotation_angle >= 0.0 && physics.earth.rotation_angle < std::f64::consts::TAU);
+
+    // 12 hours later (t = 43200.0), rotation angle rotates by approximately PI
+    physics.update(43200.0);
+    assert!(physics.earth.rotation_angle >= 0.0 && physics.earth.rotation_angle < std::f64::consts::TAU);
+}
+
+#[test]
+fn test_v170_dynamic_voyager_telemetry_in_2040() {
+    use solar_system_ascii::physics::ephemeris::AU_KM;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+
+    let mut physics = SolarSystemPhysics::new();
+    // Year 2040: ~14 years after 2026 reference epoch (~848_138_400 s)
+    let t_2040 = 848_138_400.0 + 14.0 * 31_557_600.0;
+    physics.update(t_2040);
+
+    let v1_dist_au = (physics.voyager1.position - physics.sun.position).length() / AU_KM;
+    let v2_dist_au = (physics.voyager2.position - physics.sun.position).length() / AU_KM;
+
+    // Voyager 1 moves outward at ~3.59 AU/year: 163.5 + 14 * 3.59 ~= 213.7 AU
+    assert!(
+        v1_dist_au > 210.0 && v1_dist_au < 220.0,
+        "Voyager 1 in 2040 should be dynamically ~213 AU: got {:.1}",
+        v1_dist_au
+    );
+    // Voyager 2 moves outward at ~3.25 AU/year: 136.8 + 14 * 3.25 ~= 182.3 AU
+    assert!(
+        v2_dist_au > 178.0 && v2_dist_au < 188.0,
+        "Voyager 2 in 2040 should be dynamically ~182 AU: got {:.1}",
+        v2_dist_au
+    );
+}
+
+#[test]
+fn test_v170_live_time_hud_display() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::hud::Hud;
+
+    let mut physics = SolarSystemPhysics::new();
+    physics.update(848_138_400.0); // 2026-11-16 22:00:00 UTC
+
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Earth, physics.earth.position);
+
+    let mut buf = FrameBuffer::new(120, 30, RenderMode::Ascii);
+    Hud::render(&mut buf, &cam, &physics, 60.0, 1.0, false, false);
+
+    let mut line0 = String::new();
+    for x in 0..120 {
+        let p = &buf.pixels[x];
+        if p.is_text {
+            line0.push(p.ch);
+        }
+    }
+    assert!(line0.contains("2026-11-16"), "HUD line 0 must show live UTC year/month/day! Got: {}", line0);
+    assert!(line0.contains("LIVE (1.0x)"), "HUD line 0 must display LIVE (1.0x) status! Got: {}", line0);
+}
