@@ -3,8 +3,10 @@
 
 use crate::math::{Ray, Vec3};
 use crate::physics::body::BodyId;
+use crate::physics::ephemeris::{VOYAGER_1_VEC_KM, VOYAGER_2_VEC_KM};
 use crate::physics::SolarSystemPhysics;
 use crate::render::buffer::RenderMode;
+use crate::render::voyager_shader::VoyagerShader;
 use std::f64::consts::PI;
 
 /// Saved view state per celestial body (azimuth, elevation, distance).
@@ -35,7 +37,7 @@ pub struct Camera {
     pub elevation: f64, // Radians (-PI/2 .. PI/2)
     pub distance_km: f64,
     pub fov_y_rad: f64,
-    pub saved_views: [BodyViewState; 32], // [Sun, Mercury, Venus, Earth, Moon, Mars, Phobos, Deimos, Ceres, Vesta, Jupiter, Io, Europa, Ganymede, Callisto, Saturn, Titan, Enceladus, Mimas, Iapetus, Rhea, Uranus, Miranda, Ariel, Umbriel, Titania, Oberon, Neptune, Triton, Proteus, Pluto, Charon]
+    pub saved_views: [BodyViewState; 34], // [Sun..Charon, Voyager1, Voyager2]
     pub transition: Option<CameraTransition>,
     pub show_orbit_lines: bool,
     pub last_focused_planet: BodyId,
@@ -85,6 +87,8 @@ impl Camera {
         let proteus_view = Self::default_view(BodyId::Proteus);
         let pluto_view = Self::default_view(BodyId::Pluto);
         let charon_view = Self::default_view(BodyId::Charon);
+        let voyager1_view = Self::default_view(BodyId::Voyager1);
+        let voyager2_view = Self::default_view(BodyId::Voyager2);
 
         Self {
             target_body: BodyId::Sun,
@@ -126,6 +130,8 @@ impl Camera {
                 proteus_view,
                 pluto_view,
                 charon_view,
+                voyager1_view,
+                voyager2_view,
             ],
             transition: None,
             show_orbit_lines: true,
@@ -302,6 +308,31 @@ impl Camera {
                 elevation: 0.12,
                 distance_km: 2_900.0, // Balanced perspective framing 1,212 km binary companion disk
             },
+            BodyId::Voyager1 => Self::voyager_view(
+                VOYAGER_1_VEC_KM,
+                Vec3::ZERO,
+                Vec3::new(0.65, 0.35, 0.68),
+                0.012, // 12 meters beauty angle
+            ),
+            BodyId::Voyager2 => Self::voyager_view(
+                VOYAGER_2_VEC_KM,
+                Vec3::ZERO,
+                Vec3::new(0.65, 0.35, 0.68),
+                0.012, // 12 meters beauty angle
+            ),
+        }
+    }
+
+    /// Calculate exact world azimuth and elevation to frame a target on Voyager given a local probe direction vector.
+    pub fn voyager_view(target_pos: Vec3, sun_pos: Vec3, local_dir: Vec3, distance_km: f64) -> BodyViewState {
+        let mat = VoyagerShader::orientation_matrix(target_pos, sun_pos);
+        let dir = mat.mul_vec(local_dir.normalize()).normalize();
+        let az = dir.x.atan2(dir.z).rem_euclid(2.0 * PI);
+        let el = dir.y.clamp(-0.99, 0.99).asin();
+        BodyViewState {
+            azimuth: az,
+            elevation: el,
+            distance_km,
         }
     }
 
@@ -452,6 +483,40 @@ impl Camera {
         });
     }
 
+    /// Smoothly toggle between 3m close-up view of the Golden Record and 12m spacecraft beauty angle.
+    pub fn toggle_golden_record(&mut self, sun_pos: Vec3) {
+        if self.target_body != BodyId::Voyager1 && self.target_body != BodyId::Voyager2 {
+            return;
+        }
+        self.cancel_transition();
+        let start_view = BodyViewState {
+            azimuth: self.azimuth,
+            elevation: self.elevation,
+            distance_km: self.distance_km,
+        };
+
+        let end_view = if self.distance_km > 0.005 {
+            // Direct face-on close-up towards the Golden Record on the +X bus chassis face
+            Self::voyager_view(self.target_pos, sun_pos, Vec3::new(1.0, 0.0, 0.0), 0.003)
+        } else {
+            Self::default_view(self.target_body)
+        };
+
+        let body = self.target_body;
+        self.saved_views[body.index()] = end_view;
+
+        self.transition = Some(CameraTransition {
+            from_body: body,
+            to_body: body,
+            from_pos: self.target_pos,
+            start_view,
+            end_view,
+            elapsed_secs: 0.0,
+            duration_secs: 0.8,
+            journey_dist_km: 0.0,
+        });
+    }
+
     /// Cancel any active transition immediately.
     pub fn cancel_transition(&mut self) {
         if let Some(trans) = self.transition.take() {
@@ -570,6 +635,7 @@ impl Camera {
             BodyId::Proteus => 220.0,   // ~10 km above Pharos crater rim
             BodyId::Pluto => 1_250.0,   // ~60 km above Tombaugh Regio / Sputnik Planitia
             BodyId::Charon => 650.0,    // ~44 km above Serenity Chasma canyon rim
+            BodyId::Voyager1 | BodyId::Voyager2 => 0.002, // 2 meters close-up
         };
         self.distance_km = (self.distance_km * 0.88).max(min_dist);
         self.saved_views[self.target_body.index()].distance_km = self.distance_km;
@@ -587,6 +653,7 @@ impl Camera {
         let overview_threshold = match self.target_body {
             BodyId::Sun => 3.5e10,
             BodyId::Jupiter | BodyId::Saturn | BodyId::Uranus | BodyId::Neptune => 4.5e8,
+            BodyId::Voyager1 | BodyId::Voyager2 => 0.06, // 60 meters
             _ => 3.5e7,
         };
 

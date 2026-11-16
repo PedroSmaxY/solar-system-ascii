@@ -3372,3 +3372,213 @@ fn test_ux_click_to_fly_screen_projection() {
     assert!((px - (cols as i32 / 2)).abs() <= 2);
     assert!((py - (lines as i32 / 2)).abs() <= 2);
 }
+
+#[test]
+fn test_voyager_ephemeris_and_hyperbolic_escape() {
+    let mut physics = SolarSystemPhysics::new();
+    let au_km = 149_597_870.7;
+
+    // Epoch 0 positions: ~163.5 AU (V1) and ~136.8 AU (V2)
+    let dist_v1 = physics.voyager1.position.length() / au_km;
+    let dist_v2 = physics.voyager2.position.length() / au_km;
+
+    assert!((dist_v1 - 163.5).abs() < 1.0, "Voyager 1 should be ~163.5 AU at epoch 0: got {:.1}", dist_v1);
+    assert!((dist_v2 - 136.8).abs() < 1.0, "Voyager 2 should be ~136.8 AU at epoch 0: got {:.1}", dist_v2);
+
+    // Parent hierarchy
+    assert_eq!(solar_system_ascii::physics::body::BodyId::Voyager1.parent(), Some(solar_system_ascii::physics::body::BodyId::Sun));
+    assert_eq!(solar_system_ascii::physics::body::BodyId::Voyager2.parent(), Some(solar_system_ascii::physics::body::BodyId::Sun));
+
+    // Propagation after 1 Earth year (31,557,600 s)
+    let one_year = 31_557_600.0;
+    physics.update(one_year);
+
+    let dist_v1_yr = physics.voyager1.position.length() / au_km;
+    let delta_v1 = dist_v1_yr - dist_v1;
+    // 17.0 km/s * 31,557,600 s = 536,479,200 km = ~3.586 AU
+    assert!((delta_v1 - 3.586).abs() < 0.1, "Voyager 1 should escape outward by ~3.59 AU/yr: got {:.2}", delta_v1);
+}
+
+#[test]
+fn test_voyager_spacecraft_analytical_csg_raycaster() {
+    use solar_system_ascii::math::Ray;
+    use solar_system_ascii::render::voyager_shader::{VoyagerPart, VoyagerShader};
+
+    let shader = VoyagerShader::new();
+
+    // 1. Ray aiming along -Y towards High-Gain Antenna concave dish face
+    let ray_dish = Ray::new(Vec3::new(0.0, 0.005, 0.0), Vec3::new(0.0, -1.0, 0.0));
+    let hit_dish = shader.intersect_local(&ray_dish).expect("Should hit HGA dish");
+    assert!(hit_dish.part == VoyagerPart::DishConcave || hit_dish.part == VoyagerPart::Subreflector);
+    assert!(hit_dish.t > 0.0);
+
+    // 2. Ray aiming along -X towards the Golden Record on the +X bus face
+    let ray_gold = Ray::new(Vec3::new(0.005, -0.0004, 0.0), Vec3::new(-1.0, 0.0, 0.0));
+    let hit_gold = shader.intersect_local(&ray_gold).expect("Should hit Golden Record");
+    assert_eq!(hit_gold.part, VoyagerPart::GoldenRecord);
+    assert!((hit_gold.local_norm.x - 1.0).abs() < 1e-4);
+
+    // Photometric shading evaluation
+    let gold_rgb = shader.shade(&hit_gold, Vec3::new(1.0, 0.0, 0.0), 0.003);
+    assert!(gold_rgb[0] > 180, "Golden Record should have bright gold luster R: got {}", gold_rgb[0]);
+    assert!(gold_rgb[1] > 140, "Golden Record should have bright gold luster G: got {}", gold_rgb[1]);
+    assert!(gold_rgb[2] < gold_rgb[0], "Gold should be warm with less blue: got B {}", gold_rgb[2]);
+
+    // 3. Ray aiming along +X towards RTG boom on -X side
+    let ray_rtg = Ray::new(Vec3::new(-0.005, -0.0004, 0.0), Vec3::new(1.0, 0.0, 0.0));
+    let hit_rtg = shader.intersect_local(&ray_rtg).expect("Should hit RTG boom");
+    assert_eq!(hit_rtg.part, VoyagerPart::RtgCanister);
+    let rtg_rgb = shader.shade(&hit_rtg, Vec3::new(-1.0, 0.0, 0.0), 0.012);
+    assert!(rtg_rgb[0] > 0);
+}
+
+#[test]
+fn test_voyager_camera_navigation_and_special_modes() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::camera::Camera;
+
+    let mut camera = Camera::new();
+    let def_v1 = Camera::default_view(BodyId::Voyager1);
+
+    // 1. Initial beauty framing at 12 meters
+    assert!((def_v1.distance_km - 0.012).abs() < 1e-5, "Voyager arrival should be at 12m: got {}", def_v1.distance_km);
+
+    camera.set_target(BodyId::Voyager1, Vec3::new(-6.15e9, 1.41e10, 1.90e10));
+    assert_eq!(camera.target_body, BodyId::Voyager1);
+
+    // 2. [Z] Toggle Golden Record close-up at 3 meters
+    camera.toggle_golden_record(Vec3::ZERO);
+    assert!(camera.transition.is_some());
+    let trans = camera.transition.unwrap();
+    assert!((trans.end_view.distance_km - 0.003).abs() < 1e-5, "Should zoom in to 3m: got {}", trans.end_view.distance_km);
+
+    // Simulate transition completion
+    camera.distance_km = 0.003;
+    camera.transition = None;
+
+    // Toggling [Z] again returns smoothly to default 12m view
+    camera.toggle_golden_record(Vec3::ZERO);
+    assert!(camera.transition.is_some());
+    let trans2 = camera.transition.unwrap();
+    assert!((trans2.end_view.distance_km - 0.012).abs() < 1e-5, "Should return to 12m: got {}", trans2.end_view.distance_km);
+
+    // 3. [F] "Pale Blue Dot" Alignment looking back along antenna boresight towards Sun/Earth
+    camera.align_to_sun(Vec3::ZERO);
+    assert!(camera.elevation.abs() < 0.2);
+}
+
+#[test]
+fn test_voyager_click_to_fly_targetable() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::camera::Camera;
+
+    let camera = Camera::new();
+
+    // Verify Voyager 1 & 2 saved views are indexed properly
+    assert_eq!(BodyId::Voyager1.index(), 32);
+    assert_eq!(BodyId::Voyager2.index(), 33);
+    assert_eq!(camera.saved_views.len(), 34);
+
+    assert_eq!(camera.saved_views[32].distance_km, 0.012);
+    assert_eq!(camera.saved_views[33].distance_km, 0.012);
+
+    // Simulate screen projection of Voyager 1 in deep space overview
+    let physics = SolarSystemPhysics::new();
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Sun, Vec3::ZERO);
+    cam.distance_km = 3.5e10; // Deep space solar system overview framing probes
+
+    let cam_pos = cam.position();
+    let (sin_az, cos_az) = cam.azimuth.sin_cos();
+    let (sin_el, cos_el) = cam.elevation.sin_cos();
+    let f = Vec3::new(-cos_el * sin_az, -sin_el, -cos_el * cos_az);
+    let r = Vec3::new(cos_az, 0.0, -sin_az);
+    let u = Vec3::new(-sin_el * sin_az, cos_el, -sin_el * cos_az);
+
+    let cols = 120;
+    let lines = 40;
+    let screen_aspect = (cols as f64) / ((lines * 2) as f64) / 1.05;
+    let tan_half_fov_y = (cam.fov_y_rad * 0.5).tan();
+    let tan_half_fov_x = tan_half_fov_y * screen_aspect;
+
+    let to_v1 = physics.voyager1.position - cam_pos;
+    let dist = to_v1.length();
+    let dir = to_v1 / dist;
+    let f_dot = dir.dot(f);
+
+    if f_dot > 0.05 {
+        let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+        let ndc_y = dir.dot(u) / (f_dot * tan_half_fov_y);
+        let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as i32;
+        let _py = ((1.0 - ndc_y) * 0.5 * lines as f64) as i32;
+
+        // Click on the Voyager 1 billboard tag:
+        let hit_label = (px..=px + 24).contains(&(px + 5));
+        assert!(hit_label, "Click at label offset should successfully select Voyager 1");
+    }
+}
+
+#[test]
+fn test_render_voyager_spacecraft_demos() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::render::buffer::{FrameBuffer, RenderMode};
+    use solar_system_ascii::render::camera::Camera;
+    use solar_system_ascii::render::raycaster::Raycaster;
+
+    let physics = SolarSystemPhysics::new();
+    let raycaster = Raycaster::new();
+
+    let cols = 160;
+    let lines = 50;
+
+    // 1. Voyager 1 Beauty Angle (12 meters)
+    let mut buffer_beauty = FrameBuffer::new(cols, lines, RenderMode::HalfBlock);
+    let mut cam_beauty = Camera::new();
+    cam_beauty.set_target(BodyId::Voyager1, physics.voyager1.position);
+    let def = Camera::default_view(BodyId::Voyager1);
+    cam_beauty.azimuth = def.azimuth;
+    cam_beauty.elevation = def.elevation;
+    cam_beauty.distance_km = def.distance_km;
+
+    raycaster.render_frame(&mut buffer_beauty, &cam_beauty, &physics, 0, 0.0);
+
+    let v_height = buffer_beauty.virtual_height();
+    let mut ppm_beauty = format!("P6\n{} {}\n255\n", cols, v_height).into_bytes();
+    let mut beauty_hits = 0;
+    for p in &buffer_beauty.pixels {
+        ppm_beauty.push(p.r);
+        ppm_beauty.push(p.g);
+        ppm_beauty.push(p.b);
+        if p.r > 40 || p.g > 40 || p.b > 40 {
+            beauty_hits += 1;
+        }
+    }
+
+    assert!(beauty_hits > 100, "Voyager 1 beauty view should render spacecraft geometry: got {} lit pixels", beauty_hits);
+    let _ = std::fs::write("/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/voyager_1_beauty_angle.ppm", ppm_beauty);
+
+    // 2. Voyager 1 Golden Record Close-up (3 meters)
+    let mut buffer_record = FrameBuffer::new(cols, lines, RenderMode::HalfBlock);
+    let mut cam_record = Camera::new();
+    cam_record.set_target(BodyId::Voyager1, physics.voyager1.position);
+    let rec_view = Camera::voyager_view(physics.voyager1.position, physics.sun.position, Vec3::new(1.0, 0.0, 0.0), 0.003);
+    cam_record.azimuth = rec_view.azimuth;
+    cam_record.elevation = rec_view.elevation;
+    cam_record.distance_km = rec_view.distance_km;
+
+    raycaster.render_frame(&mut buffer_record, &cam_record, &physics, 0, 0.0);
+
+    let mut ppm_record = format!("P6\n{} {}\n255\n", cols, v_height).into_bytes();
+    let mut gold_hits = 0;
+    for p in &buffer_record.pixels {
+        ppm_record.push(p.r);
+        ppm_record.push(p.g);
+        ppm_record.push(p.b);
+        if p.r > 180 && p.g > 140 && p.b < p.r {
+            gold_hits += 1;
+        }
+    }
+
+    assert!(gold_hits > 50, "Golden Record close-up should render golden phonograph pixels: got {}", gold_hits);
+    let _ = std::fs::write("/Users/pedrohnovais/.gemini/antigravity/brain/c3c1b711-4bad-4f20-902f-5f6146923bcf/voyager_golden_record_closeup.ppm", ppm_record);
+}

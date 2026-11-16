@@ -2,7 +2,6 @@
 
 use crate::math::Vec3;
 use crate::physics::body::BodyId;
-use crate::physics::ephemeris::{VOYAGER_1_VEC_KM, VOYAGER_2_VEC_KM};
 use crate::physics::SolarSystemPhysics;
 use crate::render::buffer::{FrameBuffer, Pixel, RenderMode};
 use crate::render::camera::Camera;
@@ -25,80 +24,20 @@ impl Hud {
         }
 
         let target_name = if let Some(ref trans) = camera.transition {
-            let from = match trans.from_body {
-                BodyId::Sun => "Sun",
-                BodyId::Mercury => "Mercury",
-                BodyId::Venus => "Venus",
-                BodyId::Earth => "Earth",
-                BodyId::Moon => "Moon",
-                BodyId::Mars => "Mars",
-                BodyId::Phobos => "Phobos",
-                BodyId::Deimos => "Deimos",
-                BodyId::Ceres => "Ceres",
-                BodyId::Vesta => "Vesta",
-                BodyId::Jupiter => "Jupiter",
-                BodyId::Io => "Io",
-                BodyId::Europa => "Europa",
-                BodyId::Ganymede => "Ganymede",
-                BodyId::Callisto => "Callisto",
-                BodyId::Saturn => "Saturn",
-                BodyId::Titan => "Titan",
-                BodyId::Enceladus => "Enceladus",
-                BodyId::Mimas => "Mimas",
-                BodyId::Iapetus => "Iapetus",
-                BodyId::Rhea => "Rhea",
-                BodyId::Uranus => "Uranus",
-                BodyId::Miranda => "Miranda",
-                BodyId::Ariel => "Ariel",
-                BodyId::Umbriel => "Umbriel",
-                BodyId::Titania => "Titania",
-                BodyId::Oberon => "Oberon",
-                BodyId::Neptune => "Neptune",
-                BodyId::Triton => "Triton",
-                BodyId::Proteus => "Proteus",
-                BodyId::Pluto => "Pluto",
-                BodyId::Charon => "Charon",
-            };
-            let to = match trans.to_body {
-                BodyId::Sun => "Sun",
-                BodyId::Mercury => "Mercury",
-                BodyId::Venus => "Venus",
-                BodyId::Earth => "Earth",
-                BodyId::Moon => "Moon",
-                BodyId::Mars => "Mars",
-                BodyId::Phobos => "Phobos",
-                BodyId::Deimos => "Deimos",
-                BodyId::Ceres => "Ceres",
-                BodyId::Vesta => "Vesta",
-                BodyId::Jupiter => "Jupiter",
-                BodyId::Io => "Io",
-                BodyId::Europa => "Europa",
-                BodyId::Ganymede => "Ganymede",
-                BodyId::Callisto => "Callisto",
-                BodyId::Saturn => "Saturn",
-                BodyId::Titan => "Titan",
-                BodyId::Enceladus => "Enceladus",
-                BodyId::Mimas => "Mimas",
-                BodyId::Iapetus => "Iapetus",
-                BodyId::Rhea => "Rhea",
-                BodyId::Uranus => "Uranus",
-                BodyId::Miranda => "Miranda",
-                BodyId::Ariel => "Ariel",
-                BodyId::Umbriel => "Umbriel",
-                BodyId::Titania => "Titania",
-                BodyId::Oberon => "Oberon",
-                BodyId::Neptune => "Neptune",
-                BodyId::Triton => "Triton",
-                BodyId::Proteus => "Proteus",
-                BodyId::Pluto => "Pluto",
-                BodyId::Charon => "Charon",
-            };
+            let from = trans.from_body.name();
+            let to = trans.to_body.name();
             if trans.from_body == trans.to_body {
                 if trans.from_body == BodyId::Sun {
                     if trans.end_view.distance_km < trans.start_view.distance_km {
                         "Zoom: Sun Close-up".to_string()
                     } else {
                         "Zoom: Solar System Overview".to_string()
+                    }
+                } else if trans.from_body == BodyId::Voyager1 || trans.from_body == BodyId::Voyager2 {
+                    if trans.end_view.distance_km < trans.start_view.distance_km {
+                        "Zoom: Golden Record (3m)".to_string()
+                    } else {
+                        format!("Zoom: {} (12m)", to)
                     }
                 } else if trans.end_view.distance_km < trans.start_view.distance_km {
                     format!("Zoom: {} Close-up", to)
@@ -148,10 +87,14 @@ impl Hud {
                 BodyId::Proteus => "Solar System › Neptune › Proteus (Moon 2/2)".to_string(),
                 BodyId::Pluto => "Solar System › Kuiper Belt › Pluto".to_string(),
                 BodyId::Charon => "Solar System › Kuiper Belt › Charon".to_string(),
+                BodyId::Voyager1 => "Solar System › Interstellar Space › Voyager 1 (163.5 AU)".to_string(),
+                BodyId::Voyager2 => "Solar System › Interstellar Space › Voyager 2 (136.8 AU)".to_string(),
             }
         };
 
-        let dist_str = if camera.distance_km < 10_000_000.0 {
+        let dist_str = if camera.distance_km < 1.0 {
+            format!("{:.1} m", camera.distance_km * 1000.0)
+        } else if camera.distance_km < 10_000_000.0 {
             format!("{:.0} km", camera.distance_km)
         } else {
             format!("{:.4} AU ({:.0} km)", camera.distance_km / 149_597_870.7, camera.distance_km)
@@ -361,8 +304,8 @@ impl Hud {
         // Interstellar Probes Telemetry (Voyager 1 & Voyager 2 visible in deep space zoom)
         if camera.distance_km > 3.0e9 {
             let probes = [
-                (BodyId::Sun, VOYAGER_1_VEC_KM, 1.0, "[Voyager 1 (163.5 AU)]", [130, 215, 255]),
-                (BodyId::Sun, VOYAGER_2_VEC_KM, 1.0, "[Voyager 2 (136.8 AU)]", [110, 195, 240]),
+                (BodyId::Voyager1, physics.voyager1.position, physics.voyager1.radius_km, "[Voyager 1 (163.5 AU)]", [130, 215, 255]),
+                (BodyId::Voyager2, physics.voyager2.position, physics.voyager2.radius_km, "[Voyager 2 (136.8 AU)]", [110, 195, 240]),
             ];
             for &(id, pos, rad, label, color) in &probes {
                 place_label(id, pos, rad, label, color);
@@ -434,6 +377,14 @@ impl Hud {
                 "[M] Ceres/Vesta  [N] System  [Tab] Next  [Bksp] Back  [1-9/P] Worlds  [+/-] Zoom  [?] Help",
                 "[M] Belt  [N] System  [Tab] Next  [1-9/P] Worlds  [?] Help",
             ),
+            BodyId::Voyager1 => (
+                "[Z] Golden Record  [F] Pale Blue Dot  [Y] Voyager 2  [Bksp] Overview  [+/-] Zoom  [?] Help",
+                "[Z] Record  [F] Earth  [Y] V2  [Bksp] Back",
+            ),
+            BodyId::Voyager2 => (
+                "[Z] Golden Record  [F] Pale Blue Dot  [Y] Voyager 1  [Bksp] Overview  [+/-] Zoom  [?] Help",
+                "[Z] Record  [F] Earth  [Y] V1  [Bksp] Back",
+            ),
         };
 
         if lines > 1 {
@@ -462,6 +413,7 @@ impl Hud {
             "│ Solar System    [0] Overview  [Tab / Shift+Tab] Cycle Worlds │",
             "│ Direct Target   [1-9] Mercury..Pluto  [P] Ceres/Vesta        │",
             "│ Moon Systems    [M] Cycle Moons & Return  [N] System View    │",
+            "│ Interstellar    [Y] Voyager 1/2  [Z] Golden Record [F] Earth │",
             "│ Ascend / Back   [Backspace] Moon -> Planet -> Solar System   │",
             "│ Solar Alignment [F] Align to Sun  [Z] Sun Close-up Toggle    │",
             "│ Features        [L] Orbit Lines  [V] Venus Radar Mode        │",

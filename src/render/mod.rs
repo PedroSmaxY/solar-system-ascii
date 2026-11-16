@@ -36,3 +36,4 @@ pub mod umbriel_shader;
 pub mod uranus_shader;
 pub mod venus_shader;
 pub mod vesta_shader;
+pub mod voyager_shader;

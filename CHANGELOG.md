@@ -2,6 +2,38 @@
 
 All notable changes to **solar-system-ascii (AstroEngine)** will be documented in this file.
 
+## [1.4.0] - 2026-11-16
+
+### 🛰️ Voyager 1 & 2 Interstellar Spacecraft & "Click-to-Fly" Close-up Exploration
+
+#### 📡 NASA Voyager 1 & 2 3D Spacecraft Modeling (`VoyagerShader`)
+- **Analytical $O(1)$ CSG Raycaster**:
+  - Pure mathematical ray-spacecraft intersection solver running in local probe coordinates with sub-millimeter precision.
+  - **High-Gain Antenna (HGA)**: 3.66-meter diameter parabolic reflector ($y = c(x^2 + z^2)$) with reflective white fiberglass texture and concentric reinforcement ribs.
+  - **Subreflector & Feed Horn**: Focal point subreflector mounted on titanium tripod struts.
+  - **Decagonal Equipment Bus**: 10-sided chassis clad in shimmering gold Mylar multilayer insulation (MLI) blankets with micro-wrinkle specular sheen.
+  - **The Golden Record ("The Sounds of Earth")**: 30-centimeter electroplated 24K gold disc on the $+X$ chassis face with concentric phonograph sound tracks and pulsar map etchings.
+  - **RTG Power Boom**: 3 stacked radioisotope thermoelectric generator canisters extending along $-X$ with graphite beryllium casing and thermal infrared heat seams.
+  - **Magnetometer Astromast**: 13-meter slender fiberglass lattice boom extending along $+Z$ with tip sensor sphere.
+
+#### 🚀 Interactive Interstellar Flight & Controls
+- **"Click-to-Fly" to Interstellar Probes**:
+  - Clicking on `[Voyager 1 (163.5 AU)]` or `[Voyager 2 (136.8 AU)]` on the screen initiates an immediate, smooth flight across 24 billion kilometers out to the interstellar edge.
+- **Dedicated Shortcut `[Y]`**:
+  - Toggles focus directly between Voyager 1 ($163.5\text{ AU}$) and Voyager 2 ($136.8\text{ AU}$).
+- **`[Z]` Golden Record Close-up**:
+  - When targeting Voyager, pressing `[Z]` glides the camera into an intimate 3-meter close-up directly facing the Golden Record cover.
+- **`[F]` "Pale Blue Dot" Alignment**:
+  - Aligns the camera perspective directly back along the antenna boresight towards the Sun and Earth, recreating the iconic 1990 portrait.
+- **`[Backspace]` Hierarchical Ascension**:
+  - Smoothly ascends from the 12-meter close-up back to the top-down Solar System Orrery view.
+
+#### 📈 Historical Telemetry & HUD Integration
+- Contextual HUD bar displays interstellar status: `"Solar System › Interstellar Space › Voyager 1 (163.5 AU)"`.
+- Sub-kilometer distance formatting in meters (`12.0 m`, `3.0 m`) during close-up examination.
+- Contextual bottom control bar reflects Voyager modes (`[Z] Golden Record  [F] Pale Blue Dot  [Y] Voyager 2  [Bksp] Overview`).
+- Integrated into the interactive help modal (`[?]`).
+
 ## [1.3.0] - 2026-11-16
 
 ### 🪐 Interactive "Click-to-Fly", Lunar Orbit Lines & Navigation Polish

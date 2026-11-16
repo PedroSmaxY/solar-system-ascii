@@ -13,7 +13,10 @@ use self::neptunian_swarm::NeptunianMoonSwarm;
 use self::saturnian_swarm::SaturnianMoonSwarm;
 use self::uranian_swarm::UranianMoonSwarm;
 use crate::math::{Mat3, Vec3};
-use ephemeris::{NEPTUNE_AXIAL_TILT_RAD, PLUTO_AXIAL_TILT_RAD, TWO_PI, URANUS_AXIAL_TILT_RAD};
+use ephemeris::{
+    NEPTUNE_AXIAL_TILT_RAD, PLUTO_AXIAL_TILT_RAD, TWO_PI, URANUS_AXIAL_TILT_RAD,
+    VOYAGER_1_VEC_KM, VOYAGER_1_VEL_KM_S, VOYAGER_2_VEC_KM, VOYAGER_2_VEL_KM_S,
+};
 
 pub struct SolarSystemPhysics {
     pub sun: CelestialBody,
@@ -53,6 +56,8 @@ pub struct SolarSystemPhysics {
     pub neptunian_swarm: NeptunianMoonSwarm,
     pub pluto: CelestialBody,
     pub charon: CelestialBody,
+    pub voyager1: CelestialBody,
+    pub voyager2: CelestialBody,
     pub sim_time: f64,
 }
 
@@ -96,6 +101,8 @@ impl SolarSystemPhysics {
             neptunian_swarm: NeptunianMoonSwarm::new(),
             pluto: CelestialBody::new_pluto(),
             charon: CelestialBody::new_charon(),
+            voyager1: CelestialBody::new_voyager1(),
+            voyager2: CelestialBody::new_voyager2(),
             sim_time: 0.0,
         }
     }
@@ -320,6 +327,14 @@ impl SolarSystemPhysics {
             self.charon.position = self.pluto.position + rel_pos;
             self.charon.rotation_angle = rel_pos.z.atan2(-rel_pos.x);
         }
+
+        // 33. Voyager 1 Interstellar Probe (~17.0 km/s asymptotic hyperbolic escape)
+        let v1_dir = VOYAGER_1_VEC_KM.normalize();
+        self.voyager1.position = VOYAGER_1_VEC_KM + v1_dir * (VOYAGER_1_VEL_KM_S * t);
+
+        // 34. Voyager 2 Interstellar Probe (~15.4 km/s asymptotic hyperbolic escape)
+        let v2_dir = VOYAGER_2_VEC_KM.normalize();
+        self.voyager2.position = VOYAGER_2_VEC_KM + v2_dir * (VOYAGER_2_VEL_KM_S * t);
     }
 
     pub fn get_body(&self, id: BodyId) -> &CelestialBody {
@@ -356,6 +371,8 @@ impl SolarSystemPhysics {
             BodyId::Proteus => &self.proteus,
             BodyId::Pluto => &self.pluto,
             BodyId::Charon => &self.charon,
+            BodyId::Voyager1 => &self.voyager1,
+            BodyId::Voyager2 => &self.voyager2,
         }
     }
 
@@ -393,6 +410,8 @@ impl SolarSystemPhysics {
             BodyId::Proteus => &mut self.proteus,
             BodyId::Pluto => &mut self.pluto,
             BodyId::Charon => &mut self.charon,
+            BodyId::Voyager1 => &mut self.voyager1,
+            BodyId::Voyager2 => &mut self.voyager2,
         }
     }
 }

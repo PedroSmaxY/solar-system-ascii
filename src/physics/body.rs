@@ -21,6 +21,7 @@ use crate::physics::ephemeris::{
     TRITON_SIDEREAL_DAY_SECS, UMBRIEL_RADIUS_KM, UMBRIEL_SIDEREAL_DAY_SECS, URANUS_AXIAL_TILT_RAD,
     URANUS_MEAN_RADIUS_KM, URANUS_SIDEREAL_DAY_SECS, VENUS_AXIAL_TILT_RAD, VENUS_RADIUS_KM,
     VENUS_SIDEREAL_DAY_SECS, VESTA_AXIAL_TILT_RAD, VESTA_MEAN_RADIUS_KM, VESTA_SIDEREAL_DAY_SECS,
+    VOYAGER_1_VEC_KM, VOYAGER_2_VEC_KM,
 };
 use std::f64::consts::PI;
 
@@ -58,6 +59,8 @@ pub enum BodyId {
     Proteus,
     Pluto,
     Charon,
+    Voyager1,
+    Voyager2,
 }
 
 impl BodyId {
@@ -95,6 +98,8 @@ impl BodyId {
             BodyId::Proteus => 29,
             BodyId::Pluto => 30,
             BodyId::Charon => 31,
+            BodyId::Voyager1 => 32,
+            BodyId::Voyager2 => 33,
         }
     }
 
@@ -132,6 +137,8 @@ impl BodyId {
             BodyId::Proteus => "Proteus",
             BodyId::Pluto => "Pluto",
             BodyId::Charon => "Charon",
+            BodyId::Voyager1 => "Voyager 1",
+            BodyId::Voyager2 => "Voyager 2",
         }
     }
 
@@ -148,7 +155,9 @@ impl BodyId {
             | BodyId::Saturn
             | BodyId::Uranus
             | BodyId::Neptune
-            | BodyId::Pluto => Some(BodyId::Sun),
+            | BodyId::Pluto
+            | BodyId::Voyager1
+            | BodyId::Voyager2 => Some(BodyId::Sun),
             BodyId::Moon => Some(BodyId::Earth),
             BodyId::Phobos | BodyId::Deimos => Some(BodyId::Mars),
             BodyId::Io | BodyId::Europa | BodyId::Ganymede | BodyId::Callisto => Some(BodyId::Jupiter),
@@ -662,6 +671,36 @@ impl CelestialBody {
             orbit: Some(KeplerOrbit::charon_around_pluto()),
             parent: Some(BodyId::Pluto),
             position: Vec3::new(5_906_380_000.0 + 19_591.4, 0.0, 0.0),
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_voyager1() -> Self {
+        Self {
+            id: BodyId::Voyager1,
+            name: "Voyager 1",
+            radius_km: 0.00183, // 1.83m radius (3.66m high-gain parabolic antenna)
+            mass_kg: 825.5,
+            axial_tilt: 0.0,
+            rotation_period_secs: 86_400.0,
+            orbit: None,
+            parent: Some(BodyId::Sun),
+            position: VOYAGER_1_VEC_KM,
+            rotation_angle: 0.0,
+        }
+    }
+
+    pub fn new_voyager2() -> Self {
+        Self {
+            id: BodyId::Voyager2,
+            name: "Voyager 2",
+            radius_km: 0.00183, // 1.83m radius (3.66m high-gain parabolic antenna)
+            mass_kg: 825.5,
+            axial_tilt: 0.0,
+            rotation_period_secs: 86_400.0,
+            orbit: None,
+            parent: Some(BodyId::Sun),
+            position: VOYAGER_2_VEC_KM,
             rotation_angle: 0.0,
         }
     }

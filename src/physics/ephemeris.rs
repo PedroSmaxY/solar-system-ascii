@@ -124,10 +124,12 @@ pub const CHARON_AXIAL_TILT_RAD: f64 = 0.0; // Synchronous with Pluto
 pub const CHARON_SIDEREAL_DAY_SECS: f64 = 551_856.7; // 6.3872d (tidally locked)
 
 // Interstellar Probes Telemetry Vectors (JPL Horizons, J2000 heliocentric)
-// Voyager 1: ~163.5 AU (~2.446e10 km), high north declination (~+35.2°)
+// Voyager 1: ~163.5 AU (~2.446e10 km), high north declination (~+35.2°), speed ~17.0 km/s (3.59 AU/yr)
 pub const VOYAGER_1_VEC_KM: Vec3 = Vec3::new(-6.15e9, 1.41e10, 1.90e10);
-// Voyager 2: ~136.8 AU (~2.046e10 km), southern declination (~-31.3°)
+pub const VOYAGER_1_VEL_KM_S: f64 = 17.0;
+// Voyager 2: ~136.8 AU (~2.046e10 km), southern declination (~-31.3°), speed ~15.4 km/s (3.25 AU/yr)
 pub const VOYAGER_2_VEC_KM: Vec3 = Vec3::new(8.78e9, -1.53e10, -1.04e10);
+pub const VOYAGER_2_VEL_KM_S: f64 = 15.4;
 
 /// Keplerian orbital elements defining a two-body orbit.
 #[derive(Clone, Copy, Debug)]

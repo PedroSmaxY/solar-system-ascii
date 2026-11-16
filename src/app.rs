@@ -120,13 +120,14 @@ impl App {
                             let tan_half_fov_y = (self.camera.fov_y_rad * 0.5).tan();
                             let tan_half_fov_x = tan_half_fov_y * screen_aspect;
 
-                            const TARGETABLE_BODIES: [BodyId; 32] = [
+                            const TARGETABLE_BODIES: [BodyId; 34] = [
                                 BodyId::Sun, BodyId::Mercury, BodyId::Venus, BodyId::Earth, BodyId::Moon,
                                 BodyId::Mars, BodyId::Phobos, BodyId::Deimos, BodyId::Ceres, BodyId::Vesta,
                                 BodyId::Jupiter, BodyId::Io, BodyId::Europa, BodyId::Ganymede, BodyId::Callisto,
                                 BodyId::Saturn, BodyId::Titan, BodyId::Enceladus, BodyId::Mimas, BodyId::Iapetus, BodyId::Rhea,
                                 BodyId::Uranus, BodyId::Miranda, BodyId::Ariel, BodyId::Umbriel, BodyId::Titania, BodyId::Oberon,
                                 BodyId::Neptune, BodyId::Triton, BodyId::Proteus, BodyId::Pluto, BodyId::Charon,
+                                BodyId::Voyager1, BodyId::Voyager2,
                             ];
 
                             let c_col = col as i32;
@@ -154,7 +155,7 @@ impl App {
                                     let px = ((ndc_x + 1.0) * 0.5 * b_cols as f64) as i32;
                                     let py = ((1.0 - ndc_y) * 0.5 * b_lines as f64) as i32;
                                     let hit_center = (c_col - px).abs() <= 3 && (c_row - py).abs() <= 1;
-                                    let hit_label = c_col >= px && c_col <= px + 12 && (c_row - py).abs() <= 1;
+                                    let hit_label = c_col >= px && c_col <= px + 24 && (c_row - py).abs() <= 1;
                                     if hit_center || hit_label {
                                         clicked_body = Some(b_id);
                                         break;
@@ -274,7 +275,19 @@ impl App {
                             KeyCode::Char('z') | KeyCode::Char('Z') => {
                                 if self.camera.target_body == BodyId::Sun {
                                     self.camera.toggle_sun_zoom();
+                                } else if self.camera.target_body == BodyId::Voyager1 || self.camera.target_body == BodyId::Voyager2 {
+                                    self.camera.toggle_golden_record(self.physics.sun.position);
                                 }
+                            }
+                            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                                let dest = if self.camera.target_body == BodyId::Voyager1 {
+                                    BodyId::Voyager2
+                                } else {
+                                    BodyId::Voyager1
+                                };
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.get_body(dest).position;
+                                self.camera.start_transition(dest, from_pos, to_pos, 1.6);
                             }
                             KeyCode::Char('1') => {
                                 self.camera.last_focused_planet = BodyId::Mercury;

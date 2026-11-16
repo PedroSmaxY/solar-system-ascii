@@ -4,7 +4,7 @@
 > *Rendered directly in your terminal using 24-bit TrueColor ANSI Half-Block Raymarching — 100% CPU, zero GPU dependencies.*
 
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
-[![Release](https://img.shields.io/badge/release-v1.3.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
+[![Release](https://img.shields.io/badge/release-v1.4.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Terminal](https://img.shields.io/badge/terminal-TrueColor%2024--bit-purple.svg?style=flat-square)]()
 [![Performance](https://img.shields.io/badge/framerate-600%2B%20FPS-brightgreen.svg?style=flat-square)]()
@@ -221,8 +221,11 @@ Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.44$, and $u_2 = 0.17$. Photos
 | `A` / `D` or `←` / `→` | **Camera Yaw (Orbit)** | Orbit camera azimuth continuously $360^\circ$ around the target. |
 | `+` / `-` | **Exponential Zoom** | Fine exponential zoom in / out. Zooming out far enough automatically returns to the Orrery overview. |
 | `Tab` / `Shift+Tab` | **Sequential World Cycle** | Step sequentially forward and backward across all worlds (`Sun -> Mercury -> Venus -> Earth -> Mars -> Ceres -> Vesta -> Jupiter -> Saturn -> Uranus -> Neptune -> Pluto -> Sun`). |
-| `Backspace` | **Ascend Hierarchy** | Intuitive celestial ascent: `Moon -> Parent Planet -> Solar System Overview`. |
-| `0` / `Z` | **Solar System $\leftrightarrow$ Sun** | Seamless dive from interplanetary overview to $2.800.000\text{ km}$ solar photosphere close-up, and back. |
+| `Backspace` | **Ascend Hierarchy** | Intuitive celestial ascent: `Voyager / Moon -> Parent Planet / Sun -> Solar System Overview`. |
+| `0` | **Solar System $\leftrightarrow$ Sun** | Seamless dive from interplanetary overview to $2.800.000\text{ km}$ solar photosphere close-up, and back. |
+| `Y` | **Interstellar Probes** | Direct toggle between interstellar spacecraft **Voyager 1** ($163.5\text{ AU}$) and **Voyager 2** ($136.8\text{ AU}$). |
+| `Z` | **Close-up / Golden Record** | At Voyager: toggle $3\text{ m}$ Golden Record close-up. At Sun: toggle $2.800.000\text{ km}$ photosphere close-up. |
+| `F` | **Align to Sun / Pale Blue Dot** | At Voyager: look back along antenna axis to distant Earth and Sun ("Pale Blue Dot"). At worlds: frame Sun on limb. |
 | `1` – `8` | **Planetary Jumps** | Mercury (`1`), Venus (`2`), Earth (`3`), Mars (`4`), Jupiter (`5`), Saturn (`6`), Uranus (`7`), Neptune (`8`). |
 | `9` | **Pluto & Charon** | Jump to the binary dwarf world and Tombaugh Regio nitrogen ice heart. |
 | `P` | **Asteroid Belt Worlds** | Jump to dwarf planet Ceres (Occator faculae) and protoplanet Vesta (Rheasilvia basin). |

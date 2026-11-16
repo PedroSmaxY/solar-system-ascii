@@ -44,7 +44,7 @@ use crate::render::triton_shader::TritonShader;
 use crate::render::proteus_shader::ProteusShader;
 use crate::render::pluto_shader::PlutoShader;
 use crate::render::charon_shader::CharonShader;
-use crate::physics::ephemeris::{VOYAGER_1_VEC_KM, VOYAGER_2_VEC_KM};
+use crate::render::voyager_shader::VoyagerShader;
 use crate::render::stars::Starfield;
 use crate::render::sun_shader::SunShader;
 use crate::render::titan_shader::TitanShader;
@@ -89,6 +89,7 @@ pub struct Raycaster {
     pub proteus_shader: ProteusShader,
     pub pluto_shader: PlutoShader,
     pub charon_shader: CharonShader,
+    pub voyager_shader: VoyagerShader,
 }
 
 struct SphereHit {
@@ -133,6 +134,7 @@ impl Raycaster {
             proteus_shader: ProteusShader::new(),
             pluto_shader: PlutoShader::new(),
             charon_shader: CharonShader::new(),
+            voyager_shader: VoyagerShader::new(),
         }
     }
 
@@ -375,6 +377,18 @@ impl Raycaster {
         let charon_rad = physics.charon.radius_km;
         let charon_mat = physics.charon.orientation_matrix();
         let charon_mat_inv = charon_mat.transpose();
+
+        let cam_pos = camera.position();
+        let v1_pos = physics.voyager1.position;
+        let v2_pos = physics.voyager2.position;
+        let v1_mat = VoyagerShader::orientation_matrix(v1_pos, sun_pos);
+        let v1_mat_inv = v1_mat.transpose();
+        let v2_mat = VoyagerShader::orientation_matrix(v2_pos, sun_pos);
+        let v2_mat_inv = v2_mat.transpose();
+        let cam_dist_v1 = (cam_pos - v1_pos).length();
+        let cam_dist_v2 = (cam_pos - v2_pos).length();
+        let check_v1 = cam_dist_v1 < 100.0 || camera.target_body == BodyId::Voyager1;
+        let check_v2 = cam_dist_v2 < 100.0 || camera.target_body == BodyId::Voyager2;
 
         let mut hit_mask: Vec<bool> = vec![false; cols * v_height];
 
@@ -978,6 +992,54 @@ impl Raycaster {
                         }
                     }
 
+                    // Voyager 1 hit (Analytical CSG Spacecraft)
+                    if check_v1 {
+                        let v1_local_ray = Ray::new(
+                            v1_mat_inv.mul_vec(ray.origin - v1_pos),
+                            v1_mat_inv.mul_vec(ray.dir),
+                        );
+                        if let Some(v_hit) = self.voyager_shader.intersect_local(&v1_local_ray) {
+                            let is_closer = match closest_hit {
+                                Some(ref h) => v_hit.t < h.t,
+                                None => true,
+                            };
+                            if is_closer {
+                                let hit_pos = ray.at(v_hit.t);
+                                let norm = v1_mat.mul_vec(v_hit.local_norm);
+                                closest_hit = Some(SphereHit {
+                                    t: v_hit.t,
+                                    body_id: BodyId::Voyager1,
+                                    world_pos: hit_pos,
+                                    world_norm: norm,
+                                });
+                            }
+                        }
+                    }
+
+                    // Voyager 2 hit (Analytical CSG Spacecraft)
+                    if check_v2 {
+                        let v2_local_ray = Ray::new(
+                            v2_mat_inv.mul_vec(ray.origin - v2_pos),
+                            v2_mat_inv.mul_vec(ray.dir),
+                        );
+                        if let Some(v_hit) = self.voyager_shader.intersect_local(&v2_local_ray) {
+                            let is_closer = match closest_hit {
+                                Some(ref h) => v_hit.t < h.t,
+                                None => true,
+                            };
+                            if is_closer {
+                                let hit_pos = ray.at(v_hit.t);
+                                let norm = v2_mat.mul_vec(v_hit.local_norm);
+                                closest_hit = Some(SphereHit {
+                                    t: v_hit.t,
+                                    body_id: BodyId::Voyager2,
+                                    world_pos: hit_pos,
+                                    world_norm: norm,
+                                });
+                            }
+                        }
+                    }
+
                     // Saturn Ring Plane intersection (in Saturn's equatorial coordinate frame)
                     let sat_local_o = saturn_mat_inv.mul_vec(ray.origin - saturn_pos);
                     let sat_local_d = saturn_mat_inv.mul_vec(ray.dir);
@@ -1267,6 +1329,30 @@ impl Raycaster {
                                 let local_view = charon_mat_inv.mul_vec(view_dir);
                                 let dist_au = (hit.world_pos - sun_pos).length() / 149_597_870.7;
                                 self.charon_shader.shade(local_norm, local_sun, local_view, dist_au)
+                            }
+                            BodyId::Voyager1 => {
+                                let v1_local_ray = Ray::new(
+                                    v1_mat_inv.mul_vec(ray.origin - v1_pos),
+                                    v1_mat_inv.mul_vec(ray.dir),
+                                );
+                                if let Some(v_hit) = self.voyager_shader.intersect_local(&v1_local_ray) {
+                                    let local_view = -v1_local_ray.dir;
+                                    self.voyager_shader.shade(&v_hit, local_view, cam_dist_v1)
+                                } else {
+                                    [220, 220, 230]
+                                }
+                            }
+                            BodyId::Voyager2 => {
+                                let v2_local_ray = Ray::new(
+                                    v2_mat_inv.mul_vec(ray.origin - v2_pos),
+                                    v2_mat_inv.mul_vec(ray.dir),
+                                );
+                                if let Some(v_hit) = self.voyager_shader.intersect_local(&v2_local_ray) {
+                                    let local_view = -v2_local_ray.dir;
+                                    self.voyager_shader.shade(&v_hit, local_view, cam_dist_v2)
+                                } else {
+                                    [220, 220, 230]
+                                }
                             }
                         };
 
@@ -1777,8 +1863,8 @@ impl Raycaster {
         // 12. Interstellar Probes Voyager 1 & Voyager 2 (visible at distances > 3.0e9 km / 20 AU)
         if camera.distance_km > 3.0e9 {
             let probes = [
-                (VOYAGER_1_VEC_KM, [140, 230, 255]),
-                (VOYAGER_2_VEC_KM, [110, 210, 250]),
+                (physics.voyager1.position, [140, 230, 255]),
+                (physics.voyager2.position, [110, 210, 250]),
             ];
             for (p_pos, color) in &probes {
                 let to_p = *p_pos - cam_pos;
