@@ -3285,3 +3285,90 @@ fn test_ux_system_view_toggle() {
     };
     assert_eq!(target_dist_return, 21_000.0);
 }
+
+#[test]
+fn test_ux_same_body_transition_no_parabolic_spike() {
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::{BodyViewState, Camera};
+
+    let physics = SolarSystemPhysics::new();
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Jupiter, physics.jupiter.position);
+    cam.distance_km = 2_800_000.0; // System view altitude
+
+    let close_view = BodyViewState {
+        azimuth: cam.azimuth,
+        elevation: cam.elevation,
+        distance_km: 210_000.0,
+    };
+
+    // Trigger transition on the same body to close-up
+    cam.transition_to_view(BodyId::Jupiter, physics.jupiter.position, physics.jupiter.position, close_view, 1.2);
+
+    let trans = cam.transition.as_ref().unwrap();
+    // In same-body transition, journey_dist_km must be 0.0 to prevent parabolic arch
+    assert_eq!(trans.journey_dist_km, 0.0);
+
+    // Step through 20%, 50%, 80% of transition flight
+    for _step in 1..=5 {
+        cam.update(0.2, &physics);
+        if let Some(_) = cam.transition {
+            // Distance must monotonically decrease without any zoom-out overshoot above 2,800,000 km!
+            assert!(
+                cam.distance_km <= 2_800_000.0,
+                "Distance must not overshoot start distance, got {}",
+                cam.distance_km
+            );
+            assert!(
+                cam.distance_km >= 210_000.0,
+                "Distance must not drop below target distance, got {}",
+                cam.distance_km
+            );
+        }
+    }
+}
+
+#[test]
+fn test_ux_click_to_fly_screen_projection() {
+    use solar_system_ascii::math::Vec3;
+    use solar_system_ascii::physics::body::BodyId;
+    use solar_system_ascii::physics::SolarSystemPhysics;
+    use solar_system_ascii::render::camera::Camera;
+
+    let physics = SolarSystemPhysics::new();
+    let mut cam = Camera::new();
+    cam.set_target(BodyId::Earth, physics.earth.position);
+    cam.distance_km = 600_000.0;
+    cam.azimuth = 0.0;
+    cam.elevation = 0.0;
+
+    let cam_pos = cam.position();
+    let (sin_az, cos_az) = cam.azimuth.sin_cos();
+    let (sin_el, cos_el) = cam.elevation.sin_cos();
+    let f = Vec3::new(-cos_el * sin_az, -sin_el, -cos_el * cos_az);
+    let r = Vec3::new(cos_az, 0.0, -sin_az);
+    let u = Vec3::new(-sin_el * sin_az, cos_el, -sin_el * cos_az);
+
+    let cols = 120;
+    let lines = 40;
+    let screen_aspect = (cols as f64) / ((lines * 2) as f64) / 1.05;
+    let tan_half_fov_y = (cam.fov_y_rad * 0.5).tan();
+    let tan_half_fov_x = tan_half_fov_y * screen_aspect;
+
+    // Earth is at target_pos right in front of camera: should project directly onto screen center
+    let to_earth = physics.earth.position - cam_pos;
+    let dist = to_earth.length();
+    let dir = to_earth / dist;
+    let f_dot = dir.dot(f);
+    assert!(f_dot > 0.9);
+
+    let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+    let ndc_y = dir.dot(u) / (f_dot * tan_half_fov_y);
+
+    let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as i32;
+    let py = ((1.0 - ndc_y) * 0.5 * lines as f64) as i32;
+
+    assert!((px - (cols as i32 / 2)).abs() <= 2);
+    assert!((py - (lines as i32 / 2)).abs() <= 2);
+}

@@ -1659,7 +1659,7 @@ impl Raycaster {
             }
         }
 
-        // 11. Keplerian Planetary Orbit Lines (when camera.show_orbit_lines is active)
+        // 11. Keplerian Planetary and Lunar Orbit Lines (when camera.show_orbit_lines is active)
         if camera.show_orbit_lines {
             let orbits = [
                 (&physics.mercury.orbit, [135, 115, 95]),
@@ -1704,6 +1704,68 @@ impl Raycaster {
                                 let pixel_idx = py * cols + px;
                                 if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
                                     buffer.pixels[pixel_idx] = Pixel::new(color[0], color[1], color[2], '.');
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Natural satellite orbits around their host worlds (visible when viewing planetary systems)
+            let moon_systems: &[(&Option<crate::physics::ephemeris::KeplerOrbit>, Vec3, [u8; 3], f64)] = &[
+                (&physics.moon.orbit, earth_pos, [145, 175, 210], 2_000_000.0),
+                (&physics.phobos.orbit, mars_pos, [180, 140, 110], 250_000.0),
+                (&physics.deimos.orbit, mars_pos, [160, 150, 140], 250_000.0),
+                (&physics.io.orbit, jupiter_pos, [215, 185, 75], 12_000_000.0),
+                (&physics.europa.orbit, jupiter_pos, [165, 185, 215], 12_000_000.0),
+                (&physics.ganymede.orbit, jupiter_pos, [175, 160, 145], 12_000_000.0),
+                (&physics.callisto.orbit, jupiter_pos, [145, 145, 155], 12_000_000.0),
+                (&physics.titan.orbit, saturn_pos, [215, 185, 120], 10_000_000.0),
+                (&physics.enceladus.orbit, saturn_pos, [195, 215, 235], 10_000_000.0),
+                (&physics.mimas.orbit, saturn_pos, [175, 175, 185], 10_000_000.0),
+                (&physics.iapetus.orbit, saturn_pos, [160, 150, 140], 10_000_000.0),
+                (&physics.rhea.orbit, saturn_pos, [185, 190, 195], 10_000_000.0),
+                (&physics.miranda.orbit, uranus_pos, [165, 175, 185], 6_000_000.0),
+                (&physics.ariel.orbit, uranus_pos, [185, 195, 205], 6_000_000.0),
+                (&physics.umbriel.orbit, uranus_pos, [130, 130, 140], 6_000_000.0),
+                (&physics.titania.orbit, uranus_pos, [165, 165, 175], 6_000_000.0),
+                (&physics.oberon.orbit, uranus_pos, [155, 155, 165], 6_000_000.0),
+                (&physics.triton.orbit, neptune_pos, [175, 195, 220], 6_000_000.0),
+                (&physics.proteus.orbit, neptune_pos, [120, 125, 135], 6_000_000.0),
+                (&physics.charon.orbit, pluto_pos, [165, 155, 145], 150_000.0),
+            ];
+
+            for (orb_opt, parent_center, color, max_cam_dist) in moon_systems {
+                if (cam_pos - *parent_center).length() <= *max_cam_dist {
+                    if let Some(ref orb) = orb_opt {
+                        const MOON_NODES: usize = 128;
+                        let period = orb.period;
+                        for step in 0..MOON_NODES {
+                            let t_sample = (step as f64) * (period / MOON_NODES as f64);
+                            let p_pos = *parent_center + orb.calculate_position(t_sample);
+                            let to_p = p_pos - cam_pos;
+                            let dist = to_p.length();
+                            if dist < 1.0 {
+                                continue;
+                            }
+                            let dir = to_p / dist;
+                            let f_dot = dir.dot(f);
+                            if f_dot <= 0.05 {
+                                continue;
+                            }
+
+                            let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+                            let ndc_y = dir.dot(u_vec) / (f_dot * tan_half_fov_y);
+
+                            if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                                let px = ((ndc_x + 1.0) * 0.5 * cols as f64) as usize;
+                                let py = ((1.0 - ndc_y) * 0.5 * v_height as f64) as usize;
+
+                                if px < cols && py < v_height {
+                                    let pixel_idx = py * cols + px;
+                                    if !hit_mask[pixel_idx] && !buffer.pixels[pixel_idx].is_text {
+                                        buffer.pixels[pixel_idx] = Pixel::new(color[0], color[1], color[2], '.');
+                                    }
                                 }
                             }
                         }

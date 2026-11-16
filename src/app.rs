@@ -1,5 +1,6 @@
 //! Main simulation loop at 60 FPS with responsive interaction.
 
+use crate::math::Vec3;
 use crate::physics::body::BodyId;
 use crate::physics::SolarSystemPhysics;
 use crate::render::buffer::{FrameBuffer, RenderMode};
@@ -93,9 +94,82 @@ impl App {
             // Handle non-blocking keyboard and mouse input
             while let Some(evt) = self.term.poll_event() {
                 match evt {
-                    TerminalEvent::MouseClick { .. } => {
+                    TerminalEvent::MouseClick { col, row } => {
+                        let b_cols = self.buffer.cols;
+                        let b_lines = self.buffer.lines;
                         if self.show_help {
                             self.show_help = false;
+                        } else if row >= b_lines.saturating_sub(1) as u16
+                            && col >= b_cols.saturating_sub(12) as u16
+                        {
+                            self.show_help = true;
+                        } else {
+                            // Click-to-Fly: Raycast screen coordinates to nearest celestial body
+                            let cam_pos = self.camera.position();
+                            let (sin_az, cos_az) = self.camera.azimuth.sin_cos();
+                            let (sin_el, cos_el) = self.camera.elevation.sin_cos();
+                            let f = Vec3::new(-cos_el * sin_az, -sin_el, -cos_el * cos_az);
+                            let r = Vec3::new(cos_az, 0.0, -sin_az);
+                            let u = Vec3::new(-sin_el * sin_az, cos_el, -sin_el * cos_az);
+                            let pixel_aspect = match self.buffer.mode {
+                                RenderMode::Ascii => 2.15,
+                                RenderMode::HalfBlock => 1.05,
+                            };
+                            let v_height = self.buffer.virtual_height();
+                            let screen_aspect = (b_cols as f64) / (v_height as f64) / pixel_aspect;
+                            let tan_half_fov_y = (self.camera.fov_y_rad * 0.5).tan();
+                            let tan_half_fov_x = tan_half_fov_y * screen_aspect;
+
+                            const TARGETABLE_BODIES: [BodyId; 32] = [
+                                BodyId::Sun, BodyId::Mercury, BodyId::Venus, BodyId::Earth, BodyId::Moon,
+                                BodyId::Mars, BodyId::Phobos, BodyId::Deimos, BodyId::Ceres, BodyId::Vesta,
+                                BodyId::Jupiter, BodyId::Io, BodyId::Europa, BodyId::Ganymede, BodyId::Callisto,
+                                BodyId::Saturn, BodyId::Titan, BodyId::Enceladus, BodyId::Mimas, BodyId::Iapetus, BodyId::Rhea,
+                                BodyId::Uranus, BodyId::Miranda, BodyId::Ariel, BodyId::Umbriel, BodyId::Titania, BodyId::Oberon,
+                                BodyId::Neptune, BodyId::Triton, BodyId::Proteus, BodyId::Pluto, BodyId::Charon,
+                            ];
+
+                            let c_col = col as i32;
+                            let c_row = row as i32;
+                            let mut clicked_body: Option<BodyId> = None;
+
+                            for &b_id in &TARGETABLE_BODIES {
+                                if b_id == self.camera.target_body {
+                                    continue;
+                                }
+                                let b_pos = self.physics.get_body(b_id).position;
+                                let to_b = b_pos - cam_pos;
+                                let dist = to_b.length();
+                                if dist < 1.0 {
+                                    continue;
+                                }
+                                let dir = to_b / dist;
+                                let f_dot = dir.dot(f);
+                                if f_dot <= 0.05 {
+                                    continue;
+                                }
+                                let ndc_x = dir.dot(r) / (f_dot * tan_half_fov_x);
+                                let ndc_y = dir.dot(u) / (f_dot * tan_half_fov_y);
+                                if ndc_x.abs() < 0.98 && ndc_y.abs() < 0.95 {
+                                    let px = ((ndc_x + 1.0) * 0.5 * b_cols as f64) as i32;
+                                    let py = ((1.0 - ndc_y) * 0.5 * b_lines as f64) as i32;
+                                    let hit_center = (c_col - px).abs() <= 3 && (c_row - py).abs() <= 1;
+                                    let hit_label = c_col >= px && c_col <= px + 12 && (c_row - py).abs() <= 1;
+                                    if hit_center || hit_label {
+                                        clicked_body = Some(b_id);
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if let Some(target) = clicked_body {
+                                let from_pos = self.physics.get_body(self.camera.target_body).position;
+                                let to_pos = self.physics.get_body(target).position;
+                                if target != BodyId::Sun {
+                                    self.camera.last_focused_planet = target;
+                                }
+                                self.camera.start_transition(target, from_pos, to_pos, 1.4);
+                            }
                         }
                     }
                     TerminalEvent::MouseScrollUp => {
@@ -127,7 +201,7 @@ impl App {
                                     return;
                                 }
                             }
-                            KeyCode::Char('?') | KeyCode::F(1) => {
+                            KeyCode::Char('?') | KeyCode::F(1) | KeyCode::Char('/') => {
                                 self.show_help = !self.show_help;
                             }
                             KeyCode::Backspace => {
@@ -335,6 +409,9 @@ impl App {
                                 };
                                 let mut end_view = Camera::default_view(body);
                                 end_view.distance_km = target_dist;
+                                if (target_dist - sys_dist).abs() < 1.0 {
+                                    end_view.elevation = end_view.elevation.max(0.38);
+                                }
                                 let from_pos = self.physics.get_body(self.camera.target_body).position;
                                 let to_pos = self.physics.get_body(body).position;
                                 self.camera.transition_to_view(body, from_pos, to_pos, end_view, 1.2);

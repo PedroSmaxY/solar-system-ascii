@@ -93,11 +93,17 @@ impl Hud {
                 BodyId::Pluto => "Pluto",
                 BodyId::Charon => "Charon",
             };
-            if trans.from_body == BodyId::Sun && trans.to_body == BodyId::Sun {
-                if trans.end_view.distance_km < trans.start_view.distance_km {
-                    "Zoom: Sun Close-up".to_string()
+            if trans.from_body == trans.to_body {
+                if trans.from_body == BodyId::Sun {
+                    if trans.end_view.distance_km < trans.start_view.distance_km {
+                        "Zoom: Sun Close-up".to_string()
+                    } else {
+                        "Zoom: Solar System Overview".to_string()
+                    }
+                } else if trans.end_view.distance_km < trans.start_view.distance_km {
+                    format!("Zoom: {} Close-up", to)
                 } else {
-                    "Zoom: Solar System Overview".to_string()
+                    format!("Zoom: {} System Overview", to)
                 }
             } else {
                 format!("Transit: {} -> {}", from, to)
@@ -172,17 +178,45 @@ impl Hud {
             format!("{:.1} years/s", time_warp / 31_536_000.0)
         };
 
+        let sim_days = physics.sim_time / 86400.0;
+        let date_str = if sim_days.abs() < 365.25 {
+            format!("T+ {:.1}d", sim_days)
+        } else {
+            format!("T+ {:.2}y", sim_days / 365.25)
+        };
+
         // Top Header (Line 0)
-        let title = format!("AstroEngine · {} · {}", target_name, dist_str);
-        let status = format!("{} · {} · {:.0} FPS", mode_str, warp_str, fps);
-        let title_len = title.chars().count();
-        let status_len = status.chars().count();
+        let title_full = format!("AstroEngine · {} · {}", target_name, dist_str);
+        let status_full = format!("{} · {} · {} · {:.0} FPS", date_str, mode_str, warp_str, fps);
+        let status_compact = format!("{} · {} · {:.0} FPS", date_str, warp_str, fps);
+        let status_min = format!("{} · {:.0} FPS", warp_str, fps);
+
+        let title_len = title_full.chars().count();
+        let status_len = status_full.chars().count();
 
         if cols > title_len + status_len + 4 {
-            Self::draw_text(buffer, 1, 0, &title, [180, 215, 255]);
-            Self::draw_text(buffer, cols - status_len - 1, 0, &status, [200, 215, 230]);
+            Self::draw_text(buffer, 1, 0, &title_full, [180, 215, 255]);
+            Self::draw_text(buffer, cols - status_len - 1, 0, &status_full, [200, 215, 230]);
         } else {
-            Self::draw_text(buffer, 1, 0, &title, [180, 215, 255]);
+            // Responsive fallback for standard 80x24 terminals:
+            // Strip long prefix to guarantee status (PAUSED / Warp / FPS) remains 100% visible
+            let target_short = target_name
+                .trim_start_matches("AstroEngine · ")
+                .trim_start_matches("Solar System › ");
+            let title_short = format!("{} · {}", target_short, dist_str);
+            let s = if cols >= title_short.chars().count() + status_compact.chars().count() + 3 {
+                &status_compact
+            } else {
+                &status_min
+            };
+            let s_len = s.chars().count();
+            let avail_title = cols.saturating_sub(s_len + 3);
+            let title_fit: String = title_short.chars().take(avail_title).collect();
+
+            Self::draw_text(buffer, 1, 0, &title_fit, [180, 215, 255]);
+            if cols > s_len + 2 {
+                Self::draw_text(buffer, cols - s_len - 1, 0, s, [200, 215, 230]);
+            }
         }
 
         // 3D Celestial Body Labels ([Sun], [Earth], [Moon]) with elegant offsets
@@ -424,17 +458,18 @@ impl Hud {
             "┌───────────────── AstroEngine 3D Navigation ──────────────────┐",
             "│ Orbit & Look    [W/A/S/D] or [Arrows] or Left-Click Drag     │",
             "│ Zoom In / Out   [+] / [-] or Mouse Scroll Wheel              │",
+            "│ Click-to-Fly    Click any planet, moon, or [Name] to Fly     │",
             "│ Solar System    [0] Overview  [Tab / Shift+Tab] Cycle Worlds │",
             "│ Direct Target   [1-9] Mercury..Pluto  [P] Ceres/Vesta        │",
             "│ Moon Systems    [M] Cycle Moons & Return  [N] System View    │",
             "│ Ascend / Back   [Backspace] Moon -> Planet -> Solar System   │",
             "│ Solar Alignment [F] Align to Sun  [Z] Sun Close-up Toggle    │",
             "│ Features        [L] Orbit Lines  [V] Venus Radar Mode        │",
-            "│ Simulation      [Space] Pause  [T] Warp  [\\] 10 min/s        │",
+            "│ Simulation      [Space] Pause  [T] Warp  [,/.] Fine  [\\] 10m │",
             "│ Display         [B] ASCII / HD Half-Block  [H] Toggle HUD    │",
             "│ Recenter View   [R] Recenter Camera Perspective              │",
             "│ Quit / Exit     [Q / Esc / Ctrl+C] Quit                      │",
-            "└──────────── Press [?], [Esc], or Click to Close ─────────────┘",
+            "└─────────── Press [?], [/], [Esc], or Click to Close ─────────┘",
         ];
         let modal_h = lines_text.len().min(lines.saturating_sub(2));
         if modal_w < 30 || modal_h < 6 {

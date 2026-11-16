@@ -2,6 +2,52 @@
 
 All notable changes to **solar-system-ascii (AstroEngine)** will be documented in this file.
 
+## [1.3.0] - 2026-11-16
+
+### 🪐 Interactive "Click-to-Fly", Lunar Orbit Lines & Navigation Polish
+
+#### 🖱️ Interactive "Click-to-Fly" Mouse Navigation
+- **Screen-Space Raycasting & Selection**:
+  - Left-clicking anywhere on a celestial body or its 3D text tag (`[Name]`) automatically triggers a smooth cinematic flight (`start_transition`) directly to that world.
+  - Clicking on the bottom-right `[?] Help` indicator toggles the interactive help modal.
+
+#### 🛰️ Planetary Moon Orbit Lines (`[L]`)
+- **NASA Eyes-Style Lunar Trajectories**:
+  - In addition to the 10 heliocentric planetary orbits, toggling `[L]` now renders the elliptical Keplerian trajectories for all major natural satellites around their host worlds:
+    - Earth: Moon
+    - Mars: Phobos, Deimos
+    - Jupiter: Io, Europa, Ganymede, Callisto
+    - Saturn: Titan, Enceladus, Mimas, Iapetus, Rhea
+    - Uranus: Miranda, Ariel, Umbriel, Titania, Oberon
+    - Neptune: Triton, Proteus
+    - Pluto: Charon
+  - Hierarchical LOD: Satellite orbits only activate within their host planet's proximity, avoiding visual noise at interplanetary distances.
+
+#### 🎯 System View (`[N]`) Polish & Parabolic Overshoot Fix
+- **Elimination of Parabolic Spike**:
+  - In same-body transitions (`from_body == to_body`), `journey_dist_km` is set strictly to `0.0`, resulting in pure logarithmic distance zooming without false parabolic altitude spikes when returning to surface view.
+- **Oblique System Overview Perspective**:
+  - When toggling to system overview (`[N]`), camera pitch elevates to at least $0.38\text{ rad}$ ($22^\circ$), opening up the satellite orbital plane in elegant 3D perspective rather than an edge-on disc.
+- **Contextual HUD Labeling**:
+  - Displays `"Zoom: <World> Close-up"` and `"Zoom: <World> System Overview"` instead of `"Transit: <World> -> <World>"`.
+
+#### 🚀 Camera Velocity & Inertia Smoothing
+- **Transition Velocity Reset**:
+  - `vel_azimuth` and `vel_elevation` are zeroed out upon initiating transitions, canceling transitions, or aligning to the Sun, preventing residual angular impulses from kicking the camera off-target upon arrival.
+- **Clamped Orbit Impulse**:
+  - Angular velocity increments are clamped to $[-0.5, 0.5]$ to prevent runaway spinning from rapid trackpad flicks.
+
+#### 📊 Responsive HUD & Astronomical Telemetry
+- **Guaranteed Visibility on 80x24 Terminals**:
+  - Intelligent responsive header compacts the celestial breadcrumb string when terminal columns $\le 80$, ensuring `PAUSED`, simulation time warp, and FPS are never suppressed.
+- **Simulation Epoch Indicator**:
+  - Displays elapsed simulated mission time (`T+ 14.2d` / `T+ 1.45y`) in the top HUD telemetry header.
+- **Single-Key Help Shortcut (`/`)**:
+  - Added `/` as a zero-modifier shortcut to open help on international and ABNT2 keyboards.
+  - Documented fine time warp `[,]` / `[.]` in the Help Modal.
+
+---
+
 ## [1.2.0] - 2026-11-16
 
 ### 🚀 UX, Cross-Platform Robustness & Terminal Polishing

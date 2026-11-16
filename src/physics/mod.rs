@@ -53,6 +53,7 @@ pub struct SolarSystemPhysics {
     pub neptunian_swarm: NeptunianMoonSwarm,
     pub pluto: CelestialBody,
     pub charon: CelestialBody,
+    pub sim_time: f64,
 }
 
 impl SolarSystemPhysics {
@@ -95,11 +96,13 @@ impl SolarSystemPhysics {
             neptunian_swarm: NeptunianMoonSwarm::new(),
             pluto: CelestialBody::new_pluto(),
             charon: CelestialBody::new_charon(),
+            sim_time: 0.0,
         }
     }
 
     /// Update physics state for time t (seconds).
     pub fn update(&mut self, t: f64) {
+        self.sim_time = t;
         // 1. Sun remains at origin in heliocentric reference
         self.sun.position = Vec3::ZERO;
         self.sun.rotation_angle = (t * (TWO_PI / self.sun.rotation_period_secs)).rem_euclid(TWO_PI);

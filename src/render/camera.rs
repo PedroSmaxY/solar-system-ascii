@@ -343,9 +343,16 @@ impl Camera {
             distance_km: self.distance_km,
         };
 
-        let journey_dist_km = (to_pos - start_pos).length().max(10_000.0);
+        let dist_delta = (to_pos - start_pos).length();
         let from_body = self.target_body;
+        let journey_dist_km = if from_body == to_body || dist_delta < 1.0 {
+            0.0
+        } else {
+            dist_delta.max(10_000.0)
+        };
 
+        self.vel_azimuth = 0.0;
+        self.vel_elevation = 0.0;
         self.target_body = to_body;
 
         self.transition = Some(CameraTransition {
@@ -369,15 +376,28 @@ impl Camera {
         end_view: BodyViewState,
         duration_secs: f64,
     ) {
-        self.cancel_transition();
-        let start_pos = from_pos;
+        let start_pos = if self.transition.is_some() {
+            self.target_pos
+        } else {
+            from_pos
+        };
         let start_view = BodyViewState {
             azimuth: self.azimuth,
             elevation: self.elevation,
             distance_km: self.distance_km,
         };
-        let journey_dist_km = (to_pos - start_pos).length().max(10_000.0);
+        self.cancel_transition();
+        self.vel_azimuth = 0.0;
+        self.vel_elevation = 0.0;
+
+        let dist_delta = (to_pos - start_pos).length();
         let from_body = self.target_body;
+        let journey_dist_km = if from_body == to_body || dist_delta < 1.0 {
+            0.0
+        } else {
+            dist_delta.max(10_000.0)
+        };
+
         self.target_body = to_body;
         self.saved_views[to_body.index()] = end_view;
 
@@ -441,6 +461,8 @@ impl Camera {
             self.elevation = target_view.elevation;
             self.distance_km = target_view.distance_km;
         }
+        self.vel_azimuth = 0.0;
+        self.vel_elevation = 0.0;
     }
 
     /// Update camera flight transition animation and track moving target body.
@@ -579,8 +601,8 @@ impl Camera {
         self.cancel_transition();
         self.azimuth = (self.azimuth + d_az).rem_euclid(2.0 * PI);
         self.elevation = (self.elevation + d_el).clamp(-1.55, 1.55);
-        self.vel_azimuth += d_az * 0.35;
-        self.vel_elevation += d_el * 0.35;
+        self.vel_azimuth = (self.vel_azimuth + d_az * 0.35).clamp(-0.5, 0.5);
+        self.vel_elevation = (self.vel_elevation + d_el * 0.35).clamp(-0.5, 0.5);
         let idx = self.target_body.index();
         self.saved_views[idx].azimuth = self.azimuth;
         self.saved_views[idx].elevation = self.elevation;
@@ -602,6 +624,10 @@ impl Camera {
         if self.target_body == BodyId::Sun {
             return;
         }
+        self.cancel_transition();
+        self.vel_azimuth = 0.0;
+        self.vel_elevation = 0.0;
+
         let target_to_sun = sun_pos - self.target_pos;
         if target_to_sun.length_squared() < 1.0 {
             return;
@@ -609,7 +635,7 @@ impl Camera {
         let dir = target_to_sun.normalize();
         // Camera positioned on the terminator/night side looking towards target with Sun framed on the limb:
         let sun_az = dir.x.atan2(dir.z);
-        self.azimuth = sun_az + std::f64::consts::PI - 0.28;
+        self.azimuth = (sun_az + std::f64::consts::PI - 0.28).rem_euclid(2.0 * PI);
         self.elevation = 0.06;
 
         let idx = self.target_body.index();
@@ -619,6 +645,8 @@ impl Camera {
 
     pub fn set_target(&mut self, body: BodyId, body_pos: Vec3) {
         self.cancel_transition();
+        self.vel_azimuth = 0.0;
+        self.vel_elevation = 0.0;
         let curr_idx = self.target_body.index();
         self.saved_views[curr_idx] = BodyViewState {
             azimuth: self.azimuth,

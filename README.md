@@ -4,7 +4,7 @@
 > *Rendered directly in your terminal using 24-bit TrueColor ANSI Half-Block Raymarching — 100% CPU, zero GPU dependencies.*
 
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
-[![Release](https://img.shields.io/badge/release-v1.2.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
+[![Release](https://img.shields.io/badge/release-v1.3.0-blue.svg?style=flat-square)](https://github.com/PedroSmaxY/solar-system-ascii/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Terminal](https://img.shields.io/badge/terminal-TrueColor%2024--bit-purple.svg?style=flat-square)]()
 [![Performance](https://img.shields.io/badge/framerate-600%2B%20FPS-brightgreen.svg?style=flat-square)]()
@@ -214,6 +214,7 @@ Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.44$, and $u_2 = 0.17$. Photos
 
 | Control | Action | Description |
 | :---: | :---: | :--- |
+| **Mouse Click** | **Click-to-Fly** | Click directly on any planet, moon, or 3D text tag `[Name]` to smoothly fly to that world. |
 | **Mouse Drag** | **Orbit Camera** | Left-click and drag in any direction to smoothly orbit around the targeted celestial body. |
 | **Mouse Scroll** | **Continuous Zoom** | Scroll up to zoom in close to surface features; scroll down to zoom out to interplanetary scale. |
 | `W` / `S` or `↑` / `↓` | **Camera Pitch (Tilt)** | Orbit camera elevation up and down (polar clamped strictly between $-89^\circ$ and $+89^\circ$). |
@@ -230,10 +231,10 @@ Where $\mu = \sqrt{1 - (r / R_\odot)^2}$, $u_1 = 0.44$, and $u_2 = 0.17$. Photos
 | `F` | **Align to Sun** | Rotate orbital perspective to frame the Sun directly on the limb alongside the target body. |
 | `V` | **Toggle Venus Radar / Optical** | Switches between Venus's thick cloud deck and Magellan Synthetic Aperture Radar surface topography. |
 | `R` | **Reset to Beauty Angle** | Instantly recenters the camera to the curated optimal aesthetic angle for the focused body. |
-| `L` | **Toggle Orbit Lines** | Turn Keplerian orbit trajectories on or off. |
+| `L` | **Toggle Orbit Lines** | Turn Keplerian planetary and lunar satellite orbit trajectories on or off. |
 | `B` | **Toggle Half-Block / ASCII** | Switch between HD Half-Block (`▀`) and classic retro ASCII mode on the fly. |
 | `H` | **Toggle HUD Overlay** | Hide or show the astronomical telemetry header, breadcrumb trail, and contextual controls. |
-| `?` / `F1` | **Interactive Help Modal** | Display on-screen controls cheat sheet overlay. Dismiss with `?`, `Esc`, or Left-Click. |
+| `?` / `F1` / `/` | **Interactive Help Modal** | Display on-screen controls cheat sheet overlay. Dismiss with `?`, `/`, `Esc`, or Left-Click. |
 | `Space` | **Pause / Resume** | Freeze simulation physics and orbital evolution. |
 | `T` | **Time Warp Presets** | Instant jump: **10 min/s** $\to$ **1 day/s** $\to$ **1 month/s** $\to$ **1 year/s** $\to$ **5 years/s** $\to$ **Real-time (1x)**. |
 | `\` / `\|` | **Reset Time Warp** | Reset simulation rate back to default **10 min/s** ($600\times$). |
