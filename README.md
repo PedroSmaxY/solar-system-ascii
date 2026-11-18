@@ -14,6 +14,12 @@
 ## 📸 Visual Showcase
 
 <p align="center">
+  <img src="assets/screenshots/intro_dive.gif" alt="Grand Interplanetary Tour" width="85%" />
+  <br />
+  <em>Grand Interplanetary Tour: Earth → Saturn's Rings → Jupiter → The Sun → Solar System Orrery Zoom-Out.</em>
+</p>
+
+<p align="center">
   <img src="assets/screenshots/solar_system_orrery.png" alt="Top-Down Orrery View" width="85%" />
   <br />
   <em>Default Top-Down Orrery View: Real Keplerian orbits, main asteroid belt, hierarchical astronomical LOD, and real Hipparcos star catalog constellations.</em>
